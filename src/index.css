@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+/* 隐藏横向滚动条，但保留滑动功能 */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
