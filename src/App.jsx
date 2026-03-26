@@ -34,15 +34,17 @@ const App = () => {
         <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans selection:bg-green-200 text-gray-800">
             <div className="max-w-6xl mx-auto">
                 <header className="mb-4">
-                    <h1 className="text-3xl font-black text-gray-900 tracking-tight flex items-center">
-                        WebGIS<span className="text-cyan-600 ml-2">主干地形图终端</span>
+                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 flex flex-wrap items-end gap-x-3 gap-y-1">
+    <span>WebGIS</span>
+                        <span>WebGIS</span>
+                        <span className="text-cyan-600">主干地形图终端</span>
                     </h1>
                     <p className="text-gray-500 mt-2 font-medium flex items-center">
                         <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
                     </p>
                 </header>
 
-                <nav className="flex flex-wrap justify-center bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2" role="tablist">
+                <nav className="flex overflow-x-auto flex-nowrap bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2 scrollbar-hide" role="tablist">
                     {[
                         { id: 'map', label: '高精度地形终端', icon: MapIcon },
                         { id: 'data', label: '数据解析与管理', icon: Database },
@@ -57,7 +59,7 @@ const App = () => {
                             onClick={() => setActiveTab(tab.id)} 
                             role="tab"
                             aria-selected={activeTab === tab.id}
-                            className={`flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                            className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
                                 activeTab === tab.id 
                                     ? 'bg-zinc-900 text-white shadow-md' 
                                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
