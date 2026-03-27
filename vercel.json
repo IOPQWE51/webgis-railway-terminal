@@ -1,5 +1,40 @@
 {
   "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
-  "framework": "vite"
+  "framework": "vite",
+  "crons": [
+    {
+      "path": "/api/weather?lat=0&lon=0",
+      "schedule": "0 */6 * * *"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/weather",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=300, stale-while-revalidate=600"
+        }
+      ]
+    },
+    {
+      "source": "/api/astronomy",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=86400"
+        }
+      ]
+    }
+  ],
+  "builds": [
+    {
+      "src": "api/**.js",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 10
+      }
+    }
+  ]
 }
