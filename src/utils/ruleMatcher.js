@@ -110,11 +110,17 @@ export const checkConditions = (ruleConditions, envData) => {
     for (const [field, condition] of Object.entries(ruleConditions)) {
         let matched = false;
         
-        // 处理 requires* 类型的条件（外部事件，暂时跳过）
+        // 处理 requires* 类型的条件（地理/季节特定的规则）
+        // 现在这些条件已经在 ruleDataConverter 中被正确设置
         if (field.startsWith('requires')) {
-            // requires* 条件需要额外的事件数据源
-            // 目前标记为可选，不影响整体匹配
-            details[field] = { status: 'optional', reason: '需要外部事件数据' };
+            matched = envData[field] === condition;
+            details[field] = { 
+                status: matched ? 'passed' : 'failed',
+                expected: condition,
+                actual: envData[field],
+                note: '地理/季节条件检查'
+            };
+            if (!matched) allMatched = false;
             continue;
         }
         

@@ -128,6 +128,40 @@ export const extractCategory = (poiTypes = []) => {
 };
 
 /**
+ * 检测特殊地理和季节条件（requires* 字段）
+ * 用于判断是否应该应用特定地区的规则（如日本樱花、枫叶）
+ * @param {number} lat - 纬度
+ * @param {string} season - 季节字符串 ('spring', 'summer', 'autumn', 'winter')
+ * @returns {Object} 包含所有 requires* 条件的布尔值对象
+ */
+export const checkRequiredConditions = (lat, season) => {
+    // 🎌 日本地理范围：北纬约 24° ~ 45°
+    const isJapanRegion = lat >= 24 && lat <= 45;
+    
+    return {
+        // 🌸 樱花满开条件：春季 + 日本地区
+        requiresSakuraFull: season === 'spring' && isJapanRegion,
+        
+        // 🍁 枫叶条件：秋季 + 日本地区
+        requiresMapleLeaves: season === 'autumn' && isJapanRegion,
+        
+        // 🌊 微风天气（这个需要从天气数据判断，暂设为 false，交由匹配器处理）
+        requiresWindyWeather: false, // 在 ruleMatcher 中通过 windKph 字段判断
+        
+        // 🌌 低光污染（需要外部 API 判断，暂设为 false）
+        requiresLowLightPollution: false,
+        
+        // ⛰️ 其他天文事件（需要实时天文数据 API，暂设为 false）
+        requiresGeomagneticActivity: false, // 北极光，需要实时地磁数据
+        requiresMeteorEvent: false,         // 流星雨，需要事件日期数据
+        requiresSolarEclipse: false,        // 日食，需要事件日期数据
+        requiresLunarEclipse: false,        // 月食，需要事件日期数据
+        requiresSuperMoon: false,           // 超级月亮，需要事件日期数据
+        requiresCometEvent: false           // 彗星，需要事件日期数据
+    };
+};
+
+/**
  * 主转换函数：将 dataGateway 输出转换为规则库可用格式
  * @param {Object} gatewayData - fetchGlobalEnvironmentData 的返回值
  * @param {number} lat - 纬度
@@ -157,6 +191,9 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
     
     // 提取分类
     const category = extractCategory(terrain.poiTypes);
+    
+    // ✨ 检测特殊地理条件（樱花、枫叶等地区特定规则）
+    const requiredConditions = checkRequiredConditions(lat, climate.season);
     
     return {
         // ========== 时间与季节 ==========
@@ -193,6 +230,18 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         minMoonPhase: astronomy.moonPhase,
         maxMoonPhase: astronomy.moonPhase,
         sunElevationMax: astronomy.solarAltitude,
+        
+        // ========== 特殊地理条件（requires* 字段）🌏 ==========
+        requiresSakuraFull: requiredConditions.requiresSakuraFull,
+        requiresMapleLeaves: requiredConditions.requiresMapleLeaves,
+        requiresWindyWeather: requiredConditions.requiresWindyWeather,
+        requiresLowLightPollution: requiredConditions.requiresLowLightPollution,
+        requiresGeomagneticActivity: requiredConditions.requiresGeomagneticActivity,
+        requiresMeteorEvent: requiredConditions.requiresMeteorEvent,
+        requiresSolarEclipse: requiredConditions.requiresSolarEclipse,
+        requiresLunarEclipse: requiredConditions.requiresLunarEclipse,
+        requiresSuperMoon: requiredConditions.requiresSuperMoon,
+        requiresCometEvent: requiredConditions.requiresCometEvent,
         
         // ========== 原始数据（保留备用） ==========
         _raw: gatewayData,
