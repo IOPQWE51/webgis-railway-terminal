@@ -1,10 +1,10 @@
+// src/utils/photoEngine.js
 import SunCalc from 'suncalc';
-// 引入你的地图常量和网关魔法书
 import { OWM_API_KEY } from '../config/mapConstants';
 import { fetchGlobalEnvironmentData } from './dataGateway'; 
 import { decisiveMomentRules } from './decisiveMoments';
 
-// 🌐 核心魔法：根据经纬度，推算当地时间 (千万不能删)
+// 🌐 核心魔法：根据经纬度，推算当地时间
 const formatLocalTimeByLon = (date, lon) => {
     if (!date || isNaN(date.getTime())) return '--:--';
     const offsetHours = Math.round(lon / 15);
@@ -25,7 +25,7 @@ export const initPhotoEvalEngine = () => {
         if (!resultDiv) return;
         
         if (btn) btn.style.display = 'none';
-        resultDiv.innerHTML = `<div style="text-align:center; padding: 10px; font-size:12px; color:#6b7280; font-weight:bold;"><span style="display:inline-block; animation:spin 1s linear infinite;">🛰️</span> 正在调用卫星网关与气象雷达...</div>`;
+        resultDiv.innerHTML = `<div style="text-align:center; padding: 10px; font-size:12px; color:#6b7280; font-weight:bold;"><span style="display:inline-block; animation:spin 1s linear infinite;">🛰️</span> 正在调用双引擎超级雷达...</div>`;
 
         try {
             // 🚀 一键调用超级网关！
@@ -34,7 +34,7 @@ export const initPhotoEvalEngine = () => {
             if (!envData.weather) throw new Error("气象节点无响应");
 
             const { season } = envData.climate;
-            const { condition, clouds, visibility, isRaining } = envData.weather;
+            const { condition, clouds, visibility, isRaining, temp } = envData.weather;
             const { now, times, moonPhase, isNight } = envData.astronomy;
             const { isCoastal } = envData.terrain;
 
@@ -43,6 +43,7 @@ export const initPhotoEvalEngine = () => {
             
             const seasonLabels = { spring: '🌸 春', summer: '🌿 夏', autumn: '🍁 秋', winter: '❄️ 冬', wet: '☔ 雨季', dry: '☀️ 旱季' };
             tags.push(`<span style="background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:4px;">${seasonLabels[season] || '🌍 当前季'}</span>`);
+            if (temp !== undefined) tags.push(`<span style="background:#fee2e2; color:#ef4444; padding:2px 6px; border-radius:4px;">🌡️ ${temp}°C</span>`);
 
             if (now >= times.goldenHour && now <= times.sunset) {
                 score += 25; tags.push(`<span style="color:#fbbf24;">🌅 黄金时刻 (+25)</span>`);
@@ -70,16 +71,28 @@ export const initPhotoEvalEngine = () => {
                 }
             }
 
+            // 3. 决定性瞬间匹配 (全面兼容新规则库)
             let decisiveMoment = null;
             for (const rule of decisiveMomentRules) {
                 const c = rule.conditions;
                 let isMatch = true;
+                
                 if (c.weather && !c.weather.some(w => condition.toLowerCase().includes(w.toLowerCase()))) isMatch = false;
                 if (c.category && !c.category.includes(category)) isMatch = false;
                 if (c.timeWindow) {
                     const [startKey, endKey] = c.timeWindow;
                     if (now < times[startKey] || now > times[endKey]) isMatch = false;
                 }
+                // 温度与月相扩展匹配
+                if (c.tempMax !== undefined && temp !== undefined && temp > c.tempMax) isMatch = false;
+                if (c.moonPhaseMin !== undefined && moonPhase < c.moonPhaseMin) isMatch = false;
+                
+                // 地形专属匹配
+                if (c.hasWaterfall && !envData.terrain.hasWaterfall) isMatch = false;
+                if (c.hasShrine && !envData.terrain.hasShrine) isMatch = false;
+                if (c.hasBridge && !envData.terrain.hasBridge) isMatch = false;
+                if (c.hasStation && !envData.terrain.hasStation) isMatch = false;
+
                 if (isMatch) { decisiveMoment = rule.output; break; }
             }
 
@@ -150,7 +163,7 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
 
             <div style="margin-top: 10px;">
                 <button id="btn-${evalId}" onclick="window.__evalPhotoCondition(event, ${pt.lat}, ${pt.lon}, '${evalId}', '${category}')" style="width: 100%; background: linear-gradient(135deg, #10b981, #06b6d4); color: white; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 900; cursor: pointer;">
-                    🔮 启动 V3.0 卫星网关演算
+                    🔮 启动双引擎雷达演算
                 </button>
                 <div id="result-${evalId}"></div>
             </div>
