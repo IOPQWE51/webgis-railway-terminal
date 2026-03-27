@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm install && npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "env": [
+    "VITE_OWM_KEY",
+    "VITE_WEATHER_API_KEY"
+  ]
+}
