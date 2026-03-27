@@ -81,29 +81,40 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     // 去重
     terrainTags = [...new Set(terrainTags)];
 
+    // 在 return 之前，加一行算太阳高度角的黑科技 (单位：度)
+    const sunPos = SunCalc.getPosition(now, lat, lon);
+    const solarAltitude = sunPos.altitude * (180 / Math.PI); 
+
+    // 为了兼容你的海量规则，把地形转化为 poiTypes 数组
+    const poiTypes = [...terrainTags]; // 继承基础地形
+    if (terrainTags.includes('water') || terrainTags.includes('beach')) poiTypes.push('coast', 'beach');
+    if (terrainTags.includes('wood')) poiTypes.push('forest');
+    if (terrainTags.includes('historic') || terrainTags.includes('place_of_worship')) poiTypes.push('shrine', 'temple', 'historical_building');
+    if (terrainTags.includes('bridge')) poiTypes.push('bridge');
+    if (terrainTags.includes('station')) poiTypes.push('station', 'neon_street', 'railway_station'); 
+    
     return {
         astronomy: {
-            now, times, moonPhase,
+            now, times, moonPhase, solarAltitude, // 新增：太阳高度角
             isNight: now < times.dawn || now > times.dusk
         },
         climate: { season },
+        ecology: {
+            // 新增：接收后端的积温数据（如果后端传了的话）
+            flowerGDD: weatherData?.ecology?.flowerGDD || 0 
+        },
         weather: weatherData ? {
-            // 兼容直接 API 和咱们自己后端的返回格式
             condition: weatherData.current?.condition?.text || weatherData.condition, 
             clouds: weatherData.current?.cloud || weatherData.clouds, 
             visibility: (weatherData.current?.vis_km * 1000) || weatherData.visibility, 
-            temp: weatherData.current?.temp_c || weatherData.temp, // 新增温度
-            humidity: weatherData.current?.humidity || weatherData.humidity, // 新增湿度
+            temp: weatherData.current?.temp_c || weatherData.temp, 
+            humidity: weatherData.current?.humidity || weatherData.humidity, // 新增：湿度
+            windKph: weatherData.current?.wind_kph || 0, // 新增：风速 (公里/小时)
             isRaining: (weatherData.current?.precip_mm > 0) || weatherData.isRaining
         } : null,
         terrain: {
             rawTags: terrainTags, 
-            isCoastal: terrainTags.includes('water') || terrainTags.includes('beach'),
-            isForest: terrainTags.includes('wood'),
-            hasWaterfall: terrainTags.includes('waterfall'),
-            hasShrine: terrainTags.includes('shrine_temple'),
-            hasBridge: terrainTags.includes('bridge'),
-            hasStation: terrainTags.includes('station')
+            poiTypes: poiTypes // 新增：兼容你规则库里的 poiType 数组
         }
     };
 };
