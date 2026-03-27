@@ -1,8 +1,12 @@
 // src/utils/photoEngine.js
+// 🎬 摄影引擎 v4.0 - 外科手术式重构版本
+// 核心流程由三行代码驱动：拿数据 → 洗数据 → 出结果
+
 import SunCalc from 'suncalc';
 import { OWM_API_KEY } from '../config/mapConstants';
 import { fetchGlobalEnvironmentData } from './dataGateway'; 
-import { decisiveMomentRules } from './decisiveMoments';
+import { convertToRuleFormat, debugPrintRuleData } from './ruleDataConverter';
+import { getTopSuggestions, groupSuggestionsByRarity } from './ruleMatcher';
 
 // 🌐 核心魔法：根据经纬度，推算当地时间
 const formatLocalTimeByLon = (date, lon) => {
@@ -15,7 +19,7 @@ const formatLocalTimeByLon = (date, lon) => {
     return `${h}:${m}`;
 };
 
-// 1. 注册 V3.0 全局打分引擎
+// 1. 注册 V4.0 全局打分引擎
 export const initPhotoEvalEngine = () => {
     window.__evalPhotoCondition = async (event, lat, lon, evalId, category = 'spot') => {
         if (event) { event.stopPropagation(); event.preventDefault(); }
@@ -28,16 +32,27 @@ export const initPhotoEvalEngine = () => {
         resultDiv.innerHTML = `<div style="text-align:center; padding: 10px; font-size:12px; color:#6b7280; font-weight:bold;"><span style="display:inline-block; animation:spin 1s linear infinite;">🛰️</span> 正在调用双引擎超级雷达...</div>`;
 
         try {
-            // 🚀 一键调用超级网关！
-            const envData = await fetchGlobalEnvironmentData(lat, lon);
+            // ============ 外科手术式换心：三行代码核心流程 ============
+            // Line 1: 拿数据 - 从网关获取原始环境数据
+            const rawEnvData = await fetchGlobalEnvironmentData(lat, lon);
             
-            if (!envData.weather) throw new Error("气象节点无响应");
+            // Line 2: 洗数据 - 转换为规则库标准格式
+            const standardData = convertToRuleFormat(rawEnvData, lat, lon);
+            
+            // Line 3: 出结果 - 匹配规则库，获取顶级建议
+            const topMatches = getTopSuggestions(standardData, 5, { minScore: 0 });
+            
+            // =========================================================
 
-            const { season } = envData.climate;
-            const { condition, clouds, visibility, isRaining, temp } = envData.weather;
-            const { now, times, moonPhase, isNight } = envData.astronomy;
-            const { isCoastal } = envData.terrain;
+            // 提取基础信息用于 UI 渲染
+            if (!rawEnvData.weather) throw new Error("气象节点无响应");
 
+            const { season } = rawEnvData.climate;
+            const { condition, clouds, visibility, isRaining, temp } = rawEnvData.weather;
+            const { now, times, moonPhase, isNight } = rawEnvData.astronomy;
+            const { isCoastal } = rawEnvData.terrain;
+
+            // ========== 综合摄影指数计算（保留原有评分逻辑）==========
             let score = 50; 
             let tags = [];
             
@@ -57,7 +72,7 @@ export const initPhotoEvalEngine = () => {
 
             if (visibility < 2000) {
                 score += 25; tags.push(`<span style="color:#a78bfa;">🌫️ 浓雾梦幻 (+25)</span>`);
-            } else if (condition.toLowerCase().includes('snow')) {
+            } else if (condition && condition.toLowerCase().includes('snow')) {
                 score += 20; tags.push(`<span style="color:#38bdf8;">❄️ 降雪 (+20)</span>`);
             } else if (isRaining) {
                 score += 15; tags.push(`<span style="color:#34d399;">🌧️ 雨中 (+15)</span>`);
@@ -71,30 +86,11 @@ export const initPhotoEvalEngine = () => {
                 }
             }
 
-            // 3. 决定性瞬间匹配 (全面兼容新规则库)
-            let decisiveMoment = null;
-            for (const rule of decisiveMomentRules) {
-                const c = rule.conditions;
-                let isMatch = true;
-                
-                if (c.weather && !c.weather.some(w => condition.toLowerCase().includes(w.toLowerCase()))) isMatch = false;
-                if (c.category && !c.category.includes(category)) isMatch = false;
-                if (c.timeWindow) {
-                    const [startKey, endKey] = c.timeWindow;
-                    if (now < times[startKey] || now > times[endKey]) isMatch = false;
-                }
-                // 温度与月相扩展匹配
-                if (c.tempMax !== undefined && temp !== undefined && temp > c.tempMax) isMatch = false;
-                if (c.moonPhaseMin !== undefined && moonPhase < c.moonPhaseMin) isMatch = false;
-                
-                // 地形专属匹配
-                if (c.hasWaterfall && !envData.terrain.hasWaterfall) isMatch = false;
-                if (c.hasShrine && !envData.terrain.hasShrine) isMatch = false;
-                if (c.hasBridge && !envData.terrain.hasBridge) isMatch = false;
-                if (c.hasStation && !envData.terrain.hasStation) isMatch = false;
-
-                if (isMatch) { decisiveMoment = rule.output; break; }
-            }
+            // ========== 决定性瞬间推荐（由新的匹配引擎提供）==========
+            const decisiveRecommendations = topMatches.slice(0, 1);
+            const decisiveMoment = decisiveRecommendations.length > 0 
+                ? decisiveRecommendations[0].output 
+                : null;
 
             score = Math.min(score, 100);
             let grade, vColor, verdict;
