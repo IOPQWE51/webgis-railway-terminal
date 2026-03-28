@@ -11,7 +11,7 @@ import { decisiveMomentRules } from './decisiveMoments';
  * @param {string} fieldName - 字段名称（用于调试）
  * @returns {boolean} 是否匹配
  */
-const matchSingleCondition = (ruleCondition, inputData, fieldName) => {
+const matchSingleCondition = (ruleCondition, inputData, _fieldName) => {
     // 处理 undefined 或 null
     if (ruleCondition === undefined || ruleCondition === null) {
         return true; // 未定义条件则视为通过
@@ -229,7 +229,7 @@ export const calculateMatchScore = (ruleConditions, envData, conditionCheck) => 
     const details = conditionCheck.details;
     
     // 惩罚项：调整分数基于细节
-    for (const [field, detail] of Object.entries(details)) {
+    for (const [, detail] of Object.entries(details)) {
         if (detail.status === 'optional') {
             // 可选条件不扣分
             continue;
@@ -314,6 +314,7 @@ export const matchRules = (envData, rules = decisiveMomentRules, options = {}) =
  * @returns {number} 星级数量 (1-5)
  */
 const extractRarity = (output) => {
+    if (typeof output !== 'string') return 3;
     const match = output.match(/⭐{1,5}/);
     return match ? match[0].length : 3; // 默认 3 星
 };

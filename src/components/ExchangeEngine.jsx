@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, ArrowRightLeft, AlertCircle, ShoppingBag, Info, Search, X, Globe } from 'lucide-react';
 
 // =====================================================================
@@ -83,7 +83,7 @@ const ExchangeEngine = ({ isActive }) => {
             const newRates = await exchangeRateService.fetchRatesBaseCNY();
             setRates(newRates);
             setLastUpdate(formatTime(new Date()));
-        } catch (err) {
+        } catch (_err) {
             setError('汇率网络连接失败，请检查网络后重试');
         } finally {
             setIsFetching(false);
@@ -95,7 +95,7 @@ const ExchangeEngine = ({ isActive }) => {
             const num = parseFloat(cnyAmount);
             if (!isNaN(num)) setTargetAmount((num * rates[targetCurrency]).toFixed(2));
         }
-    }, [rates, targetCurrency]);
+    }, [rates, targetCurrency, cnyAmount]);
 
     useEffect(() => { fetchRates(); }, [fetchRates]);
 

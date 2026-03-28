@@ -111,7 +111,9 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
                 const data = await res.json(); if (!data.weather) return;
                 const nodeHtml = `<div style="background: rgba(17,24,39,0.75); border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(4px); color: white; padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px;"><img src="https://openweathermap.org/img/wn/${data.weather[0].icon}.png" style="width: 22px; height: 22px; margin: -4px 0;" /><span style="font-size: 11px; font-weight: 800;">${city.name}</span><span style="font-size: 13px; color: #38bdf8;">${Math.round(data.main.temp)}°</span></div>`;
                 L.marker([city.lat, city.lon], { icon: L.divIcon({ html: nodeHtml, iconSize: [0,0] }) }).addTo(cityWeatherNodesRef.current);
-            } catch (err) {}
+            } catch {
+                /* 单城天气请求失败时跳过 */
+            }
         });
     }, [leafletReady, weatherType, mapRef]);
 };

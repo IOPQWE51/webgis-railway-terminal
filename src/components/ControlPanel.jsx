@@ -1,4 +1,3 @@
-import React from 'react';
 import { Loader2, CloudRain, Cloud, Map as MapIcon, Moon, Globe, Ruler, Layers, Target, Navigation, Crosshair } from 'lucide-react';
 import SearchNavEngine from './SearchNavEngine';
 

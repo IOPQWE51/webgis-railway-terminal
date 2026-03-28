@@ -1,4 +1,3 @@
-import React from 'react';
 import { PlaneTakeoff, ExternalLink, AlertTriangle, Info, Ticket, BaggageClaim } from 'lucide-react';
 
 const AviationEngine = ({ isActive }) => {

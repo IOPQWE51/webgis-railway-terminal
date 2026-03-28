@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin } from 'lucide-react';
 import { getIconStyle } from '../utils/helpers'; 
 
@@ -52,7 +52,7 @@ const geocodeService = {
         return result;
     },
 
-    parseCSVContent(text, fileName) {
+    parseCSVContent(text, _fileName) {
         const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
         const placesToFetch = [];
         if (lines.length === 0) return [];
@@ -92,7 +92,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
     // CSV 解析状态
     const [isProcessing, setIsProcessing] = useState(false);
     const [processStatus, setProcessStatus] = useState('');
-    const [progress, setProgress] = useState(0);
+    const [progress] = useState(0);
     const [failedPoints, setFailedPoints] = useState([]);
     
     // 手动补录状态
@@ -131,7 +131,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
             } else {
                 alert(`❌ 卫星未能锁定目标：“${searchData.name}”\n\n💡 极客提示：尝试输入更完整的名称，或者带上城市名（例如：“东京 浅草寺”或“Shinjuku Station”）。`);
             }
-        } catch (error) {
+        } catch (_error) {
             alert('❌ 检索引擎网络请求失败，请检查网络连接。');
         } finally {
             setIsSearching(false);
@@ -267,7 +267,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
                 return;
             }
             alert('❌ 无法识别坐标格式，请确保剪贴板包含类似 "35.6895, 139.6917" 的文本。');
-        } catch (err) {
+        } catch (_err) {
             alert('❌ 读取剪贴板失败，浏览器可能拦截了权限。请直接使用 Ctrl+V 粘贴到框内。');
         }
     }, []);

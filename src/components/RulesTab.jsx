@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Train, CheckCircle2, XCircle, Globe, ChevronDown, ChevronUp, Map, Compass, AlertTriangle, ShieldAlert } from 'lucide-react';
 
 /**

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Search, Loader2, Target } from 'lucide-react';
 
 const SearchNavEngine = ({ onLocationFound }) => {
@@ -25,7 +25,7 @@ const SearchNavEngine = ({ onLocationFound }) => {
                 } else {
                     alert('🛰️ 空间卫星未能定位该区域，请尝试更精确的名称（如：Tokyo Station）');
                 }
-            } catch (error) {
+            } catch (_error) {
                 alert('⚠️ 跃迁引擎链路异常，请检查网络连接。');
             }
             setIsSearching(false);

@@ -11,7 +11,8 @@ const CACHE_TTL = {
     realtime_weather: 5 * 60 * 1000,        // 5 分钟：天气变化快
     daily_solar_track: 24 * 60 * 60 * 1000, // 24 小时：太阳轨迹基本不变
     monthly_gdd: 24 * 60 * 60 * 1000,       // 24 小时：积温一天一更
-    const_terrain: 7 * 24 * 60 * 60 * 1000  // 7 天：地形数据几乎不变
+    const_terrain: 7 * 24 * 60 * 60 * 1000, // 7 天：地形数据几乎不变
+    plant_phenology: 7 * 24 * 60 * 60 * 1000 // 🌸 7 天：樱花/枫叶物候数据稳定
 };
 
 // 内存缓存存储库
@@ -138,6 +139,25 @@ const fetchTerrainConcurrently = async (lat, lon) => {
     return [];
 };
 
+/**
+ * 物候 API 并行请求 - 获取樱花积温、红叶冷刺激、残花判定
+ */
+const fetchPhenologyConcurrently = async (lat, lon) => {
+    try {
+        // 与生产一致走同源 /api（本地请用 `vercel dev`，或为 Vite 配置 proxy）
+        const phenologyUrl = `/api/phenology?lat=${lat}&lon=${lon}`;
+
+        const res = await fetch(phenologyUrl);
+        if (res.ok) {
+            const data = await res.json();
+            return data;
+        }
+    } catch (error) {
+        console.warn("⚠️ 物候数据获取失败:", error);
+    }
+    return null;
+};
+
 export const fetchGlobalEnvironmentData = async (lat, lon) => {
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -152,9 +172,11 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     // 📌 策略三：先查缓存，减少不必要的 API 调用
     const weatherCacheKey = `weather_${Math.round(lat)}_${Math.round(lon)}`;
     const terrainCacheKey = `terrain_${Math.round(lat)}_${Math.round(lon)}`;
+    const phenologyCacheKey = `phenology_${Math.round(lat)}_${Math.round(lon)}`;
     
     let weatherData = getCachedData(weatherCacheKey, CACHE_TTL.realtime_weather);
     let terrainTags = getCachedData(terrainCacheKey, CACHE_TTL.const_terrain);
+    let phenologyData = getCachedData(phenologyCacheKey, CACHE_TTL.plant_phenology);
 
     // 📌 策略一：对缺失的数据使用 Promise.all 并发请求
     const fetchPromises = [];
@@ -179,6 +201,17 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
         );
     }
 
+    // 🌸 物候 API：樱花积温、红叶冷刺激、残花判定
+    if (!phenologyData) {
+        fetchPromises.push(
+            fetchPhenologyConcurrently(lat, lon)
+                .then(data => {
+                    phenologyData = data;
+                    if (data) setCachedData(phenologyCacheKey, data);
+                })
+        );
+    }
+
     // 等待所有请求完成（如果同时发出）
     if (fetchPromises.length > 0) {
         await Promise.all(fetchPromises);
@@ -187,6 +220,7 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     // 安全的默认值
     weatherData = weatherData || {};
     terrainTags = terrainTags || [];
+    phenologyData = phenologyData || {};
 
     // 为了兼容规则库的 poiTypes 需求
     const poiTypes = [...terrainTags]; // 继承基础地形
@@ -212,7 +246,14 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
         },
         climate: { season },
         ecology: {
-            flowerGDD: weatherData?.flowerGDD || 0 
+            // 天气数据中的积温
+            flowerGDD: weatherData?.flowerGDD || 0,
+            // 🌸 樱花物候数据（Open-Meteo）
+            sakura: phenologyData?.sakura || {},
+            // 🍁 红叶物候数据（Open-Meteo）
+            maple: phenologyData?.maple || {},
+            // 💧 降水对花的影响
+            weatherImpact: phenologyData?.weather_impact || {}
         },
         weather: {
             condition: weatherData?.condition || 'Unknown',

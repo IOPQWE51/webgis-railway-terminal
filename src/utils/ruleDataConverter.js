@@ -2,6 +2,8 @@
 // 🎬 规则库数据格式转换器
 // 将 dataGateway 的环境数据转换为 decisiveMoments 规则库可用的格式
 
+import SunCalc from 'suncalc';
+
 /**
  * 根据当前时间和太阳位置计算时间窗口类型
  * @param {Date} now - 当前时间
@@ -171,12 +173,10 @@ export const checkRequiredConditions = (lat, season) => {
 export const convertToRuleFormat = (gatewayData, lat, lon) => {
     const { astronomy, climate, weather, terrain } = gatewayData;
     
-    // 提取时间窗口
-    const timeWindow = computeTimeWindow(
-        astronomy.now,
-        astronomy.times,
-        astronomy.solarAltitude
-    );
+    // dataGateway 只序列化了部分 times；computeTimeWindow 需要 SunCalc 完整时刻（含 solarNoon、night 等）
+    const nowDate = new Date(astronomy.now);
+    const fullSunTimes = SunCalc.getTimes(nowDate, lat, lon);
+    const timeWindow = computeTimeWindow(nowDate, fullSunTimes, astronomy.solarAltitude);
     
     // 转换天气条件
     const weatherArray = weather 
@@ -247,7 +247,7 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         _raw: gatewayData,
         _lat: lat,
         _lon: lon,
-        _timestamp: astronomy.now.toISOString()
+        _timestamp: new Date(astronomy.now).toISOString()
     };
 };
 
