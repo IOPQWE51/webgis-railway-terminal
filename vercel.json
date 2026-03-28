@@ -28,9 +28,13 @@
       ]
     }
   ],
-  "functions": {
-    "api/weather.js": { "maxDuration": 10 },
-    "api/astronomy.js": { "maxDuration": 10 },
-    "api/phenology.js": { "maxDuration": 10 }
-  }
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 10
+      }
+    }
+  ]
 }
