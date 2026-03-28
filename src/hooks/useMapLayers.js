@@ -16,12 +16,12 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         if (!leafletReady || !document.getElementById('real-map-container')) return;
         const L = window.L;
         if (!mapRef.current) {
-            mapRef.current = L.map('real-map-container', { zoomControl: false }).setView([37.5, 137.5], 4.5);
+            mapRef.current = L.map('real-map-container', { zoomControl: false,worldCopyJump: true, minZoom: 3}).setView([37.5, 137.5], 4.5);
             L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
             mapRef.current.on('click', () => closeCyberPanel());
         }
         if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
-        baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19 }).addTo(mapRef.current);
+        baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19}).addTo(mapRef.current);
     }, [leafletReady, baseMapType, mapRef]);
 
     // 2. 渲染气象雷达层

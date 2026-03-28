@@ -43,26 +43,46 @@ export const initPhotoEvalEngine = () => {
             }
             const topMatches = getTopSuggestions(standardData, 5, { minScore: 0 });
 
-            if (!rawEnvData.weather) throw new Error("气象节点无响应");
+            if (!rawEnvData.weather || typeof rawEnvData.weather !== 'object') {
+                throw new Error('气象节点无响应');
+            }
+
+            const evalNow = new Date(rawEnvData.astronomy.now);
+            const scTimes = SunCalc.getTimes(evalNow, lat, lon);
 
             const { season } = rawEnvData.climate;
-            const { condition, clouds, visibility, isRaining, temp } = rawEnvData.weather;
-            const { now, times, moonPhase, isNight } = rawEnvData.astronomy;
-            const { isCoastal } = rawEnvData.terrain;
+            const weather = rawEnvData.weather;
+            const { condition, clouds, temp } = weather;
+            const precip = weather.precip ?? 0;
+            const visibility = weather.visibility ?? 10000;
+            const isRaining =
+                /rain|drizzle|shower|暴雨|雨/i.test(String(condition || '')) || precip > 0.5;
+            const { moonPhase, isNight } = rawEnvData.astronomy;
+            const poiTypes = rawEnvData.terrain?.poiTypes || [];
+            const isCoastal = poiTypes.includes('coast') || poiTypes.includes('beach');
 
-            let score = 50; 
+            let score = 50;
             let tags = [];
-            
-            const makeTag = (bg, color, text) => 
+
+            const makeTag = (bg, color, text) =>
                 `<span style="background:${bg}; color:${color}; padding:6px 10px; border-radius:8px; font-weight:800; font-size:12px; box-shadow:0 2px 4px rgba(0,0,0,0.02);">${text}</span>`;
+
+            // NOAA OVATION 格点强度（与 ruleDataConverter requiresGeomagneticActivity 阈值一致）
+            const auroraProb = Number(rawEnvData.aurora?.probability) || 0;
+            if (isNight && auroraProb >= 8) {
+                score += 50;
+                tags.unshift(
+                    makeTag('#2e1065', '#d8b4fe', `🌌 极光活动预警 (OVATION ${auroraProb})`)
+                );
+            }
 
             const seasonLabels = { spring: '🌸 春', summer: '🌿 夏', autumn: '🍁 秋', winter: '❄️ 冬', wet: '☔ 雨季', dry: '☀️ 旱季' };
             tags.push(makeTag('#f1f5f9', '#475569', seasonLabels[season] || '🌍 当前季'));
             if (temp !== undefined) tags.push(makeTag('#fef2f2', '#ef4444', `🌡️ ${temp}°C`));
 
-            if (now >= times.goldenHour && now <= times.sunset) {
+            if (evalNow >= scTimes.goldenHour && evalNow <= scTimes.sunset) {
                 score += 25; tags.push(makeTag('#fffbeb', '#d97706', '🌅 黄金时刻 (+25)'));
-            } else if (now >= times.sunset && now <= times.nightStarting) {
+            } else if (evalNow >= scTimes.sunset && evalNow <= scTimes.night) {
                 score += 20; tags.push(makeTag('#eff6ff', '#2563eb', '🌌 蓝调时刻 (+20)'));
             } else if (clouds > 70 && !isRaining) {
                 score += 15; tags.push(makeTag('#f8fafc', '#64748b', '☁️ 阴天柔光 (+15)'));
@@ -72,7 +92,7 @@ export const initPhotoEvalEngine = () => {
 
             if (visibility < 2000) {
                 score += 25; tags.push(makeTag('#faf5ff', '#9333ea', '🌫️ 浓雾梦幻 (+25)'));
-            } else if (condition && condition.toLowerCase().includes('snow')) {
+            } else if (condition && String(condition).toLowerCase().includes('snow')) {
                 score += 20; tags.push(makeTag('#f0f9ff', '#0284c7', '❄️ 降雪 (+20)'));
             } else if (isRaining) {
                 score += 15; tags.push(makeTag('#ecfdf5', '#059669', '🌧️ 雨中 (+15)'));
