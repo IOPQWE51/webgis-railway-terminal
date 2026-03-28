@@ -5,7 +5,7 @@
   "crons": [
     {
       "path": "/api/weather?lat=0&lon=0",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "headers": [
@@ -28,13 +28,9 @@
       ]
     }
   ],
-  "builds": [
-    {
-      "src": "api/**.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxDuration": 10
-      }
-    }
-  ]
+  "functions": {
+    "api/weather.js": { "maxDuration": 10 },
+    "api/astronomy.js": { "maxDuration": 10 },
+    "api/phenology.js": { "maxDuration": 10 }
+  }
 }
