@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Loader2, X, ChevronUp } from 'lucide-react';
 
 // 导入外部依赖 (配置、渲染面板、打分系统)

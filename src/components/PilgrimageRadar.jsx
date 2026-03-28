@@ -1,5 +1,4 @@
-import React from 'react';
-import { Camera, ExternalLink, AlertTriangle, HeartHandshake, MapPin } from 'lucide-react';
+import { Camera, ExternalLink, HeartHandshake, MapPin } from 'lucide-react';
 
 const PilgrimageRadar = ({ isActive }) => {
     return (

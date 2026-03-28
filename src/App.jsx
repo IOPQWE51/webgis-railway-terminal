@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 // 1. 新增了 PlaneTakeoff 图标
-import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff,Camera } from 'lucide-react';
+import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
@@ -107,3 +107,5 @@ const App = () => {
 };
 
 export default App;
+
+

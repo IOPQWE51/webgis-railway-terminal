@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Calendar, MapPin, Sparkles, ExternalLink } from 'lucide-react';
 
 // 本地模拟花火大会数据库（未来你可以写个脚本自动把 hanabi.cloud 的数据更新到这里）

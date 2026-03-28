@@ -1,14 +1,12 @@
 // src/utils/photoEngine.js
-// 🎬 摄影引擎 v4.0 - 外科手术式重构版本
-// 核心流程由三行代码驱动：拿数据 → 洗数据 → 出结果
+// 🎬 摄影引擎 v4.0 - 外科手术式重构版本 + 极致 UI 优化版
 
 import SunCalc from 'suncalc';
-import { OWM_API_KEY } from '../config/mapConstants';
 import { fetchGlobalEnvironmentData } from './dataGateway'; 
-import { convertToRuleFormat, debugPrintRuleData } from './ruleDataConverter';
-import { getTopSuggestions, groupSuggestionsByRarity } from './ruleMatcher';
+import { convertToRuleFormat } from './ruleDataConverter';
+import { getTopSuggestions } from './ruleMatcher';
 
-// 🌐 核心魔法：根据经纬度，推算当地时间
+// 🌐 根据经纬度，推算当地时间
 const formatLocalTimeByLon = (date, lon) => {
     if (!date || isNaN(date.getTime())) return '--:--';
     const offsetHours = Math.round(lon / 15);
@@ -29,144 +27,185 @@ export const initPhotoEvalEngine = () => {
         if (!resultDiv) return;
         
         if (btn) btn.style.display = 'none';
-        resultDiv.innerHTML = `<div style="text-align:center; padding: 10px; font-size:12px; color:#6b7280; font-weight:bold;"><span style="display:inline-block; animation:spin 1s linear infinite;">🛰️</span> 正在调用双引擎超级雷达...</div>`;
+        
+        // 加载动画
+        resultDiv.innerHTML = `
+            <div style="text-align:center; padding: 16px; background: #f8fafc; border-radius: 12px; margin-top: 12px;">
+                <div style="font-size:16px; display:inline-block; animation:spin 1s linear infinite; margin-bottom:8px;">🛰️</div>
+                <div style="font-size:12px; color:#64748b; font-weight:700; letter-spacing:1px;">双引擎雷达演算中...</div>
+            </div>
+            <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+        `;
 
         try {
-            // ============ 外科手术式换心：三行代码核心流程 ============
-            // Line 1: 拿数据 - 从网关获取原始环境数据
+            // ============ 三行代码核心流程 ============
             const rawEnvData = await fetchGlobalEnvironmentData(lat, lon);
-            
-            // Line 2: 洗数据 - 转换为规则库标准格式
             const standardData = convertToRuleFormat(rawEnvData, lat, lon);
             
-            // Line 3: 出结果 - 匹配规则库，获取顶级建议
-            const topMatches = getTopSuggestions(standardData, 5, { minScore: 0 });
+            // 补丁：融合前端的类别标识
+            if (category && !standardData.category.includes(category)) {
+                standardData.category.push(category);
+            }
             
-            // =========================================================
-
-            // 提取基础信息用于 UI 渲染
-            if (!rawEnvData.weather) throw new Error("气象节点无响应");
+            const topMatches = getTopSuggestions(standardData, 5, { minScore: 0 });
+            // =========================================
 
             const { season } = rawEnvData.climate;
             const { condition, clouds, visibility, isRaining, temp } = rawEnvData.weather;
-            const { now, times, moonPhase, isNight } = rawEnvData.astronomy;
+            const { moonPhase, isNight } = rawEnvData.astronomy;
+            const evalNow = new Date(rawEnvData.astronomy.now);
+            const scTimes = SunCalc.getTimes(evalNow, lat, lon);
             const { isCoastal } = rawEnvData.terrain;
 
-            // ========== 综合摄影指数计算（保留原有评分逻辑）==========
+            // ========== 综合摄影指数计算 ==========
             let score = 50; 
             let tags = [];
             
-            const seasonLabels = { spring: '🌸 春', summer: '🌿 夏', autumn: '🍁 秋', winter: '❄️ 冬', wet: '☔ 雨季', dry: '☀️ 旱季' };
-            tags.push(`<span style="background:#e2e8f0; color:#475569; padding:2px 6px; border-radius:4px;">${seasonLabels[season] || '🌍 当前季'}</span>`);
-            if (temp !== undefined) tags.push(`<span style="background:#fee2e2; color:#ef4444; padding:2px 6px; border-radius:4px;">🌡️ ${temp}°C</span>`);
+            // UI 优化的 Tag 生成器
+            const makeTag = (bg, color, border, text) => 
+                `<span style="background:${bg}; color:${color}; border:1px solid ${border}; padding:3px 8px; border-radius:6px; font-weight:700; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,0.02);">${text}</span>`;
 
-            if (now >= times.goldenHour && now <= times.sunset) {
-                score += 25; tags.push(`<span style="color:#fbbf24;">🌅 黄金时刻 (+25)</span>`);
-            } else if (now >= times.sunset && now <= times.nightStarting) {
-                score += 20; tags.push(`<span style="color:#60a5fa;">🌌 蓝调时刻 (+20)</span>`);
+            const seasonLabels = { spring: '🌸 春', summer: '🌿 夏', autumn: '🍁 秋', winter: '❄️ 冬', wet: '☔ 雨季', dry: '☀️ 旱季' };
+            tags.push(makeTag('#f1f5f9', '#475569', '#e2e8f0', seasonLabels[season] || '🌍 当前季'));
+            if (temp !== undefined) tags.push(makeTag('#fef2f2', '#ef4444', '#fee2e2', `🌡️ ${temp}°C`));
+
+            if (evalNow >= scTimes.goldenHour && evalNow <= scTimes.sunset) {
+                score += 25; tags.push(makeTag('#fffbeb', '#d97706', '#fef3c7', '🌅 黄金时刻 (+25)'));
+            } else if (evalNow >= scTimes.sunset && evalNow <= scTimes.night) {
+                score += 20; tags.push(makeTag('#eff6ff', '#2563eb', '#dbeafe', '🌌 蓝调时刻 (+20)'));
             } else if (clouds > 70 && !isRaining) {
-                score += 15; tags.push(`<span style="color:#94a3b8;">☁️ 阴天柔光 (+15)</span>`);
+                score += 15; tags.push(makeTag('#f8fafc', '#64748b', '#e2e8f0', '☁️ 阴天柔光 (+15)'));
             } else {
-                score += 5; tags.push(`<span style="color:#f59e0b;">☀️ 普通光线 (+5)</span>`);
+                score += 5; tags.push(makeTag('#fffbeb', '#d97706', '#fef3c7', '☀️ 普通光线 (+5)'));
             }
 
-            if (visibility < 2000) {
-                score += 25; tags.push(`<span style="color:#a78bfa;">🌫️ 浓雾梦幻 (+25)</span>`);
+            if (typeof visibility === 'number' && visibility < 2000) {
+                score += 25; tags.push(makeTag('#faf5ff', '#9333ea', '#f3e8ff', '🌫️ 浓雾梦幻 (+25)'));
             } else if (condition && condition.toLowerCase().includes('snow')) {
-                score += 20; tags.push(`<span style="color:#38bdf8;">❄️ 降雪 (+20)</span>`);
+                score += 20; tags.push(makeTag('#f0f9ff', '#0284c7', '#e0f2fe', '❄️ 降雪 (+20)'));
             } else if (isRaining) {
-                score += 15; tags.push(`<span style="color:#34d399;">🌧️ 雨中 (+15)</span>`);
+                score += 15; tags.push(makeTag('#ecfdf5', '#059669', '#d1fae5', '🌧️ 雨中 (+15)'));
             }
 
             if (isNight) {
                 if (moonPhase < 0.2 && clouds < 20) {
-                    score += 15; tags.push(`<span style="color:#c084fc;">✨ 绝佳观星 (+15)</span>`);
+                    score += 15; tags.push(makeTag('#faf5ff', '#9333ea', '#f3e8ff', '✨ 绝佳观星 (+15)'));
                 } else if (moonPhase > 0.8 && isCoastal) {
-                    score += 10; tags.push(`<span style="color:#fcd34d;">🌕 海上满月 (+10)</span>`);
+                    score += 10; tags.push(makeTag('#fffbeb', '#d97706', '#fef3c7', '🌕 海上满月 (+10)'));
                 }
             }
 
-            // ========== 决定性瞬间推荐（由新的匹配引擎提供）==========
-            const decisiveRecommendations = topMatches.slice(0, 1);
-            const decisiveMoment = decisiveRecommendations.length > 0 
-                ? decisiveRecommendations[0].output 
-                : null;
-
-            score = Math.min(score, 100);
-            let grade, vColor, verdict;
-            if (score >= 90) { grade = 'S'; vColor = '#8b5cf6'; verdict = '绝佳决定性瞬间 (强烈推荐)'; }
-            else if (score >= 75) { grade = 'A'; vColor = '#10b981'; verdict = '出片率极高 (条件优越)'; }
-            else if (score >= 60) { grade = 'B'; vColor = '#f59e0b'; verdict = '适合记录 (光影普通)'; }
-            else { grade = 'C'; vColor = '#ef4444'; verdict = '不推荐强求 (建议现场踩点)'; }
-
-            resultDiv.innerHTML = `
-                <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; margin-top: 8px;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom: 2px solid ${vColor}30; padding-bottom: 6px; margin-bottom: 8px;">
-                        <div style="display:flex; flex-direction:column;">
-                            <span style="font-size:10px; color:#64748b; font-weight:bold;">综合摄影指数</span>
-                            <span style="font-weight:900; color:${vColor}; font-size:14px;">🎯 评级: ${grade}</span>
+            // ========== 决定性瞬间提取 ==========
+            const decisiveRecommendations = topMatches.slice(0, 2); // 提取前2个神仙瞬间
+            const decisiveMomentHtml = decisiveRecommendations.length > 0 
+                ? decisiveRecommendations.map(match => `
+                    <div style="background: var(--accent-bg); border: 1px solid var(--accent-border); border-radius: 8px; padding: 12px; margin-top: 8px; position: relative; overflow: hidden;">
+                        <div style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--accent-color);"></div>
+                        <div style="font-size: 11px; font-weight: 900; color: var(--accent-color); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                            <span>✨</span> 决定性瞬间
                         </div>
-                        <span style="font-size:24px; font-weight:900; color:${vColor}; line-height:0.9;">${score}<span style="font-size:12px; color:#94a3b8;">/100</span></span>
+                        <div style="font-size: 12px; color: #1e293b; font-weight: 700; line-height: 1.5;">
+                            ${match.output}
+                        </div>
                     </div>
-                    <div style="font-weight:bold; color:#1e293b; font-size:12px; margin-bottom:8px;">${verdict}</div>
-                    <div style="display:flex; flex-wrap:wrap; gap:4px; font-size:10px; font-weight:bold; margin-bottom:8px;">
+                `).join('')
+                : `<div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 12px; text-align: center; font-size: 11px; color: #94a3b8; font-weight: 700; margin-top: 8px;">当前时段暂无特殊环境化学反应</div>`;
+
+            // ========== 评级系统 ==========
+            score = Math.min(score, 100);
+            let grade, vColor, vBg, verdict;
+            if (score >= 90) { grade = 'S'; vColor = '#8b5cf6'; vBg = '#f5f3ff'; verdict = '绝佳时刻 (强烈推荐)'; }
+            else if (score >= 75) { grade = 'A'; vColor = '#10b981'; vBg = '#ecfdf5'; verdict = '出片率极高 (条件优越)'; }
+            else if (score >= 60) { grade = 'B'; vColor = '#f59e0b'; vBg = '#fffbeb'; verdict = '适合记录 (光影普通)'; }
+            else { grade = 'C'; vColor = '#ef4444'; vBg = '#fef2f2'; verdict = '建议踩点 (光线较差)'; }
+
+            // 渲染全新结果 UI
+            resultDiv.innerHTML = `
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; margin-top: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); --accent-color: ${vColor}; --accent-bg: ${vBg}; --accent-border: ${vColor}30;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span style="font-size: 10px; color: #94a3b8; font-weight: 800; letter-spacing: 0.5px;">综合出片指数</span>
+                            <span style="font-weight: 900; color: ${vColor}; font-size: 14px;">🎯 评级: ${grade}</span>
+                        </div>
+                        <div style="text-align: right; line-height: 0.9;">
+                            <span style="font-size: 28px; font-weight: 900; color: ${vColor};">${score}</span>
+                            <span style="font-size: 12px; color: #cbd5e1; font-weight: 800;">/100</span>
+                        </div>
+                    </div>
+                    
+                    <div style="font-weight: 800; color: #334155; font-size: 12px; margin-bottom: 12px;">
+                        ${verdict}
+                    </div>
+                    
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; font-size: 10px; margin-bottom: 4px;">
                         ${tags.join('')}
                     </div>
-                    ${decisiveMoment ? `
-                        <div style="background: linear-gradient(135deg, #1e293b, #0f172a); color: #fbbf24; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: bold; border-left: 3px solid #fbbf24;">
-                            <div style="margin-bottom: 4px; color: #f8fafc;">✨ 决定性瞬间预警</div>
-                            ${decisiveMoment}
-                        </div>
-                    ` : `
-                        <div style="background: #ffffff; color: #64748b; padding: 6px; border-radius: 6px; font-size: 10px; border: 1px dashed #cbd5e1; text-align: center;">当前时段暂无特殊环境化学反应</div>
-                    `}
+
+                    ${decisiveMomentHtml}
                 </div>
             `;
         } catch (err) {
             console.error(err);
-            resultDiv.innerHTML = `<div style="color:#ef4444; font-size:12px; text-align:center; padding:10px; font-weight:bold;">⚠️ 卫星数据链路断开</div>`;
+            resultDiv.innerHTML = `<div style="background: #fef2f2; border: 1px solid #fee2e2; border-radius: 12px; color:#ef4444; font-size:12px; text-align:center; padding:12px; font-weight:800; margin-top: 12px;">⚠️ 卫星数据链路断开或获取超时</div>`;
             if (btn) btn.style.display = 'block'; 
         }
     };
 };
 
-// 2. 生成带光影计算的弹窗 HTML
+// 2. 生成全新界面的 HTML
 export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     const times = SunCalc.getTimes(new Date(), pt.lat, pt.lon);
     
     const sunrise = formatLocalTimeByLon(times.sunrise, pt.lon); 
     const sunset = formatLocalTimeByLon(times.sunset, pt.lon);
     const goldenHour = formatLocalTimeByLon(times.goldenHour, pt.lon); 
-    const blueHour = formatLocalTimeByLon(times.nightStarting, pt.lon);
+    // SunCalc 字段名为 night（天文昏影终 / 入夜），非 nightStarting
+    const blueHourEnd = formatLocalTimeByLon(times.night, pt.lon);
 
     const evalId = Math.random().toString(36).substr(2, 9);
     const category = pt.category || 'spot';
 
     return `
-        <div style="min-width: 240px; font-family: sans-serif; padding-top: 4px;">
-            <b style="font-size:16px; color:#1f2937; display:flex; align-items:center; gap:6px;">${iconStr} ${name}</b>
-            ${desc ? `<div style="font-size:11px; color:#6b7280; margin: 4px 0 8px 0; background:#f3f4f6; padding:4px 8px; border-radius:4px; font-weight:bold;">${desc}</div>` : ''}
+        <div style="min-width: 250px; font-family: system-ui, -apple-system, sans-serif; padding: 4px 2px;">
             
-            <div style="margin-top: 10px; padding: 10px; background: #1e293b; color: #f8fafc; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-                <div style="font-size: 12px; font-weight: 900; color: #38bdf8; margin-bottom: 8px;">🌞 当地绝对光影坐标</div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; font-weight: bold;">
-                    <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.1); padding: 4px 6px; border-radius: 4px;"><span style="color:#94a3b8;">日出</span> <span style="color:#f8fafc;">${sunrise}</span></div>
-                    <div style="display: flex; justify-content: space-between; background: rgba(255,255,255,0.1); padding: 4px 6px; border-radius: 4px;"><span style="color:#94a3b8;">日落</span> <span style="color:#f8fafc;">${sunset}</span></div>
-                    <div style="display: flex; justify-content: space-between; background: rgba(251, 191, 36, 0.15); border: 1px solid rgba(251, 191, 36, 0.3); padding: 4px 6px; border-radius: 4px; grid-column: span 2;"><span style="color:#fbbf24;">✨ 黄金时刻</span> <span style="color:#fbbf24;">${goldenHour} - ${sunset}</span></div>
-                    <div style="display: flex; justify-content: space-between; background: rgba(96, 165, 250, 0.15); border: 1px solid rgba(96, 165, 250, 0.3); padding: 4px 6px; border-radius: 4px; grid-column: span 2;"><span style="color:#60a5fa;">🌌 蓝调时刻</span> <span style="color:#60a5fa;">${sunset} - ${blueHour}</span></div>
+            <div style="margin-bottom: 12px;">
+                <b style="font-size: 16px; color: #0f172a; display: flex; align-items: center; gap: 6px;">${iconStr} ${name}</b>
+                ${desc ? `<div style="font-size: 11px; color: #64748b; margin-top: 6px; background: #f8fafc; padding: 6px 10px; border-radius: 6px; font-weight: 600; line-height: 1.4; border: 1px solid #f1f5f9;">${desc}</div>` : ''}
+            </div>
+            
+            <div style="background: #0f172a; padding: 12px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 12px;">
+                <div style="font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 10px; letter-spacing: 0.5px;">🌞 当地绝对光影坐标</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; font-weight: 700;">
+                    <div style="background: rgba(255,255,255,0.06); padding: 6px 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 2px;">
+                        <span style="color:#64748b; font-size: 10px;">日出</span> 
+                        <span style="color:#f8fafc;">${sunrise}</span>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.06); padding: 6px 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 2px;">
+                        <span style="color:#64748b; font-size: 10px;">日落</span> 
+                        <span style="color:#f8fafc;">${sunset}</span>
+                    </div>
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 6px 8px; border-radius: 6px; grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color:#fbbf24; font-size: 11px;">✨ 黄金时刻</span> 
+                        <span style="color:#fde68a;">${goldenHour} - ${sunset}</span>
+                    </div>
+                    <div style="background: rgba(56, 189, 248, 0.1); padding: 6px 8px; border-radius: 6px; grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color:#38bdf8; font-size: 11px;">🌌 蓝调时刻</span> 
+                        <span style="color:#bae6fd;">${sunset} - ${blueHourEnd}</span>
+                    </div>
                 </div>
             </div>
 
-            <div style="margin-top: 10px;">
-                <button id="btn-${evalId}" onclick="window.__evalPhotoCondition(event, ${pt.lat}, ${pt.lon}, '${evalId}', '${category}')" style="width: 100%; background: linear-gradient(135deg, #10b981, #06b6d4); color: white; border: none; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 900; cursor: pointer;">
-                    🔮 启动双引擎雷达演算
+            <div>
+                <button id="btn-${evalId}" onclick="window.__evalPhotoCondition(event, ${pt.lat}, ${pt.lon}, '${evalId}', '${category}')" style="width: 100%; background: #1e293b; color: white; border: 1px solid #334155; padding: 12px; border-radius: 12px; font-size: 13px; font-weight: 800; cursor: pointer; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <span style="font-size: 14px;">🔮</span> 启动双引擎雷达演算
                 </button>
                 <div id="result-${evalId}"></div>
             </div>
 
             <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <a href="https://www.google.com/maps?q=${pt.lat},${pt.lon}" target="_blank" style="flex: 1; text-align: center; background-color: #f1f5f9; color: #3b82f6; border: 1px solid #bfdbfe; padding: 8px 0; border-radius: 6px; font-size: 12px; font-weight: 900; text-decoration: none;">📍 Google</a>
-                <a href="https://transit.yahoo.co.jp/search/result?to=${encodeURIComponent(name)}" target="_blank" style="flex: 1; text-align: center; background-color: #fef2f2; color: #ef4444; border: 1px solid #fecaca; padding: 8px 0; border-radius: 6px; font-size: 12px; font-weight: 900; text-decoration: none;">🚃 Yahoo!</a>
+                <a href="https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lon}" target="_blank" style="flex: 1; text-align: center; background: #f1f5f9; color: #475569; padding: 8px 0; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; border: 1px solid #e2e8f0; transition: background 0.2s;">📍 Google</a>
+                <a href="https://transit.yahoo.co.jp/search/result?to=${encodeURIComponent(name)}" target="_blank" style="flex: 1; text-align: center; background: #f1f5f9; color: #475569; padding: 8px 0; border-radius: 8px; font-size: 12px; font-weight: 800; text-decoration: none; border: 1px solid #e2e8f0; transition: background 0.2s;">🚃 Yahoo!</a>
             </div>
         </div>
     `;
