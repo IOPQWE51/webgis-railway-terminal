@@ -60,6 +60,20 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 <div className="flex-1 relative rounded-[2rem] overflow-hidden shadow-2xl border border-gray-200">
                     <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#e5e5f7' }}></div>
                     
+                    {/* 🎯 赛博全息机械准星 (绝对居中，无视鼠标点击穿透) */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] pointer-events-none flex items-center justify-center opacity-80 transition-opacity duration-300 hover:opacity-100">
+                        {/* 外圈雷达 */}
+                        <div className="w-10 h-10 border-2 border-cyan-400/80 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+                            {/* 内核光点 */}
+                            <div className="w-1.5 h-1.5 bg-cyan-300 rounded-full shadow-[0_0_10px_#fff] animate-pulse"></div>
+                        </div>
+                        {/* 机械十字线 */}
+                        <div className="absolute w-16 h-[2px] bg-cyan-400/60 shadow-[0_0_8px_#22d3ee]"></div>
+                        <div className="absolute h-16 w-[2px] bg-cyan-400/60 shadow-[0_0_8px_#22d3ee]"></div>
+                    </div>
+                    {/* 👆 准星代码结束 */}
+
+
                     <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all animate-bounce">
                         <ChevronUp className="w-4 h-4 text-cyan-400" /> 呼出战术中枢
                     </button>
