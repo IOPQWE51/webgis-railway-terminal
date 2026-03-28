@@ -172,8 +172,8 @@ export const checkRequiredConditions = (lat, lon, season) => {
         // 🌌 低光污染（需要外部 API 判断，暂设为 false）
         requiresLowLightPollution: false,
         
-        // ⛰️ 其他天文事件（需要实时天文数据 API，暂设为 false）
-        requiresGeomagneticActivity: false, // 北极光，需要实时地磁数据
+        // ⛰️ 地磁/极光：由 convertToRuleFormat 根据 gatewayData.aurora 覆盖
+        requiresGeomagneticActivity: false,
         requiresMeteorEvent: false,         // 流星雨，需要事件日期数据
         requiresSolarEclipse: false,        // 日食，需要事件日期数据
         requiresLunarEclipse: false,        // 月食，需要事件日期数据
@@ -213,6 +213,10 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
     
     // ✨ 检测特殊地理条件（樱花、枫叶等地区特定规则）
     const requiredConditions = checkRequiredConditions(lat, lon, climate.season);
+
+    // NOAA OVATION 格点值当前观测量级约 0–25；≥8 视为「有可用极光信号」
+    const auroraProb = Number(gatewayData.aurora?.probability) || 0;
+    const requiresGeomagneticActivity = auroraProb >= 8;
     
     return {
         // ========== 时间与季节 ==========
@@ -255,7 +259,7 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         requiresMapleLeaves: requiredConditions.requiresMapleLeaves,
         requiresWindyWeather: requiredConditions.requiresWindyWeather,
         requiresLowLightPollution: requiredConditions.requiresLowLightPollution,
-        requiresGeomagneticActivity: requiredConditions.requiresGeomagneticActivity,
+        requiresGeomagneticActivity,
         requiresMeteorEvent: requiredConditions.requiresMeteorEvent,
         requiresSolarEclipse: requiredConditions.requiresSolarEclipse,
         requiresLunarEclipse: requiredConditions.requiresLunarEclipse,

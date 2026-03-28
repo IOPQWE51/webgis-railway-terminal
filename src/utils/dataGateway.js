@@ -158,6 +158,17 @@ const fetchPhenologyConcurrently = async (lat, lon) => {
     return null;
 };
 
+// 🌌 新增：极光数据并发获取函数 (带错误降级)
+const fetchAuroraConcurrently = async (lat, lon) => {
+    try {
+        const res = await fetch(`/api/aurora?lat=${lat}&lon=${lon}`);
+        if (!res.ok) return { probability: 0 };
+        return await res.json();
+    } catch (e) {
+        return { probability: 0 }; 
+    }
+};
+
 export const fetchGlobalEnvironmentData = async (lat, lon) => {
     const now = new Date();
     const currentMonth = now.getMonth() + 1;
@@ -173,42 +184,52 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     const weatherCacheKey = `weather_${Math.round(lat)}_${Math.round(lon)}`;
     const terrainCacheKey = `terrain_${Math.round(lat)}_${Math.round(lon)}`;
     const phenologyCacheKey = `phenology_${Math.round(lat)}_${Math.round(lon)}`;
+    const auroraCacheKey = `aurora_${Math.round(lat)}_${Math.round(lon)}`; // 🌌 极光缓存键
     
     let weatherData = getCachedData(weatherCacheKey, CACHE_TTL.realtime_weather);
     let terrainTags = getCachedData(terrainCacheKey, CACHE_TTL.const_terrain);
     let phenologyData = getCachedData(phenologyCacheKey, CACHE_TTL.plant_phenology);
+    // 🌌 极光缓存 TTL 建议与天气相同 (15-30分钟)
+    let auroraData = getCachedData(auroraCacheKey, CACHE_TTL.realtime_weather); 
 
     // 📌 策略一：对缺失的数据使用 Promise.all 并发请求
     const fetchPromises = [];
     
     if (!weatherData) {
         fetchPromises.push(
-            fetchWeatherConcurrently(lat, lon)
-                .then(data => {
-                    weatherData = data;
-                    if (data) setCachedData(weatherCacheKey, data);
-                })
+            fetchWeatherConcurrently(lat, lon).then(data => {
+                weatherData = data;
+                if (data) setCachedData(weatherCacheKey, data);
+            })
         );
     }
 
     if (!terrainTags) {
         fetchPromises.push(
-            fetchTerrainConcurrently(lat, lon)
-                .then(data => {
-                    terrainTags = data;
-                    if (data) setCachedData(terrainCacheKey, data);
-                })
+            fetchTerrainConcurrently(lat, lon).then(data => {
+                terrainTags = data;
+                if (data) setCachedData(terrainCacheKey, data);
+            })
         );
     }
 
     // 🌸 物候 API：樱花积温、红叶冷刺激、残花判定
     if (!phenologyData) {
         fetchPromises.push(
-            fetchPhenologyConcurrently(lat, lon)
-                .then(data => {
-                    phenologyData = data;
-                    if (data) setCachedData(phenologyCacheKey, data);
-                })
+            fetchPhenologyConcurrently(lat, lon).then(data => {
+                phenologyData = data;
+                if (data) setCachedData(phenologyCacheKey, data);
+            })
+        );
+    }
+
+    // 🌌 极光 API：NOAA OVATION Prime 预警模型
+    if (!auroraData) {
+        fetchPromises.push(
+            fetchAuroraConcurrently(lat, lon).then(data => {
+                auroraData = data;
+                if (data) setCachedData(auroraCacheKey, data);
+            })
         );
     }
 
@@ -221,6 +242,7 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     weatherData = weatherData || {};
     terrainTags = terrainTags || [];
     phenologyData = phenologyData || {};
+    auroraData = auroraData || { probability: 0 }; // 🌌 极光安全兜底
 
     // 为了兼容规则库的 poiTypes 需求
     const poiTypes = [...terrainTags]; // 继承基础地形
@@ -266,6 +288,11 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
         terrain: {
             rawTags: terrainTags,
             poiTypes: [...new Set(poiTypes)] // 最后再去重
+        },
+        // 🌌 极光预警数据暴露给上层雷达
+        aurora: {
+            probability: auroraData.probability,
+            forecastTime: auroraData.forecastTime
         }
     };
 
