@@ -10,12 +10,35 @@
 }
 
 /* ========== POI 详情面板（原 Popup）：仅用于地图页 MapEngine 内 ========== */
+/* ========== POI 详情面板：SaaS 级亚克力毛玻璃质感 ========== */
 .cyber-panel.cyber-panel--map-dock {
-    background: #fff;
+    /* 核心魔法：浅灰蓝底色 + 强效背景模糊 */
+    background: rgba(248, 250, 252, 0.85); 
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    /* 左侧加一道极细的高光边，增加立体感 */
+    border-left: 1px solid rgba(255, 255, 255, 0.5); 
+    
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* 隐藏原生丑陋的滚动条，定制高级细线滚动条 */
+.cyber-panel.cyber-panel--map-dock::-webkit-scrollbar {
+    width: 4px;
+}
+.cyber-panel.cyber-panel--map-dock::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 4px;
+}
+
+.cyber-panel.cyber-panel--map-dock.hidden {
+    pointer-events: none;
+}
+.cyber-panel.cyber-panel--map-dock:not(.hidden) {
+    pointer-events: auto;
 }
 
 .cyber-panel.cyber-panel--map-dock.hidden {
