@@ -35,7 +35,6 @@ const App = () => {
             <div className="max-w-6xl mx-auto">
                 <header className="mb-4">
                     <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 flex flex-wrap items-end gap-x-3 gap-y-1">
-    <span>WebGIS</span>
                         <span>WebGIS</span>
                         <span className="text-cyan-600">主干地形图终端</span>
                     </h1>
