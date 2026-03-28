@@ -577,6 +577,7 @@ export const decisiveMomentRules = [
     {
         id: "fuji_snowcap",
         conditions: {
+            requiresMountFuji: true,
             season: ['winter'],
             weather: ['Clear'],
             category: ['spot']
@@ -586,6 +587,7 @@ export const decisiveMomentRules = [
     {
         id: "fuji_reflection",
         conditions: {
+            requiresMountFuji: true,
             isCoastal: false,
             weather: ['Clear'],
             timeWindow: ['dawn', 'sunrise'],
@@ -596,6 +598,7 @@ export const decisiveMomentRules = [
     {
         id: "fuji_clouds",
         conditions: {
+            requiresMountFuji: true,
             minClouds: 30,
             maxClouds: 70,
             category: ['spot']

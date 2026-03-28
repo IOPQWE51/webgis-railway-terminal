@@ -1,54 +1,61 @@
 @echo off
 :: 设置字符集防止中文乱码
 chcp 65001 >nul
-title WebGIS 无痕启动引擎
+title WebGIS 启动引擎
 
-:: 如果是隐藏模式，直接跳到后台主逻辑
-if "%1"=="hidden" goto :main
+:: 子进程入口（最小化窗口里跑，继承你双击时的 PATH，才能找到 node/npm）
+if /i "%~1"=="hidden" goto :main
 
 color 0B
 echo.
 echo ╔══════════════════════════════════════════════╗
 echo ║                                              ║
-echo ║        🚀 WebGIS 隐形启动引擎 (v3.1)         ║
+echo ║        🚀 WebGIS 启动引擎 (v3.3)             ║
 echo ║                                              ║
 echo ╚══════════════════════════════════════════════╝
 echo.
-echo  [模式] Vercel Dev：前端 + /api（物候、天气代理等）
-echo  [地址] 约 8 秒后打开 http://localhost:3000
-echo  [提示] 若从未用过 Vercel，请先在项目目录执行一次：npx vercel login
+echo  [模式] Vercel Dev：前端 + /api
+echo  [说明] 任务栏会出现「最小化」的黑色窗口承载服务——这是正常的。
+echo         以前用 VBS 完全隐藏启动时，子进程常拿不到 node/npm 的 PATH，
+echo         会出现浏览器拒绝连接，而手动 npm run dev:stack 却正常。
+echo  [地址] 就绪后打开 http://127.0.0.1:3000 （最多等待约 90 秒）
+echo  [日志] %%TEMP%%\webgis-vercel-dev.log （失败时会自动用记事本打开）
 echo.
-echo  ⚠️ 保护机制：为防止端口占用，服务将在 30 分钟后自动销毁。
+echo  ⚠️ 服务约 30 分钟后会自动结束相关 node 进程。
 echo.
 
-:: 生成临时 VBS 脚本实现完全无黑框后台运行
-echo Set objShell = CreateObject("WScript.Shell") > "%temp%\silent_launch.vbs"
-echo objShell.Run "cmd /c """"%~f0"" hidden""", 0, False >> "%temp%\silent_launch.vbs"
-cscript //nologo "%temp%\silent_launch.vbs"
-del "%temp%\silent_launch.vbs"
+:: 从「资源管理器双击」得到的当前环境启动子 cmd，再 /min，避免 cscript 子进程 PATH 残缺
+pushd "%~dp0"
+start "WebGIS-Vercel-Dev" /min cmd.exe /c "call ""%~f0"" hidden"
+popd
 
-:: 停留 2 秒让用户看清提示后，自动关闭当前黑窗口
 timeout /t 2 >nul
 exit /b
 
 :main
-:: === 这里是完全隐藏在后台执行的逻辑 ===
-cd /d "%~dp0"
+set "ROOT=%~dp0"
+if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
+set "LOG=%TEMP%\webgis-vercel-dev.log"
+cd /d "%ROOT%"
 
 :: 1. 启动前结束可能占用的本机 dev（Vite / Vercel 相关 node 进程）
 wmic process where "name='node.exe' and (CommandLine like '%%vite%%' or CommandLine like '%%vercel%%')" call terminate >nul 2>&1
 
-:: 2. 后台静默启动：vercel dev（含 api/*.js，与线上一致）
-start "" /B npm run dev:stack
+:: 2. 日志 + 在工程根目录启动（仍用 /B 合并到当前最小化窗口，不另开窗口）
+del "%LOG%" >nul 2>&1
+start "" /B cmd /c "cd /d "%ROOT%" && npm run dev:stack >>"%LOG%" 2>&1"
 
-:: 3. 等待 dev 就绪后打开浏览器（默认端口 3000，与 dev:stack 一致）
-ping -n 9 127.0.0.1 >nul
+:: 3. 轮询 3000 端口
+powershell -NoProfile -ExecutionPolicy Bypass -Command "for ($i=0; $i -lt 45; $i++) { try { $c = New-Object System.Net.Sockets.TcpClient; $c.Connect('127.0.0.1', 3000); $c.Close(); exit 0 } catch { Start-Sleep -Seconds 2 } }; exit 1"
+if errorlevel 1 (
+    start "" notepad "%LOG%"
+    exit /b 1
+)
+
 start "" "http://127.0.0.1:3000/"
 
-:: 4. 开启 30 分钟 (1800 秒) 死亡倒计时
 timeout /t 1800 /nobreak >nul
 
-:: 5. 时间到，结束本次启动的 node（Vite / Vercel）
 wmic process where "name='node.exe' and (CommandLine like '%%vite%%' or CommandLine like '%%vercel%%')" call terminate >nul 2>&1
 
 exit /b

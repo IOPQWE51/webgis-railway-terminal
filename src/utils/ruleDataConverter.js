@@ -129,16 +129,33 @@ export const extractCategory = (poiTypes = []) => {
     return poiTypes.filter(type => validCategories.includes(type));
 };
 
+/** 与富士山主峰（近似坐标）的大圆距离，单位公里 */
+const distanceKmToMountFuji = (lat, lon) => {
+    const fujiLat = 35.360556;
+    const fujiLon = 138.727778;
+    const toRad = (d) => (d * Math.PI) / 180;
+    const R = 6371;
+    const dLat = toRad(lat - fujiLat);
+    const dLon = toRad(lon - fujiLon);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(fujiLat)) * Math.cos(toRad(lat)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
 /**
  * 检测特殊地理和季节条件（requires* 字段）
  * 用于判断是否应该应用特定地区的规则（如日本樱花、枫叶）
  * @param {number} lat - 纬度
+ * @param {number} lon - 经度
  * @param {string} season - 季节字符串 ('spring', 'summer', 'autumn', 'winter')
  * @returns {Object} 包含所有 requires* 条件的布尔值对象
  */
-export const checkRequiredConditions = (lat, season) => {
+export const checkRequiredConditions = (lat, lon, season) => {
     // 🎌 日本地理范围：北纬约 24° ~ 45°
     const isJapanRegion = lat >= 24 && lat <= 45;
+    // 🗻 富士题材：仅主峰周边约 150km 内（五湖、箱根西侧、部分静冈等），排除北海道等
+    const requiresMountFuji = distanceKmToMountFuji(lat, lon) <= 150;
     
     return {
         // 🌸 樱花满开条件：春季 + 日本地区
@@ -146,6 +163,8 @@ export const checkRequiredConditions = (lat, season) => {
         
         // 🍁 枫叶条件：秋季 + 日本地区
         requiresMapleLeaves: season === 'autumn' && isJapanRegion,
+
+        requiresMountFuji,
         
         // 🌊 微风天气（这个需要从天气数据判断，暂设为 false，交由匹配器处理）
         requiresWindyWeather: false, // 在 ruleMatcher 中通过 windKph 字段判断
@@ -193,7 +212,7 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
     const category = extractCategory(terrain.poiTypes);
     
     // ✨ 检测特殊地理条件（樱花、枫叶等地区特定规则）
-    const requiredConditions = checkRequiredConditions(lat, climate.season);
+    const requiredConditions = checkRequiredConditions(lat, lon, climate.season);
     
     return {
         // ========== 时间与季节 ==========
@@ -242,6 +261,7 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         requiresLunarEclipse: requiredConditions.requiresLunarEclipse,
         requiresSuperMoon: requiredConditions.requiresSuperMoon,
         requiresCometEvent: requiredConditions.requiresCometEvent,
+        requiresMountFuji: requiredConditions.requiresMountFuji,
         
         // ========== 原始数据（保留备用） ==========
         _raw: gatewayData,

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { getIconStyle } from '../utils/helpers';
 import { RAILWAY_LINES_CONFIG, TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM_API_KEY, getPointFilterType } from '../config/mapConstants';
 import { generatePopupContent } from '../utils/photoEngine';
+import { openCyberPanel, closeCyberPanel } from '../utils/cyberPanel';
 
 export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints) => {
     const baseMapLayerRef = useRef(null);
@@ -17,6 +18,7 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         if (!mapRef.current) {
             mapRef.current = L.map('real-map-container', { zoomControl: false }).setView([37.5, 137.5], 4.5);
             L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
+            mapRef.current.on('click', () => closeCyberPanel());
         }
         if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
         baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19 }).addTo(mapRef.current);
@@ -43,9 +45,12 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             });
             basePoints.forEach((pt, idx) => {
                 let color = pt.type === 'shinkansen' ? '#f97316' : pt.type === 'ferry' || pt.type === 'plane' ? '#3b82f6' : '#22c55e';
-                L.circleMarker([pt.lat, pt.lon], { radius: 10, fillColor: color, color: 'transparent', fillOpacity: 0.2 }).addTo(baseLayerRef.current);
-                L.circleMarker([pt.lat, pt.lon], { radius: 5, fillColor: color, color: '#fff', weight: 2, fillOpacity: 1 }).addTo(baseLayerRef.current)
-                 .bindPopup(generatePopupContent(pt, `base_${idx}`, '🛤️', pt.name, pt.desc));
+                const openBasePanel = (ev) => {
+                    if (ev.originalEvent) L.DomEvent.stopPropagation(ev.originalEvent);
+                    openCyberPanel(generatePopupContent(pt, `base_${idx}`, '🛤️', pt.name, pt.desc));
+                };
+                L.circleMarker([pt.lat, pt.lon], { radius: 10, fillColor: color, color: 'transparent', fillOpacity: 0.2 }).on('click', openBasePanel).addTo(baseLayerRef.current);
+                L.circleMarker([pt.lat, pt.lon], { radius: 5, fillColor: color, color: '#fff', weight: 2, fillOpacity: 1 }).on('click', openBasePanel).addTo(baseLayerRef.current);
             });
         }
     }, [leafletReady, basePoints, filters.framework, mapRef]);
@@ -93,7 +98,12 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             const filterType = getPointFilterType(pt); if (!filters[filterType]) return;
             const style = getIconStyle(pt.category, pt.source);
             const customIcon = L.divIcon({ className: 'custom-pin', html: `<div style="background-color: ${style.color}; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 2px solid white; box-shadow: 0 3px 6px rgba(0,0,0,0.3);">${style.icon}</div>`, iconSize: [28, 28], iconAnchor: [14, 14] });
-            markersByType[filterType].push(L.marker([pt.lat, pt.lon], { icon: customIcon }).bindPopup(generatePopupContent(pt, `custom_${pt.id}`, style.icon, pt.name, pt.source)));
+            const mk = L.marker([pt.lat, pt.lon], { icon: customIcon });
+            mk.on('click', (ev) => {
+                if (ev.originalEvent) L.DomEvent.stopPropagation(ev.originalEvent);
+                openCyberPanel(generatePopupContent(pt, `custom_${pt.id}`, style.icon, pt.name, pt.source));
+            });
+            markersByType[filterType].push(mk);
         });
         categories.forEach(type => { if (markersByType[type].length > 0) { clusterGroupsRef.current[type].addLayers(markersByType[type]); if (filters[type]) mapRef.current.addLayer(clusterGroupsRef.current[type]); } });
     }, [leafletReady, customPoints, filters, mapRef]);

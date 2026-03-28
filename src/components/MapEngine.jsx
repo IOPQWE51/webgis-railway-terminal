@@ -4,6 +4,7 @@ import { Loader2, X, ChevronUp } from 'lucide-react';
 // 导入外部依赖 (配置、渲染面板、打分系统)
 import ControlPanel from './ControlPanel'; 
 import { initPhotoEvalEngine } from '../utils/photoEngine';
+import { closeCyberPanel } from '../utils/cyberPanel';
 
 // 导入我们刚写好的核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
@@ -26,7 +27,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         window.__deleteCustomPoint = (id) => {
             if (window.confirm('⚠️ 确定删除此坐标点吗？')) {
                 if (onDeletePoint) onDeletePoint(id);
-                if (mapRef.current) mapRef.current.closePopup();
+                closeCyberPanel();
             }
         };
         return () => { delete window.__deleteCustomPoint; delete window.__evalPhotoCondition; };
@@ -65,9 +66,29 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     {!leafletReady && <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50"><Loader2 className="w-8 h-8 animate-spin text-cyan-600" /></div>}
                 </div>
 
-                {/* PC 右侧控制台 */}
-                <div className="hidden lg:flex w-[340px] flex-col gap-4 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-300">
+                {/* PC 右侧控制台（POI 详情层叠在此列之上） */}
+                <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-300 relative z-0">
                     <ControlPanel baseMapType={baseMapType} setBaseMapType={setBaseMapType} weatherType={weatherType} setWeatherType={setWeatherType} filters={filters} toggleFilter={toggleFilter} {...tools} />
+                </div>
+
+                {/* 地点详情：大屏盖住右侧战术列；小屏为 viewport 底部抽屉 */}
+                <div
+                    id="cyber-panel"
+                    className="cyber-panel cyber-panel--map-dock hidden"
+                    role="dialog"
+                    aria-modal="false"
+                    aria-hidden="true"
+                    aria-label="地点详情"
+                >
+                    <button
+                        type="button"
+                        className="cyber-panel-close"
+                        onClick={() => closeCyberPanel()}
+                        aria-label="关闭面板"
+                    >
+                        ×
+                    </button>
+                    <div id="cyber-panel-content" />
                 </div>
 
                 {/* 移动端底部抽屉 */}

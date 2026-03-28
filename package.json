@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "dev:stack": "vercel dev --listen 3000 --yes",
+    "dev:stack": "vercel dev --listen 3000 --yes --local",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
