@@ -46,7 +46,8 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             basePoints.forEach((pt, idx) => {
                 let color = pt.type === 'shinkansen' ? '#f97316' : pt.type === 'ferry' || pt.type === 'plane' ? '#3b82f6' : '#22c55e';
                 const openBasePanel = (ev) => {
-                    if (ev.originalEvent) L.DomEvent.stopPropagation(ev.originalEvent);
+                    // 🛑 核心修复：使用 Leaflet 原生 stop() 彻底斩断点击穿透！
+                    L.DomEvent.stop(ev); 
                     openCyberPanel(generatePopupContent(pt, `base_${idx}`, '🛤️', pt.name, pt.desc));
                 };
                 L.circleMarker([pt.lat, pt.lon], { radius: 10, fillColor: color, color: 'transparent', fillOpacity: 0.2 }).on('click', openBasePanel).addTo(baseLayerRef.current);

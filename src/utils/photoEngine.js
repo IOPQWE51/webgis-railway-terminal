@@ -157,7 +157,7 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     const category = pt.category || 'spot';
 
     return `
-        <div style="padding: 24px 20px; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column; height: 100%; min-height: 100vh;">
+        <div style="padding: 24px 20px; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column;">
             
             <div style="margin-bottom: 24px;">
                 <b style="font-size: 22px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${name}</b>
@@ -195,11 +195,9 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
                 <div id="result-${evalId}"></div>
             </div>
 
-            <div style="margin-top: auto; padding-top: 30px; padding-bottom: 20px;">
-                <div style="display: flex; gap: 12px;">
-                    <a href="https://www.google.com/maps/search/?api=1&query=$${pt.lat},${pt.lon}" target="_blank" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">📍 Google Maps</a>
-                    <a href="https://transit.yahoo.co.jp/search/result?to=${encodeURIComponent(name)}" target="_blank" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">🚃 Yahoo 乘换</a>
-                </div>
+            <div style="display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-top: 12px;">
+                <a href="https://www.google.com/maps/dir/?api=1&destination=${pt.lat},${pt.lon}" target="_blank" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">📍 Google 导航</a>
+                <a href="https://transit.yahoo.co.jp/search/result?to=${encodeURIComponent(name)}" target="_blank" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">🚃 Yahoo 乘换</a>
             </div>
         </div>
     `;
