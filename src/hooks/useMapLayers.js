@@ -2,9 +2,9 @@ import { useEffect, useRef } from 'react';
 import { getIconStyle } from '../utils/helpers';
 import { RAILWAY_LINES_CONFIG, TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM_API_KEY, getPointFilterType } from '../config/mapConstants';
 import { generatePopupContent } from '../utils/photoEngine';
-import { openCyberPanel, closeCyberPanel } from '../utils/cyberPanel';
+import { openCyberPanel } from '../utils/cyberPanel';
 
-export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints) => {
+export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, isMeasuring = false) => {
     const baseMapLayerRef = useRef(null);
     const baseLayerRef = useRef(null);
     const clusterGroupsRef = useRef({}); 
@@ -16,13 +16,34 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         if (!leafletReady || !document.getElementById('real-map-container')) return;
         const L = window.L;
         if (!mapRef.current) {
-            mapRef.current = L.map('real-map-container', { zoomControl: false,worldCopyJump: true, minZoom: 3}).setView([37.5, 137.5], 4.5);
+            mapRef.current = L.map('real-map-container', {zoomControl: false,worldCopyJump: true,minZoom: 3,maxBounds: [[-85, -Infinity], [85, Infinity]],maxBoundsViscosity: 1.0}).setView([37.5, 137.5], 4.5);
             L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
-            mapRef.current.on('click', () => closeCyberPanel());
         }
         if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
         baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19}).addTo(mapRef.current);
     }, [leafletReady, baseMapType, mapRef]);
+
+    // 1b. 点击地图任意空白处：用该经纬度打开摄影分析（测距取点时不起效）
+    useEffect(() => {
+        if (!leafletReady || !mapRef.current) return;
+        const map = mapRef.current;
+        const onMapPick = (e) => {
+            if (isMeasuring) return;
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+            openCyberPanel(
+                generatePopupContent(
+                    { lat, lon: lng, category: 'spot' },
+                    'map_pick',
+                    '📌',
+                    '地图选点',
+                    `WGS84 · ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`
+                )
+            );
+        };
+        map.on('click', onMapPick);
+        return () => map.off('click', onMapPick);
+    }, [leafletReady, isMeasuring, mapRef]);
 
     // 2. 渲染气象雷达层
     useEffect(() => {

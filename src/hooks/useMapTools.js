@@ -71,7 +71,11 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         if (measurePoints.length > 0) L.circleMarker(measurePoints[0], { radius: 6, color: '#facc15', fillColor: '#111827', fillOpacity: 1, weight: 3 }).addTo(layer);
         if (measurePoints.length === 2) { L.circleMarker(measurePoints[1], { radius: 6, color: '#facc15', fillColor: '#111827', fillOpacity: 1, weight: 3 }).addTo(layer); L.polyline(measurePoints, { color: '#facc15', dashArray: '8, 8', weight: 3 }).addTo(layer); setMeasureDistance(map.distance(measurePoints[0], measurePoints[1])); }
         const onMapClick = (e) => { if (!isMeasuring) return; if (measurePoints.length === 0 || measurePoints.length === 2) { setMeasurePoints([e.latlng]); setMeasureDistance(0); } else if (measurePoints.length === 1) { setMeasurePoints([measurePoints[0], e.latlng]); setIsMeasuring(false); } };
-        if (isMeasuring) { map.on('click', onMapClick); map._container.style.cursor = 'crosshair'; } else { map.off('click', onMapClick); map._container.style.cursor = ''; }
+        if (isMeasuring) {
+            map.on('click', onMapClick);
+        } else {
+            map.off('click', onMapClick);
+        }
         return () => map.off('click', onMapClick);
     }, [leafletReady, isMeasuring, measurePoints, mapRef]);
 
