@@ -70,17 +70,19 @@
     }
 }
 
-/* 桌面：叠在右侧 340px 控制列（空间跃迁引擎等）上，不占满整屏 */
+/* 桌面：贴在「地图列」右缘（DOM 已放在 flex-1 地图容器内，与右侧战术列解耦，避免整行 right:0 在部署/本地视口下错位） */
 @media (min-width: 1024px) {
     .cyber-panel.cyber-panel--map-dock {
         position: absolute;
-        z-index: 30;
+        /* Leaflet 瓦片/覆盖层常用 400+，必须高于地图，否则部署环境易看起来像「面板在地图下面/穿帮」 */
+        z-index: 1200;
         right: 0;
         top: 0;
         bottom: 0;
-        width: 340px;
+        width: min(340px, 100%);
         max-width: 100%;
-        border-radius: 0 0.75rem 0.75rem 0;
+        /* 与地图列圆角一致：贴地图右缘，外侧（朝战术列）为圆角 */
+        border-radius: 0 2rem 2rem 0;
         box-shadow: -4px 0 20px rgba(0, 0, 0, 0.12);
     }
 
