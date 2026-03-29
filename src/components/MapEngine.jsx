@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, X, ChevronUp } from 'lucide-react';
+import { Loader2, X, ChevronUp, Trash2 } from 'lucide-react';
 
 // 导入外部依赖 (配置、渲染面板、打分系统)
 import ControlPanel from './ControlPanel'; 
@@ -74,6 +74,37 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 {/* 左侧/全屏 地图容器 */}
                 <div className="flex-1 relative rounded-[2rem] overflow-hidden shadow-2xl border border-gray-200">
                     <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#e5e5f7' }}></div>
+
+                    {/* 📏 战术专属 HUD：测距模式下强制悬浮在地图正上方，解决移动端痛点 */}
+{tools.isMeasuring && (
+    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[2000] flex items-center gap-3 bg-zinc-900/90 backdrop-blur-md px-5 py-3 rounded-full shadow-[0_0_25px_rgba(34,211,238,0.4)] border border-cyan-500/50 animate-in slide-in-from-top-4">
+        
+        {/* 数据展示区 (如果你在 useMapTools 里存了实时距离，可以把 0.00 替换掉) */}
+        <div className="flex flex-col items-center pr-3 border-r border-zinc-700">
+            <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">测距雷达开启</span>
+            <span className="text-white font-mono font-black text-lg leading-none mt-1">
+                {tools.currentDistance || '---'} <span className="text-xs text-zinc-400 font-sans">km</span>
+            </span>
+        </div>
+
+        {/* 清除按钮 */}
+        <button
+            onClick={tools.clearMeasurement} // ⚠️ 请替换为你 useMapTools 里实际的清除函数名
+            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            title="清除当前连线"
+        >
+            <Trash2 className="w-4 h-4" />
+        </button>
+
+        {/* 退出按钮 */}
+        <button
+            onClick={tools.toggleMeasurement} // ⚠️ 请替换为你 useMapTools 里实际的开关函数名
+            className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded-full text-sm font-bold transition-all border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+        >
+            退出
+        </button>
+    </div>
+)}
 
                     <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all animate-bounce">
                         <ChevronUp className="w-4 h-4 text-cyan-400" /> 呼出战术中枢

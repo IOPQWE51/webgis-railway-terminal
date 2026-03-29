@@ -16,6 +16,23 @@ const formatLocalTimeByLon = (date, lon) => {
     return `${h}:${m}`;
 };
 
+/**
+ * SunCalc 在高纬/极区可能返回 Invalid Date，或跨日时刻导致格式化失败。
+ * 数据层降级：无效则显示固定文案，避免 UI 出现 --:--。
+ */
+const formatLocalTimeByLonSafe = (date, lon, lat) => {
+    if (date == null || !(date instanceof Date) || Number.isNaN(date.getTime())) {
+        const a = Math.abs(Number(lat) || 0);
+        return a >= 62 ? '极昼无终点' : '持续至次日';
+    }
+    const s = formatLocalTimeByLon(date, lon);
+    if (s === '--:--') {
+        const a = Math.abs(Number(lat) || 0);
+        return a >= 62 ? '极昼无终点' : '持续至次日';
+    }
+    return s;
+};
+
 export const initPhotoEvalEngine = () => {
     window.__evalPhotoCondition = async (event, lat, lon, evalId, category = 'spot') => {
         if (event) { event.stopPropagation(); event.preventDefault(); }
@@ -167,11 +184,15 @@ export const initPhotoEvalEngine = () => {
 
 export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     const times = SunCalc.getTimes(new Date(), pt.lat, pt.lon);
-    
-    const sunrise = formatLocalTimeByLon(times.sunrise, pt.lon); 
-    const sunset = formatLocalTimeByLon(times.sunset, pt.lon);
-    const goldenHour = formatLocalTimeByLon(times.goldenHour, pt.lon); 
-    const blueHour = formatLocalTimeByLon(times.nightStarting, pt.lon);
+    const lat = pt.lat;
+    const lon = pt.lon;
+
+    // 日出/日落/黄金：防御性格式化
+    const sunrise = formatLocalTimeByLonSafe(times.sunrise, lon, lat);
+    const sunset = formatLocalTimeByLonSafe(times.sunset, lon, lat);
+    const goldenHour = formatLocalTimeByLonSafe(times.goldenHour, lon, lat);
+    // 蓝调结束：SunCalc 为民用昏线终（太阳高度 -6°），非 night（-18°）。旧代码误用不存在的 nightStarting。
+    const blueHourEnd = formatLocalTimeByLonSafe(times.dusk, lon, lat);
 
     const evalId = Math.random().toString(36).substr(2, 9);
     const category = pt.category || 'spot';
@@ -203,7 +224,7 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
                     </div>
                     <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 10px 12px; border-radius: 10px; grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
                         <span style="color:#38bdf8; font-size: 13px;">🌌 蓝调时刻</span> 
-                        <span style="color:#bae6fd; font-size: 14px;">${sunset} - ${blueHour}</span>
+                        <span style="color:#bae6fd; font-size: 14px;">${sunset} - ${blueHourEnd}</span>
                     </div>
                 </div>
             </div>
