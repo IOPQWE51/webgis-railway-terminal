@@ -4,17 +4,17 @@ import { RAILWAY_LINES_CONFIG, TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM
 import { generatePopupContent } from '../utils/photoEngine';
 import { openCyberPanel } from '../utils/cyberPanel';
 
-/** 战术锁定 HUD 准星 HTML（与地图选点共用） */
+/** 战术锁定 HUD 准星 HTML（颜色升级为玫瑰红，加粗） */
 const TARGET_BEACON_HTML = `
     <div style="position: relative; width: 40px; height: 40px; transform: translate(-50%, -50%);">
         <div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-top: 2px solid #22d3ee; border-left: 2px solid #22d3ee;"></div>
         <div style="position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-top: 2px solid #22d3ee; border-right: 2px solid #22d3ee;"></div>
         <div style="position: absolute; bottom: 0; left: 0; width: 10px; height: 10px; border-bottom: 2px solid #22d3ee; border-left: 2px solid #22d3ee;"></div>
         <div style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-bottom: 2px solid #22d3ee; border-right: 2px solid #22d3ee;"></div>
-        <div style="position: absolute; top: 50%; left: 10px; right: 10px; height: 1px; background: rgba(168, 85, 247, 0.7); transform: translateY(-50%);"></div>
-        <div style="position: absolute; left: 50%; top: 10px; bottom: 10px; width: 1px; background: rgba(168, 85, 247, 0.7); transform: translateX(-50%);"></div>
-        <div style="position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee; transform: translate(-50%, -50%); animation: beaconPulse 1.5s infinite;"></div>
-        <style>@keyframes beaconPulse { 0% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.5); } 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); } }</style>
+        <div style="position: absolute; top: 50%; left: 8px; right: 8px; height: 2px; background: rgba(244, 63, 94, 0.85); transform: translateY(-50%); box-shadow: 0 0 6px rgba(244, 63, 94, 0.4);"></div>
+        <div style="position: absolute; left: 50%; top: 8px; bottom: 8px; width: 2px; background: rgba(244, 63, 94, 0.85); transform: translateX(-50%); box-shadow: 0 0 6px rgba(244, 63, 94, 0.4);"></div>
+        <div style="position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #22d3ee; transform: translate(-50%, -50%); animation: beaconPulse 1.5s infinite;"></div>
+        <style>@keyframes beaconPulse { 0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); } }</style>
     </div>
 `;
 
@@ -27,25 +27,31 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
     // 🎯 用于存放并管理“战术锁定信标”的引用，保证每次只有一个准星
     const targetBeaconRef = useRef(null);
 
-    /** 将准星移动到指定经纬度并轻推镜头（铁道点 / 导入点 / 地图选点共用） */
+    /** 将准星移动到指定经纬度并智能偏移镜头（避开移动端底部面板） */
     const updateTargetBeacon = useCallback((lat, lng) => {
         const map = mapRef.current;
         if (!map || !window.L) return;
         const L = window.L;
-        map.panTo([lat, lng], { animate: true, duration: 0.6, easeLinearity: 0.25 });
+        
+        // 🚀 1. 智能视口偏移计算
+        const targetPoint = map.project([lat, lng], map.getZoom());
+        let offsetX = 0;
+        let offsetY = 0;
+
+        if (window.innerWidth < 1024) {
+            // 手机端：面板在底部，往下移 25vh 保证目标在上半区居中
+            offsetY = window.innerHeight * 0.25; 
+        }
+        
+        const newCenter = map.unproject([targetPoint.x + offsetX, targetPoint.y + offsetY], map.getZoom());
+        map.panTo(newCenter, { animate: true, duration: 0.6, easeLinearity: 0.25 });
+
+        // 🎯 2. 刷新准星信标
         if (targetBeaconRef.current) {
-            try {
-                map.removeLayer(targetBeaconRef.current);
-            } catch {
-                /* ignore */
-            }
+            try { map.removeLayer(targetBeaconRef.current); } catch {}
             targetBeaconRef.current = null;
         }
-        const beaconIcon = L.divIcon({
-            html: TARGET_BEACON_HTML,
-            className: 'target-beacon-icon',
-            iconSize: [0, 0]
-        });
+        const beaconIcon = L.divIcon({ html: TARGET_BEACON_HTML, className: 'target-beacon-icon', iconSize: [0, 0] });
         targetBeaconRef.current = L.marker([lat, lng], { icon: beaconIcon, zIndexOffset: 600 }).addTo(map);
     }, [mapRef]);
 

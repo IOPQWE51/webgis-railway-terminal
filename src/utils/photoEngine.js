@@ -200,9 +200,23 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     return `
         <div style="padding: 24px 20px; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column;">
             
-            <div style="margin-bottom: 24px;">
-                <b style="font-size: 22px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${name}</b>
-                ${desc ? `<div style="font-size: 13px; color: #64748b; margin-top: 10px; line-height: 1.6; font-weight: 600;">${desc}</div>` : ''}
+            <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div>
+                    <b style="font-size: 22px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${name}</b>
+                    ${desc ? `<div style="font-size: 13px; color: #64748b; margin-top: 10px; line-height: 1.6; font-weight: 600;">${desc}</div>` : ''}
+                </div>
+                
+                ${String(ptId).startsWith('custom_') ? `
+                <button 
+                    onclick="window.__deleteCustomPoint('${pt.id}')" 
+                    style="flex-shrink: 0; margin-left: 12px; background: rgba(239, 68, 68, 0.08); color: #ef4444; border: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; margin-top: 2px;"
+                    onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'; this.style.transform='scale(1.05)'" 
+                    onmouseout="this.style.background='rgba(239, 68, 68, 0.08)'; this.style.transform='scale(1)'"
+                    title="删除此坐标点"
+                >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                </button>
+                ` : ''}
             </div>
             
             <div style="background: linear-gradient(145deg, #0f172a, #1e293b); padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.2); margin-bottom: 20px; position: relative; overflow: hidden;">
