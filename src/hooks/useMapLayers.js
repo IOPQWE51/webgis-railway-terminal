@@ -4,34 +4,30 @@ import { RAILWAY_LINES_CONFIG, TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM
 import { generatePopupContent } from '../utils/photoEngine';
 import { openCyberPanel } from '../utils/cyberPanel';
 
-/** 战术锁定 HUD 准星 HTML（SVG 降维打击 100% 复刻版：黑金精密仪器质感） */
+/** 战术锁定 HUD 准星 HTML（紧急抢救版：纯正圆形雷达 HUD，彻底消除方框感） */
 const TARGET_BEACON_HTML = `
-    <div style="position: relative; width: 48px; height: 48px; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;">
+    <div style="position: relative; width: 60px; height: 60px;">
         
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); z-index: 2;">
+        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); z-index: 2; position: absolute; top: 0; left: 0;">
             
-            <path d="M14 6H8C6.895 6 6 6.895 6 8V14" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M34 6H40C41.105 6 42 6.895 42 8V14" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M14 42H8C6.895 42 6 41.105 6 40V34" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M34 42H40C41.105 42 42 41.105 42 40V34" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-
-            <circle cx="24" cy="24" r="10" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.9"/>
-
-            <line x1="24" y1="11" x2="24" y2="15" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
-            <line x1="24" y1="33" x2="24" y2="37" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
-            <line x1="11" y1="24" x2="15" y2="24" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
-            <line x1="33" y1="24" x2="37" y2="24" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
-
-            <circle cx="24" cy="24" r="3.5" fill="#1e293b"/>
-            <circle cx="24" cy="24" r="1.5" fill="#fbbf24"/>
+            <circle cx="30" cy="30" r="24" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.8"/>
+            
+            <circle cx="30" cy="30" r="18" stroke="#fbbf24" stroke-width="2" stroke-dasharray="14 14" stroke-dashoffset="7"/>
+            
+            <line x1="30" y1="12" x2="30" y2="18" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="30" y1="42" x2="30" y2="48" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="12" y1="30" x2="18" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="42" y1="30" x2="48" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+            
+            <circle cx="30" cy="30" r="2.5" fill="#fbbf24"/>
         </svg>
         
-        <div style="position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; border: 1.5px solid #fbbf24; border-radius: 50%; transform: translate(-50%, -50%); animation: radarPulse 2s infinite cubic-bezier(0.1, 0.5, 0.9, 0.1); z-index: 1;"></div>
+        <div style="position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; border: 1.5px solid #fbbf24; border-radius: 50%; transform: translate(-50%, -50%); animation: radarPulse 2.5s infinite ease-out; z-index: 1;"></div>
         
         <style>
             @keyframes radarPulse { 
-                0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); } 
-                100% { opacity: 0; transform: translate(-50%, -50%) scale(3.5); } 
+                0% { opacity: 1; width: 10px; height: 10px; } 
+                100% { opacity: 0; width: 56px; height: 56px; border-width: 0.5px; } 
             }
         </style>
     </div>
@@ -70,7 +66,13 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             try { map.removeLayer(targetBeaconRef.current); } catch {}
             targetBeaconRef.current = null;
         }
-        const beaconIcon = L.divIcon({ html: TARGET_BEACON_HTML, className: 'target-beacon-icon', iconSize: [0, 0] });
+        // 🎯 修复大小与锚点，让科幻雷达完美居中！
+        const beaconIcon = L.divIcon({ 
+            html: TARGET_BEACON_HTML, 
+            className: 'target-beacon-icon', 
+            iconSize: [60, 60],    // 👈 告诉地图我们的大招有 60x60 这么大
+            iconAnchor: [30, 30]   // 👈 把物理圆心死死钉在坐标点上！
+        });
         targetBeaconRef.current = L.marker([lat, lng], { icon: beaconIcon, zIndexOffset: 600 }).addTo(map);
     }, [mapRef]);
 
