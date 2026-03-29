@@ -68,9 +68,31 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         const L = window.L; const map = mapRef.current;
         if (!measureLayerRef.current) measureLayerRef.current = L.layerGroup().addTo(map);
         const layer = measureLayerRef.current; layer.clearLayers();
+        
         if (measurePoints.length > 0) L.circleMarker(measurePoints[0], { radius: 6, color: '#facc15', fillColor: '#111827', fillOpacity: 1, weight: 3 }).addTo(layer);
-        if (measurePoints.length === 2) { L.circleMarker(measurePoints[1], { radius: 6, color: '#facc15', fillColor: '#111827', fillOpacity: 1, weight: 3 }).addTo(layer); L.polyline(measurePoints, { color: '#facc15', dashArray: '8, 8', weight: 3 }).addTo(layer); setMeasureDistance(map.distance(measurePoints[0], measurePoints[1])); }
-        const onMapClick = (e) => { if (!isMeasuring) return; if (measurePoints.length === 0 || measurePoints.length === 2) { setMeasurePoints([e.latlng]); setMeasureDistance(0); } else if (measurePoints.length === 1) { setMeasurePoints([measurePoints[0], e.latlng]); setIsMeasuring(false); } };
+        
+        if (measurePoints.length === 2) { 
+            L.circleMarker(measurePoints[1], { radius: 6, color: '#facc15', fillColor: '#111827', fillOpacity: 1, weight: 3 }).addTo(layer); 
+            L.polyline(measurePoints, { color: '#facc15', dashArray: '8, 8', weight: 3 }).addTo(layer); 
+            // 实时计算两点距离
+            setMeasureDistance(map.distance(measurePoints[0], measurePoints[1])); 
+        }
+        
+        const onMapClick = (e) => { 
+            if (!isMeasuring) return; 
+            
+            // 1. 如果还没画，或者已经画完了一条线，点击地图就重新开始画第一点
+            if (measurePoints.length === 0 || measurePoints.length === 2) { 
+                setMeasurePoints([e.latlng]); 
+                setMeasureDistance(0); 
+            } 
+            // 2. 如果已经有一个点了，点击地图就落定第二个点，完成连线！
+            else if (measurePoints.length === 1) { 
+                setMeasurePoints([measurePoints[0], e.latlng]); 
+                // 🛑 核心修复：删掉了 setIsMeasuring(false)，保持雷达持续开启！
+            } 
+        };
+        
         if (isMeasuring) {
             map.on('click', onMapClick);
         } else {
@@ -79,10 +101,25 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         return () => map.off('click', onMapClick);
     }, [leafletReady, isMeasuring, measurePoints, mapRef]);
 
-    const clearMeasurement = () => { setMeasurePoints([]); setMeasureDistance(0); setIsMeasuring(false); if (measureLayerRef.current) measureLayerRef.current.clearLayers(); };
+    // 🗑️ 垃圾桶功能：只清空线和数据，但不退出雷达模式！
+    const clearMeasurement = () => { 
+        setMeasurePoints([]); 
+        setMeasureDistance(0); 
+        // 🛑 核心修复：删掉 setIsMeasuring(false)
+        if (measureLayerRef.current) measureLayerRef.current.clearLayers(); 
+    };
+
+    // ✖️ 退出功能：真正关闭雷达，销毁 HUD 和数据
+    const exitMeasurement = () => {
+        setMeasurePoints([]); 
+        setMeasureDistance(0); 
+        setIsMeasuring(false); // 只有这里才能真正关掉模式！
+        if (measureLayerRef.current) measureLayerRef.current.clearLayers(); 
+    };
 
     return { 
         handleSearchLocationFound, locatePlayer, isLocating, 
-        isMeasuring, setIsMeasuring, measurePoints, setMeasurePoints, measureDistance, setMeasureDistance, clearMeasurement 
+        isMeasuring, setIsMeasuring, measurePoints, setMeasurePoints, measureDistance, setMeasureDistance, 
+        clearMeasurement, exitMeasurement // 🚀 别忘了把新增的 exitMeasurement 导出去！
     };
 };

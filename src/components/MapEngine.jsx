@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, X, ChevronUp, Trash2 } from 'lucide-react';
+import { Loader2, X, ChevronUp,Trash2, Ruler } from 'lucide-react';
 
 // 导入外部依赖 (配置、渲染面板、打分系统)
 import ControlPanel from './ControlPanel'; 
@@ -56,8 +56,21 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         if (!leafletReady || !mapRef.current) return;
         const container = mapRef.current.getContainer();
 
-        // 幽灵狙击 HUD 准星 (32x32)：赛博青外框 + 极光紫十字 + 纯白像素准心
-        const cyberCrosshair = `url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNOCAxMlY4SDEyIiBzdHJva2U9IiMyMmQzZWUiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0ic3F1YXJlIi8+PHBhdGggZD0iTTI0IDEyVjhIMjAiIHN0cm9rZT0iIzIyZDNlZSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiLz48cGF0aCBkPSJNOCAyMFYyNEgxMiIgc3Ryb2tlPSIjMjJkM2VlIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSIvPjxwYXRoIGQ9Ik0yNCAyMFYyNEgyMCIgc3Ryb2tlPSIjMjJkM2VlIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSIvPjxsaW5lIHgxPSIxNiIgeTE9IjQiIHgyPSIxNiIgeTI9IjEwIiBzdHJva2U9IiNhODU1ZjciIHN0cm9rZS13aWR0aD0iMS41Ii8+PGxpbmUgeDE9IjE2IiB5MT0iMjIiIHgyPSIxNiIgeTI9IjI4IiBzdHJva2U9IiNhODU1ZjciIHN0cm9rZS13aWR0aD0iMS41Ii8+PGxpbmUgeDE9IjQiIHkxPSIxNiIgeDI9IjEwIiB5Mj0iMTYiIHN0cm9rZT0iI2E4NTVmNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48bGluZSB4MT0iMjIiIHkxPSIxNiIgeDI9IjI4IiB5Mj0iMTYiIHN0cm9rZT0iI2E4NTVmNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxLjUiIGZpbGw9IiNmZmZmZmYiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIzIiBzdHJva2U9IiMyMmQzZWUiIHN0cm9rZS13aWR0aD0iMSIgb3BhY2l0eT0iMC42Ii8+PC9zdmc+') 16 16, crosshair`;
+        // 重新着色：外框青色，内十字高亮玫瑰红 (#f43f5e)，线条整体加粗，辨识度拉满
+        const svgCursor = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12V8H12" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
+            <path d="M24 12V8H20" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
+            <path d="M8 20V24H12" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
+            <path d="M24 20V24H20" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
+            <line x1="16" y1="4" x2="16" y2="10" stroke="#f43f5e" stroke-width="2"/>
+            <line x1="16" y1="22" x2="16" y2="28" stroke="#f43f5e" stroke-width="2"/>
+            <line x1="4" y1="16" x2="10" y2="16" stroke="#f43f5e" stroke-width="2"/>
+            <line x1="22" y1="16" x2="28" y2="16" stroke="#f43f5e" stroke-width="2"/>
+            <circle cx="16" cy="16" r="1.5" fill="#ffffff"/>
+            <circle cx="16" cy="16" r="3" stroke="#22d3ee" stroke-width="1.5" opacity="0.6"/>
+        </svg>`;
+
+        const cyberCrosshair = `url('data:image/svg+xml;utf8,${encodeURIComponent(svgCursor)}') 16 16, crosshair`;
 
         if (tools.isMeasuring) {
             container.style.cursor = cyberCrosshair;
@@ -75,34 +88,38 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 <div className="flex-1 relative rounded-[2rem] overflow-hidden shadow-2xl border border-gray-200">
                     <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#e5e5f7' }}></div>
 
-                    {/* 📏 战术专属 HUD：测距模式下强制悬浮在地图正上方，解决移动端痛点 */}
+                    {/* 📏 极简战术 HUD：测距模式专属顶部胶囊 */}
 {tools.isMeasuring && (
-    <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[2000] flex items-center gap-3 bg-zinc-900/90 backdrop-blur-md px-5 py-3 rounded-full shadow-[0_0_25px_rgba(34,211,238,0.4)] border border-cyan-500/50 animate-in slide-in-from-top-4">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] flex items-center bg-zinc-900/90 backdrop-blur-md rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-cyan-500/30 px-3 py-1.5 animate-in slide-in-from-top-2 whitespace-nowrap">
         
-        {/* 数据展示区 (如果你在 useMapTools 里存了实时距离，可以把 0.00 替换掉) */}
-        <div className="flex flex-col items-center pr-3 border-r border-zinc-700">
-            <span className="text-[10px] text-cyan-400 font-bold tracking-widest uppercase">测距雷达开启</span>
-            <span className="text-white font-mono font-black text-lg leading-none mt-1">
-                {tools.currentDistance || '---'} <span className="text-xs text-zinc-400 font-sans">km</span>
+        {/* 数据区：尺子图标 + 固定宽度的距离数值 */}
+        <div className="flex items-center gap-2 pr-3">
+            <Ruler className="w-4 h-4 text-cyan-400" />
+            <span className="text-white font-mono font-bold text-sm min-w-[60px] text-center tracking-wider">
+                {tools.currentDistance || '0.00'} <span className="text-[10px] text-zinc-400 font-sans">km</span>
             </span>
         </div>
 
-        {/* 清除按钮 */}
-        <button
-            onClick={tools.clearMeasurement} // ⚠️ 请替换为你 useMapTools 里实际的清除函数名
-            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-            title="清除当前连线"
-        >
-            <Trash2 className="w-4 h-4" />
-        </button>
+        {/* 分割线 */}
+        <div className="w-[1px] h-4 bg-zinc-700 mx-1"></div>
 
-        {/* 退出按钮 */}
-        <button
-            onClick={tools.toggleMeasurement} // ⚠️ 请替换为你 useMapTools 里实际的开关函数名
-            className="bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white px-4 py-1.5 rounded-full text-sm font-bold transition-all border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
-        >
-            退出
-        </button>
+        {/* 操作区：清除与退出 (全图标，零废话) */}
+        <div className="flex items-center gap-1 pl-2">
+            <button
+                onClick={tools.clearMeasurement} // 🗑️ 保持不变，但现在它只会清空线，不会退出模式了！
+                className="p-1.5 rounded-full text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800 transition-colors"
+                title="清除连线"
+            >
+                <Trash2 className="w-4 h-4" />
+            </button>
+            <button
+                onClick={tools.exitMeasurement} // 🛑 核心替换：换成咱们刚导出的 exitMeasurement 专用退出函数！
+                className="p-1.5 rounded-full text-red-400 hover:text-white hover:bg-red-500/80 transition-colors ml-1"
+                title="退出测距"
+            >
+                <X className="w-4 h-4" />
+            </button>
+        </div>
     </div>
 )}
 
