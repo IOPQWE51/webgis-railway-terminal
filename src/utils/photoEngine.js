@@ -182,6 +182,7 @@ export const initPhotoEvalEngine = () => {
     };
 };
 
+// 替换掉文件最下方的整个 generatePopupContent 函数
 export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     const times = SunCalc.getTimes(new Date(), pt.lat, pt.lon);
     const lat = pt.lat;
@@ -191,12 +192,15 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     const sunrise = formatLocalTimeByLonSafe(times.sunrise, lon, lat);
     const sunset = formatLocalTimeByLonSafe(times.sunset, lon, lat);
     const goldenHour = formatLocalTimeByLonSafe(times.goldenHour, lon, lat);
-    // 蓝调结束：SunCalc 为民用昏线终（太阳高度 -6°），非 night（-18°）。旧代码误用不存在的 nightStarting。
     const blueHourEnd = formatLocalTimeByLonSafe(times.dusk, lon, lat);
 
     const evalId = Math.random().toString(36).substr(2, 9);
     const category = pt.category || 'spot';
 
+    // 🆕 新增：判断是否已经是本地收藏的点位
+    const isSaved = String(ptId).startsWith('custom_') || String(ptId).startsWith('csv_') || String(ptId).startsWith('manual_') || String(ptId).startsWith('search_');
+
+    // 👇 下面是带有“收藏入库”面板的全新 HTML
     return `
         <div style="padding: 24px 20px; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column;">
             
@@ -242,6 +246,27 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
                     </div>
                 </div>
             </div>
+
+            ${!isSaved ? `
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 16px; display: flex; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <select id="save-cat-${evalId}" style="flex: 1; background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 700; color: #475569; outline: none; cursor: pointer;">
+                    <option value="spot">📍 地标</option>
+                    <option value="station">🚉 车站</option>
+                    <option value="airport">✈️ 机场</option>
+                    <option value="hotel">🏨 住宿</option>
+                    <option value="anime">🌸 巡礼</option>
+                </select>
+                <button 
+                    onclick="if(window.__saveToCustomPoints) window.__saveToCustomPoints('${name.replace(/'/g, "\\'")}', ${lat}, ${lon}, document.getElementById('save-cat-${evalId}').value, this)" 
+                    style="flex: 1; background: #0f172a; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(15,23,42,0.15); display: flex; justify-content: center; align-items: center;"
+                    onmousedown="this.style.transform='scale(0.96)'" 
+                    onmouseup="this.style.transform='scale(1)'" 
+                    onmouseleave="this.style.transform='scale(1)'"
+                >
+                    📥 锁定入库
+                </button>
+            </div>
+            ` : ''}
 
             <div style="margin-bottom: 8px;">
                 <button id="btn-${evalId}" onclick="window.__evalPhotoCondition(event, ${pt.lat}, ${pt.lon}, '${evalId}', '${category}')" style="width: 100%; background: #0f172a; color: white; border: none; padding: 16px; border-radius: 14px; font-size: 15px; font-weight: 800; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25); display: flex; justify-content: center; align-items: center; gap: 8px;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
