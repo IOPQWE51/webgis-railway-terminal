@@ -4,17 +4,36 @@ import { RAILWAY_LINES_CONFIG, TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM
 import { generatePopupContent } from '../utils/photoEngine';
 import { openCyberPanel } from '../utils/cyberPanel';
 
-/** 战术锁定 HUD 准星 HTML（颜色升级为玫瑰红，加粗） */
+/** 战术锁定 HUD 准星 HTML（SVG 降维打击 100% 复刻版：黑金精密仪器质感） */
 const TARGET_BEACON_HTML = `
-    <div style="position: relative; width: 40px; height: 40px; transform: translate(-50%, -50%);">
-        <div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-top: 2px solid #22d3ee; border-left: 2px solid #22d3ee;"></div>
-        <div style="position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-top: 2px solid #22d3ee; border-right: 2px solid #22d3ee;"></div>
-        <div style="position: absolute; bottom: 0; left: 0; width: 10px; height: 10px; border-bottom: 2px solid #22d3ee; border-left: 2px solid #22d3ee;"></div>
-        <div style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; border-bottom: 2px solid #22d3ee; border-right: 2px solid #22d3ee;"></div>
-        <div style="position: absolute; top: 50%; left: 8px; right: 8px; height: 2px; background: rgba(244, 63, 94, 0.85); transform: translateY(-50%); box-shadow: 0 0 6px rgba(244, 63, 94, 0.4);"></div>
-        <div style="position: absolute; left: 50%; top: 8px; bottom: 8px; width: 2px; background: rgba(244, 63, 94, 0.85); transform: translateX(-50%); box-shadow: 0 0 6px rgba(244, 63, 94, 0.4);"></div>
-        <div style="position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: #fff; border-radius: 50%; box-shadow: 0 0 10px #22d3ee; transform: translate(-50%, -50%); animation: beaconPulse 1.5s infinite;"></div>
-        <style>@keyframes beaconPulse { 0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); } }</style>
+    <div style="position: relative; width: 48px; height: 48px; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center;">
+        
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); z-index: 2;">
+            
+            <path d="M14 6H8C6.895 6 6 6.895 6 8V14" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M34 6H40C41.105 6 42 6.895 42 8V14" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M14 42H8C6.895 42 6 41.105 6 40V34" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M34 42H40C41.105 42 42 41.105 42 40V34" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+            <circle cx="24" cy="24" r="10" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="4 6" opacity="0.9"/>
+
+            <line x1="24" y1="11" x2="24" y2="15" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+            <line x1="24" y1="33" x2="24" y2="37" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+            <line x1="11" y1="24" x2="15" y2="24" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+            <line x1="33" y1="24" x2="37" y2="24" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+
+            <circle cx="24" cy="24" r="3.5" fill="#1e293b"/>
+            <circle cx="24" cy="24" r="1.5" fill="#fbbf24"/>
+        </svg>
+        
+        <div style="position: absolute; top: 50%; left: 50%; width: 14px; height: 14px; border: 1.5px solid #fbbf24; border-radius: 50%; transform: translate(-50%, -50%); animation: radarPulse 2s infinite cubic-bezier(0.1, 0.5, 0.9, 0.1); z-index: 1;"></div>
+        
+        <style>
+            @keyframes radarPulse { 
+                0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); } 
+                100% { opacity: 0; transform: translate(-50%, -50%) scale(3.5); } 
+            }
+        </style>
     </div>
 `;
 

@@ -74,8 +74,11 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         if (measurePoints.length === 2) { 
             L.circleMarker(measurePoints[1], { radius: 6, color: '#facc15', fillColor: '#111827', fillOpacity: 1, weight: 3 }).addTo(layer); 
             L.polyline(measurePoints, { color: '#facc15', dashArray: '8, 8', weight: 3 }).addTo(layer); 
-            // 实时计算两点距离
-            setMeasureDistance(map.distance(measurePoints[0], measurePoints[1])); 
+    
+            // 🛰️ 修正计算逻辑：米 -> 公里，并格式化为 2 位小数
+            const meters = map.distance(measurePoints[0], measurePoints[1]);
+            const kilometers = (meters / 1000).toFixed(2); 
+            setMeasureDistance(kilometers); 
         }
         
         const onMapClick = (e) => { 
