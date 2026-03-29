@@ -51,23 +51,24 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 处理窗口尺寸变化
     useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);
 
-    // 🌌 新增：动态光标引擎 (测距模式强制替换为顶级战术 HUD 准星)
+    // 🌌 动态光标引擎：黑金重装版 (解决浅色地图不可见问题)
     useEffect(() => {
         if (!leafletReady || !mapRef.current) return;
         const container = mapRef.current.getContainer();
 
-        // 重新着色：外框青色，内十字高亮玫瑰红 (#f43f5e)，线条整体加粗，辨识度拉满
         const svgCursor = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 12V8H12" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
-            <path d="M24 12V8H20" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
-            <path d="M8 20V24H12" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
-            <path d="M24 20V24H20" stroke="#22d3ee" stroke-width="2" stroke-linecap="square"/>
-            <line x1="16" y1="4" x2="16" y2="10" stroke="#f43f5e" stroke-width="2"/>
-            <line x1="16" y1="22" x2="16" y2="28" stroke="#f43f5e" stroke-width="2"/>
-            <line x1="4" y1="16" x2="10" y2="16" stroke="#f43f5e" stroke-width="2"/>
-            <line x1="22" y1="16" x2="28" y2="16" stroke="#f43f5e" stroke-width="2"/>
-            <circle cx="16" cy="16" r="1.5" fill="#ffffff"/>
-            <circle cx="16" cy="16" r="3" stroke="#22d3ee" stroke-width="1.5" opacity="0.6"/>
+            <path d="M8 12V8H12" stroke="#1e293b" stroke-width="1.5" stroke-linecap="square"/>
+            <path d="M24 12V8H20" stroke="#1e293b" stroke-width="1.5" stroke-linecap="square"/>
+            <path d="M8 20V24H12" stroke="#1e293b" stroke-width="1.5" stroke-linecap="square"/>
+            <path d="M24 20V24H20" stroke="#1e293b" stroke-width="1.5" stroke-linecap="square"/>
+            
+            <line x1="16" y1="4" x2="16" y2="10" stroke="#fbbf24" stroke-width="1.5"/>
+            <line x1="16" y1="22" x2="16" y2="28" stroke="#fbbf24" stroke-width="1.5"/>
+            <line x1="4" y1="16" x2="10" y2="16" stroke="#fbbf24" stroke-width="1.5"/>
+            <line x1="22" y1="16" x2="28" y2="16" stroke="#fbbf24" stroke-width="1.5"/>
+            
+            <circle cx="16" cy="16" r="1.5" fill="#1e293b"/>
+            <circle cx="16" cy="16" r="3" stroke="#1e293b" stroke-width="1.5" opacity="0.4"/>
         </svg>`;
 
         const cyberCrosshair = `url('data:image/svg+xml;utf8,${encodeURIComponent(svgCursor)}') 16 16, crosshair`;
@@ -96,7 +97,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         <div className="flex items-center gap-2 pr-3">
             <Ruler className="w-4 h-4 text-cyan-400" />
             <span className="text-white font-mono font-bold text-sm min-w-[60px] text-center tracking-wider">
-                {tools.currentDistance || '0.00'} <span className="text-[10px] text-zinc-400 font-sans">km</span>
+                {tools.measureDistance || '0.00'} <span className="text-[10px] text-zinc-400 font-sans">km</span>
             </span>
         </div>
 
