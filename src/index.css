@@ -109,6 +109,8 @@
     transition: background 0.15s ease;
 }
 
+
+
 .cyber-panel-close:hover {
     background: rgba(15, 23, 42, 0.14);
 }
