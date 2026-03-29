@@ -76,7 +76,8 @@ const App = () => {
                         isActive={activeTab === 'map'} 
                         customPoints={customPoints} 
                         basePoints={BASE_POINTS_CONFIG} 
-                        onDeletePoint={(pointId) => setCustomPoints(prev => prev.filter(p => p.id !== pointId))} 
+                        onDeletePoint={(pointId) => setCustomPoints(prev => prev.filter(p => p.id !== pointId))}
+                        onPointsUpdate={setCustomPoints}
                     />
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={setCustomPoints} />
                     <RulesTab isActive={activeTab === 'rules'} />

@@ -10,7 +10,7 @@ import { closeCyberPanel } from '../utils/cyberPanel';
 import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint,onPointsUpdate }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const [leafletReady, setLeafletReady] = useState(false);
@@ -21,17 +21,50 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [filters, setFilters] = useState({ framework: true, station: true, airport: true, anime: true, hotel: true, spot: true });
     const toggleFilter = (key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }));
 
-    // 2. 初始化核心系统环境
+    // 2. 初始化核心系统环境 (增强版：加入全局入库与删除)
     useEffect(() => {
         initPhotoEvalEngine(); 
+        
+        // 🗑️ 全局删除信号接收
         window.__deleteCustomPoint = (id) => {
             if (window.confirm('⚠️ 确定删除此坐标点吗？')) {
                 if (onDeletePoint) onDeletePoint(id);
                 closeCyberPanel();
             }
         };
-        return () => { delete window.__deleteCustomPoint; delete window.__evalPhotoCondition; };
-    }, [onDeletePoint]);
+
+        // 📥 🆕 全局收藏入库信号接收 (这就是我们要加的！)
+        window.__saveToCustomPoints = (name, lat, lon, category, btnElement) => {
+            const newPt = {
+                id: `custom_${Date.now()}`,
+                name: name,
+                lat: parseFloat(lat),
+                lon: parseFloat(lon),
+                category: category,
+                source: '雷达手动捕获'
+            };
+            
+            // 触发更新，App.jsx 会自动帮你存进 localStorage！
+            if (onPointsUpdate) {
+                onPointsUpdate(prev => [...prev, newPt]);
+            }
+            
+            // 极客视觉反馈：变绿锁定
+            if (btnElement) {
+                btnElement.innerHTML = '✅ 编入成功';
+                btnElement.style.background = '#10b981'; // 变成翡翠绿
+                btnElement.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.4)';
+                btnElement.style.pointerEvents = 'none'; // 防止连点
+            }
+        };
+
+        // 卸载时打扫战场
+        return () => { 
+            delete window.__deleteCustomPoint; 
+            delete window.__evalPhotoCondition; 
+            delete window.__saveToCustomPoints; // 🧹 清理新增的全局函数
+        };
+    }, [onDeletePoint, onPointsUpdate]);
 
     // 3. 异步注入 Leaflet 核心库
     useEffect(() => {
