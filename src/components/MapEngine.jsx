@@ -6,7 +6,7 @@ import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
 
-// 导入我们刚写好的核心 Hooks
+// 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 
@@ -21,7 +21,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [filters, setFilters] = useState({ framework: true, station: true, airport: true, anime: true, hotel: true, spot: true });
     const toggleFilter = (key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }));
 
-    // 2. 初始化核心系统环境 (挂载打分引擎与删除功能)
+    // 2. 初始化核心系统环境
     useEffect(() => {
         initPhotoEvalEngine(); 
         window.__deleteCustomPoint = (id) => {
@@ -51,6 +51,20 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 处理窗口尺寸变化
     useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);
 
+    // 🌌 新增：动态光标引擎 (测距模式强制替换为顶级战术 HUD 准星)
+    useEffect(() => {
+        if (!leafletReady || !mapRef.current) return;
+        const container = mapRef.current.getContainer();
+
+        // 幽灵狙击 HUD 准星 (32x32)：赛博青外框 + 极光紫十字 + 纯白像素准心
+        const cyberCrosshair = `url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSJNOCAxMlY4SDEyIiBzdHJva2U9IiMyMmQzZWUiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0ic3F1YXJlIi8+PHBhdGggZD0iTTI0IDEyVjhIMjAiIHN0cm9rZT0iIzIyZDNlZSIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJzcXVhcmUiLz48cGF0aCBkPSJNOCAyMFYyNEgxMiIgc3Ryb2tlPSIjMjJkM2VlIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSIvPjxwYXRoIGQ9Ik0yNCAyMFYyNEgyMCIgc3Ryb2tlPSIjMjJkM2VlIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InNxdWFyZSIvPjxsaW5lIHgxPSIxNiIgeTE9IjQiIHgyPSIxNiIgeTI9IjEwIiBzdHJva2U9IiNhODU1ZjciIHN0cm9rZS13aWR0aD0iMS41Ii8+PGxpbmUgeDE9IjE2IiB5MT0iMjIiIHgyPSIxNiIgeTI9IjI4IiBzdHJva2U9IiNhODU1ZjciIHN0cm9rZS13aWR0aD0iMS41Ii8+PGxpbmUgeDE9IjQiIHkxPSIxNiIgeDI9IjEwIiB5Mj0iMTYiIHN0cm9rZT0iI2E4NTVmNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48bGluZSB4MT0iMjIiIHkxPSIxNiIgeDI9IjI4IiB5Mj0iMTYiIHN0cm9rZT0iI2E4NTVmNyIgc3Ryb2tlLXdpZHRoPSIxLjUiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIxLjUiIGZpbGw9IiNmZmZmZmYiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSIzIiBzdHJva2U9IiMyMmQzZWUiIHN0cm9rZS13aWR0aD0iMSIgb3BhY2l0eT0iMC42Ii8+PC9zdmc+') 16 16, crosshair`;
+
+        if (tools.isMeasuring) {
+            container.style.cursor = cyberCrosshair;
+        } else {
+            container.style.cursor = '';
+        }
+    }, [leafletReady, tools.isMeasuring]);
 
     // 5. 渲染视图层
     return (
@@ -60,35 +74,21 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 {/* 左侧/全屏 地图容器 */}
                 <div className="flex-1 relative rounded-[2rem] overflow-hidden shadow-2xl border border-gray-200">
                     <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#e5e5f7' }}></div>
-                    
+
                     <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all animate-bounce">
                         <ChevronUp className="w-4 h-4 text-cyan-400" /> 呼出战术中枢
                     </button>
                     {!leafletReady && <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50"><Loader2 className="w-8 h-8 animate-spin text-cyan-600" /></div>}
                 </div>
 
-                {/* PC 右侧控制台（POI 详情层叠在此列之上） */}
+                {/* PC 右侧控制台 */}
                 <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-300 relative z-0">
                     <ControlPanel baseMapType={baseMapType} setBaseMapType={setBaseMapType} weatherType={weatherType} setWeatherType={setWeatherType} filters={filters} toggleFilter={toggleFilter} {...tools} />
                 </div>
 
-                {/* 地点详情：大屏盖住右侧战术列；小屏为 viewport 底部抽屉 */}
-                <div
-                    id="cyber-panel"
-                    className="cyber-panel cyber-panel--map-dock hidden"
-                    role="dialog"
-                    aria-modal="false"
-                    aria-hidden="true"
-                    aria-label="地点详情"
-                >
-                    <button
-                        type="button"
-                        className="cyber-panel-close"
-                        onClick={() => closeCyberPanel()}
-                        aria-label="关闭面板"
-                    >
-                        ×
-                    </button>
+                {/* 地点详情 Panel */}
+                <div id="cyber-panel" className="cyber-panel cyber-panel--map-dock hidden" role="dialog" aria-modal="false" aria-hidden="true" aria-label="地点详情">
+                    <button type="button" className="cyber-panel-close" onClick={() => closeCyberPanel()} aria-label="关闭面板">×</button>
                     <div id="cyber-panel-content" />
                 </div>
 
