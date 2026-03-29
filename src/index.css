@@ -13,11 +13,15 @@
 /* ========== POI 详情面板（原 Popup）：仅用于地图页 MapEngine 内 ========== */
 /* ========== POI 详情面板：SaaS 级亚克力毛玻璃质感 ========== */
 .cyber-panel.cyber-panel--map-dock {
-    /* 核心魔法：浅灰蓝底色 + 强效背景模糊 */
-    background: rgba(248, 250, 252, 0.85); 
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    /* 左侧加一道极细的高光边，增加立体感 */
+    /* 🚀 核心修复：提升背景不透明度到 0.95，并使用 !important 锁定 */
+    /* 建议使用纯白 rgba(255, 255, 255, 0.95) 或者你原来的浅灰蓝 */
+    background: rgba(255, 255, 255, 0.95) !important; 
+    
+    /* 强化模糊感，确保在任何背景下都有沉浸式磨砂感 */
+    backdrop-filter: blur(25px) saturate(180%);
+    -webkit-backdrop-filter: blur(25px) saturate(180%);
+    
+    /* 左侧高光边保持不变 */
     border-left: 1px solid rgba(255, 255, 255, 0.5); 
     
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
