@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+
 /* 隐藏横向滚动条，但保留滑动功能 */
 .scrollbar-hide::-webkit-scrollbar {
     display: none;
@@ -118,4 +119,11 @@
 #cyber-panel-content {
     clear: both;
     padding: 8px 16px 24px;
+}
+
+/* 🚀 终极消除 Leaflet 瓦片亚像素缝隙 (现代独立缩放法) */
+.leaflet-tile-container img.leaflet-tile {
+    /* 使用独立 scale 属性，绝对不会破坏 Leaflet 的底层坐标定位！ */
+    /* 放大 1%，让每张瓦片边缘向外扩张约 1.2 像素，完美互相覆盖 */
+    scale: 1.01 !important;
 }
