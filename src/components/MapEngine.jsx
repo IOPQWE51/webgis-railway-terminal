@@ -127,17 +127,26 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         <ChevronUp className="w-4 h-4 text-cyan-400" /> 呼出战术中枢
                     </button>
                     {!leafletReady && <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50"><Loader2 className="w-8 h-8 animate-spin text-cyan-600" /></div>}
+
+                    {/* 地点详情：放在地图列内并叠在瓦片之上，避免与右侧 340px 控制台在「整行 right:0」上抢定位（本地/部署视口差异会导致错位） */}
+                    <div
+                        id="cyber-panel"
+                        className="cyber-panel cyber-panel--map-dock hidden"
+                        role="dialog"
+                        aria-modal="false"
+                        aria-hidden="true"
+                        aria-label="地点详情"
+                    >
+                        <button type="button" className="cyber-panel-close" onClick={() => closeCyberPanel()} aria-label="关闭面板">
+                            ×
+                        </button>
+                        <div id="cyber-panel-content" />
+                    </div>
                 </div>
 
-                {/* PC 右侧控制台 */}
+                {/* PC 右侧控制台（与详情面板分离，不再被同一 absolute 锚点牵连） */}
                 <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-300 relative z-0">
                     <ControlPanel baseMapType={baseMapType} setBaseMapType={setBaseMapType} weatherType={weatherType} setWeatherType={setWeatherType} filters={filters} toggleFilter={toggleFilter} {...tools} />
-                </div>
-
-                {/* 地点详情 Panel */}
-                <div id="cyber-panel" className="cyber-panel cyber-panel--map-dock hidden" role="dialog" aria-modal="false" aria-hidden="true" aria-label="地点详情">
-                    <button type="button" className="cyber-panel-close" onClick={() => closeCyberPanel()} aria-label="关闭面板">×</button>
-                    <div id="cyber-panel-content" />
                 </div>
 
                 {/* 移动端底部抽屉 */}
