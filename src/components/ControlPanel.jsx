@@ -67,7 +67,7 @@ const ControlPanel = ({
                     {[
                         { id: 'station', l: '🚉 车站', c: 'blue' },
                         { id: 'airport', l: '✈️ 机场', c: 'purple' },
-                        { id: 'anime', l: '🌸 圣地', c: 'pink' },
+                        { id: 'anime', l: '🌸 巡礼', c: 'pink' },
                         { id: 'hotel', l: '🏨 住宿', c: 'orange' },
                         { id: 'spot', l: '📍 地标', c: 'cyan' }
                     ].map(b => (

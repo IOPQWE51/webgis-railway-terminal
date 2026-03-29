@@ -5,79 +5,147 @@ import { getIconStyle } from '../utils/helpers';
 /**
  * 地理编码服务 - 负责地名解析为坐标
  */
+/**
+ * 🛰️ 地理编码与数据解析中枢 (装甲重构版)
+ */
+/**
+ * 🛰️ 地理编码与数据解析中枢 (双引擎制导版)
+ */
 const geocodeService = {
+    // 🚀 核心升级：引入 ArcGIS 企业级引擎作为主脑，OSM 作为兜底
+    // 🚀 究极重构：三引擎混合雷达 + 语义欺骗防偏系统
     async geocode(placeName) {
         try {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeName)}&format=json&limit=1`);
-            const data = await res.json();
-            if (data && data.length > 0) {
-                return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-            }
+            // 🧠 1. 语义增强 (Semantic Sniffing)
+            // 强行给纯中文地标加上英文后缀，防止商业引擎将其误判为国内的同名小公司
+            let smartQuery = placeName;
+            if (placeName.includes('机场') || placeName.includes('空港')) smartQuery += ' Airport';
+            if (placeName.includes('站') || placeName.includes('駅')) smartQuery += ' Station';
+            if (placeName.includes('旅舍') || placeName.includes('酒店')) smartQuery += ' Hotel';
+
+            // 🚀 引擎 A：Photon (基于 ElasticSearch，对中日英多语言抗干扰极强)
+            try {
+                const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(smartQuery)}&limit=1`;
+                const photonRes = await fetch(photonUrl);
+                const photonData = await photonRes.json();
+                if (photonData?.features?.length > 0) {
+                    const coords = photonData.features[0].geometry.coordinates; // Photon 返回 [lon, lat]
+                    console.log(`[Photon 命中] ${placeName} -> ${coords[1]}, ${coords[0]}`);
+                    return { lat: coords[1], lon: coords[0] };
+                }
+            } catch (e) { console.warn('Photon 引擎超时'); }
+
+            // 🎯 引擎 B：ArcGIS (加上英文后缀后，绝对不会再定位到济南小卖部)
+            try {
+                const arcGisUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(smartQuery)}&maxLocations=1`;
+                const arcRes = await fetch(arcGisUrl);
+                const arcData = await arcRes.json();
+                if (arcData?.candidates?.length > 0) {
+                    const location = arcData.candidates[0].location;
+                    console.log(`[ArcGIS 命中] ${placeName} -> ${location.y}, ${location.x}`);
+                    return { lat: location.y, lon: location.x };
+                }
+            } catch (e) { console.warn('ArcGIS 引擎超时'); }
+
+            // ♻️ 引擎 C：OSM Nominatim (强制加入 ja 日语 header 偏好，防止富冈/福冈惨案)
+            try {
+                const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeName)}&format=json&limit=1&accept-language=zh-CN,ja,en-US`;
+                const osmRes = await fetch(osmUrl);
+                const osmData = await osmRes.json();
+                if (osmData?.length > 0) {
+                    console.log(`[OSM 兜底命中] ${placeName} -> ${osmData[0].lat}, ${osmData[0].lon}`);
+                    return { lat: parseFloat(osmData[0].lat), lon: parseFloat(osmData[0].lon) };
+                }
+            } catch (e) { console.warn('OSM 引擎超时'); }
+
             return null;
         } catch (error) {
-            console.error(`地理编码失败：${placeName}`, error);
+            console.error(`三引擎雷达全部失效：${placeName}`, error);
             return null;
         }
     },
 
-    parseCSVLine(line) {
-        const result = [];
+    // 🚀 重构一：全文本级 CSV 解析器，完美兼容带换行符的“记事”和“评论”列
+    parseCSVText(text) {
+        const rows = [];
+        let currentRow = [];
         let currentVal = '';
         let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-            const char = line[i];
+
+        for (let i = 0; i < text.length; i++) {
+            const char = text[i];
+            const nextChar = text[i + 1];
+
             if (inQuotes) {
-                if (char === '"') {
-                    if (i + 1 < line.length && line[i + 1] === '"') {
-                        currentVal += '"';
-                        i++; 
-                    } else {
-                        inQuotes = false; 
-                    }
+                if (char === '"' && nextChar === '"') {
+                    currentVal += '"';
+                    i++; // 跳过转义引号
+                } else if (char === '"') {
+                    inQuotes = false;
                 } else {
                     currentVal += char;
                 }
             } else {
                 if (char === '"') {
-                    inQuotes = true; 
+                    inQuotes = true;
                 } else if (char === ',') {
-                    result.push(currentVal.trim());
-                    currentVal = ''; 
+                    currentRow.push(currentVal.trim());
+                    currentVal = '';
+                } else if (char === '\n' || (char === '\r' && nextChar === '\n')) {
+                    currentRow.push(currentVal.trim());
+                    if (currentRow.some(v => v !== '')) rows.push(currentRow); // 忽略纯空行
+                    currentRow = [];
+                    currentVal = '';
+                    if (char === '\r') i++; // 跳过 \n
                 } else {
                     currentVal += char;
                 }
             }
         }
-        result.push(currentVal.trim());
-        return result;
+        if (currentVal || currentRow.length > 0) {
+            currentRow.push(currentVal.trim());
+            if (currentRow.some(v => v !== '')) rows.push(currentRow);
+        }
+        return rows;
     },
 
+    // 🚀 重构二：智能清洗与三栖正则匹配引擎
     parseCSVContent(text, _fileName) {
-        const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+        const rows = this.parseCSVText(text);
         const placesToFetch = [];
-        if (lines.length === 0) return [];
+        if (rows.length === 0) return [];
 
-        const firstLine = lines[0].toLowerCase();
+        const firstLine = rows[0].join(',').toLowerCase();
         const isGoogleMapsFormat = firstLine.includes('标题') || (firstLine.includes('name') && firstLine.includes('网址'));
         const startIndex = isGoogleMapsFormat ? 1 : 0;
 
-        for (let i = startIndex; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            const parts = this.parseCSVLine(line);
+        for (let i = startIndex; i < rows.length; i++) {
+            const parts = rows[i];
+            if (parts.length === 0 || !parts[0]) continue;
 
-            if (isGoogleMapsFormat && parts.length >= 3) {
+            if (isGoogleMapsFormat && parts.length >= 2) {
                 const name = parts[0];
-                const url = parts[2];
-                let lat, lon, hasCoords = false;
-                if (url) {
-                    const coordMatch = url.match(/@(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
-                    if (coordMatch) {
-                        lat = parseFloat(coordMatch[1]);
-                        lon = parseFloat(coordMatch[2]);
-                        hasCoords = true;
-                    }
+                
+                // 🕵️‍♂️ 智能嗅探 URL 列，防止记事列为空或过长导致列索引偏移
+                let url = '';
+                const urlIndex = parts.findIndex(p => p.includes('http'));
+                if (urlIndex !== -1) {
+                    url = parts[urlIndex];
                 }
+
+                let lat, lon, hasCoords = false;
+                
+                // 📡 终极正则强化：暴力提取 Google Maps 隐藏在 URL 深处的坐标
+                if (url) {
+                    const atMatch = url.match(/@(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+                    const dMatch = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+                    const qMatch = url.match(/q=(-?\d+\.\d+)[,\s]+(-?\d+\.\d+)/);
+                    
+                    if (atMatch) { lat = parseFloat(atMatch[1]); lon = parseFloat(atMatch[2]); hasCoords = true; }
+                    else if (dMatch) { lat = parseFloat(dMatch[1]); lon = parseFloat(dMatch[2]); hasCoords = true; }
+                    else if (qMatch) { lat = parseFloat(qMatch[1]); lon = parseFloat(qMatch[2]); hasCoords = true; }
+                }
+                
                 if (name) placesToFetch.push({ name, url, lat, lon, hasCoords });
             } else {
                 const cleanName = parts[0];

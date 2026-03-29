@@ -36,7 +36,7 @@ export const getPointFilterType = (pt) => {
     const source = pt.source || ''; const type = pt.category || '';
     if (source.includes('车站') || type === 'station') return 'station';
     if (source.includes('机场') || type === 'airport' || type === 'plane') return 'airport';
-    if (source.includes('圣地') || type === 'anime') return 'anime';
-    if (source.includes('住') || type === 'hotel') return 'hotel';
+    if (source.includes('巡礼') || type === 'anime') return 'anime';
+    if (source.includes('住宿') || type === 'hotel') return 'hotel';
     return 'spot';
 };
