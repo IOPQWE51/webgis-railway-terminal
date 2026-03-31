@@ -7,6 +7,7 @@ import { BASE_POINTS_CONFIG } from './config/basePoints';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
+    const [pendingMapTarget, setPendingMapTarget] = useState(null); // 🆕 待定位的地点
 
     const [customPoints, setCustomPoints] = useState(() => {
         try {
@@ -28,6 +29,21 @@ const App = () => {
         } catch (e) {
             console.error('❌ 保存本地存储失败:', e);
         }
+    }, [customPoints]);
+
+    // 🆕 全局通信：从外部触发地图定位并弹出面板
+    useEffect(() => {
+        window.__locatePointOnMap = (pointId) => {
+            const point = customPoints.find(p => p.id === pointId);
+            if (point) {
+                setPendingMapTarget(point);
+                setActiveTab('map');
+            }
+        };
+
+        return () => {
+            delete window.__locatePointOnMap;
+        };
     }, [customPoints]);
 
     return (
@@ -72,12 +88,14 @@ const App = () => {
 
                 <main>
                     {/* 顺手补上了 onDeletePoint，确保地图删除功能正常工作 */}
-                    <MapEngine 
-                        isActive={activeTab === 'map'} 
-                        customPoints={customPoints} 
-                        basePoints={BASE_POINTS_CONFIG} 
+                    <MapEngine
+                        isActive={activeTab === 'map'}
+                        customPoints={customPoints}
+                        basePoints={BASE_POINTS_CONFIG}
                         onDeletePoint={(pointId) => setCustomPoints(prev => prev.filter(p => p.id !== pointId))}
                         onPointsUpdate={setCustomPoints}
+                        pendingMapTarget={pendingMapTarget}
+                        onTargetHandled={() => setPendingMapTarget(null)}
                     />
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={setCustomPoints} />
                     <RulesTab isActive={activeTab === 'rules'} />

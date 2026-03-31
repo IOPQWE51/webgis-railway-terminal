@@ -10,7 +10,7 @@ import { closeCyberPanel } from '../utils/cyberPanel';
 import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint,onPointsUpdate }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const [leafletReady, setLeafletReady] = useState(false);
@@ -79,7 +79,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
     // 4. 🪝 启动抽离出的核心 Hooks
     const tools = useMapTools(leafletReady, mapRef, setShowDrawer);
-    useMapLayers(leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, tools.isMeasuring);
+    useMapLayers(leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, tools.isMeasuring, pendingMapTarget, onTargetHandled);
 
     // 处理窗口尺寸变化
     useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);

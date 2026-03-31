@@ -1,43 +1,121 @@
 import { useState, useCallback, useMemo } from 'react';
-import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin } from 'lucide-react';
+import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight } from 'lucide-react';
 import { getIconStyle } from '../utils/helpers'; 
 
 /**
- * 地理编码服务 - 负责地名解析为坐标
+ * 🛰️ 地理编码与数据解析中枢 (Google API 优先版)
  */
-/**
- * 🛰️ 地理编码与数据解析中枢 (装甲重构版)
- */
-/**
- * 🛰️ 地理编码与数据解析中枢 (双引擎制导版)
- */
-const geocodeService = {
-    // 🚀 核心升级：引入 ArcGIS 企业级引擎作为主脑，OSM 作为兜底
-    // 🚀 究极重构：三引擎混合雷达 + 语义欺骗防偏系统
-    async geocode(placeName) {
-        try {
-            // 🧠 1. 语义增强 (Semantic Sniffing)
-            // 强行给纯中文地标加上英文后缀，防止商业引擎将其误判为国内的同名小公司
-            let smartQuery = placeName;
-            if (placeName.includes('机场') || placeName.includes('空港')) smartQuery += ' Airport';
-            if (placeName.includes('站') || placeName.includes('駅')) smartQuery += ' Station';
-            if (placeName.includes('旅舍') || placeName.includes('酒店')) smartQuery += ' Hotel';
 
-            // 🚀 引擎 A：Photon (基于 ElasticSearch，对中日英多语言抗干扰极强)
+// 🔑 Google Maps API Key - 从环境变量读取
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+
+// 🗂️ 地理编码缓存（防止重复查询）
+const geocodeCache = new Map();
+
+const geocodeService = {
+    // 🔧 从 Google Maps URL 提取 Place ID
+    extractPlaceId(url) {
+        if (!url) return null;
+        // 匹配格式：!1s{place_id}
+        const match = url.match(/!1s([a-zA-Z0-9_-]+)/);
+        return match ? match[1] : null;
+    },
+
+    // 🚀 使用 Google Geocoding API 查询（优先）
+    async geocodeWithGoogle(placeIdOrName) {
+        try {
+            // 检查缓存
+            const cacheKey = placeIdOrName;
+            if (geocodeCache.has(cacheKey)) {
+                console.log(`[缓存命中] ${placeIdOrName}`);
+                return geocodeCache.get(cacheKey);
+            }
+
+            let url;
+
+            // 判断是 Place ID 还是地名
+            // Place ID 格式：0xabcdef:1234567890 或长字符串
+            if (placeIdOrName.match(/^0x[a-fA-F0-9]+:[a-fA-F0-9]+$/) || placeIdOrName.length > 20) {
+                // Place ID 查询
+                url = `https://maps.googleapis.com/maps/api/geocode/json?place_id=${encodeURIComponent(placeIdOrName)}&key=${GOOGLE_MAPS_API_KEY}`;
+            } else {
+                // 地名查询
+                url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(placeIdOrName)}&key=${GOOGLE_MAPS_API_KEY}`;
+            }
+
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (data.status === 'OK' && data.results?.[0]?.geometry?.location) {
+                const location = data.results[0].geometry.location;
+                const result = {
+                    lat: location.lat,
+                    lon: location.lng
+                };
+
+                // 存入缓存
+                geocodeCache.set(cacheKey, result);
+                console.log(`[Google API 命中] ${placeIdOrName} -> ${result.lat}, ${result.lon}`);
+
+                return result;
+            } else if (data.status === 'ZERO_RESULTS') {
+                console.warn(`[Google API] 未找到: ${placeIdOrName}`);
+                return null;
+            } else {
+                console.error(`[Google API 错误] ${placeIdOrName}:`, data.status, data.error_message);
+                return null;
+            }
+        } catch (error) {
+            console.error(`[Google API 失败] ${placeIdOrName}:`, error);
+            return null;
+        }
+    },
+    // 🎯 主地理编码函数：Google API 优先，免费 API 回退
+    async geocode(placeName, url = null) {
+        try {
+            // 🚀 策略 1：如果有 URL，优先提取 Place ID 并使用 Google API
+            if (url) {
+                const placeId = this.extractPlaceId(url);
+                if (placeId) {
+                    console.log(`[Place ID 检测] ${placeName} -> ${placeId}`);
+                    const result = await this.geocodeWithGoogle(placeId);
+                    if (result) return result;
+                }
+            }
+
+            // 🚀 策略 2：直接使用 Google API 查询地名
+            console.log(`[Google API 查询] ${placeName}`);
+            const result = await this.geocodeWithGoogle(placeName);
+            if (result) return result;
+
+            // 🚀 策略 3：Google API 失败，回退到免费 API（Photon、ArcGIS、OSM）
+            console.log(`[回退到免费 API] ${placeName}`);
+            return await this.geocodeWithFallback(placeName);
+
+        } catch (error) {
+            console.error(`[地理编码失败] ${placeName}:`, error);
+            return null;
+        }
+    },
+
+    // 🔄 免费回退方案（Photon + ArcGIS + OSM）
+    async geocodeWithFallback(placeName) {
+        try {
+            // 引擎 A：Photon
             try {
-                const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(smartQuery)}&limit=1`;
+                const photonUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(placeName)}&limit=1`;
                 const photonRes = await fetch(photonUrl);
                 const photonData = await photonRes.json();
                 if (photonData?.features?.length > 0) {
-                    const coords = photonData.features[0].geometry.coordinates; // Photon 返回 [lon, lat]
+                    const coords = photonData.features[0].geometry.coordinates;
                     console.log(`[Photon 命中] ${placeName} -> ${coords[1]}, ${coords[0]}`);
                     return { lat: coords[1], lon: coords[0] };
                 }
-            } catch (e) { console.warn('Photon 引擎超时'); }
+            } catch (_e) { /* ignore */ }
 
-            // 🎯 引擎 B：ArcGIS (加上英文后缀后，绝对不会再定位到济南小卖部)
+            // 引擎 B：ArcGIS
             try {
-                const arcGisUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(smartQuery)}&maxLocations=1`;
+                const arcGisUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(placeName)}&maxLocations=1`;
                 const arcRes = await fetch(arcGisUrl);
                 const arcData = await arcRes.json();
                 if (arcData?.candidates?.length > 0) {
@@ -45,27 +123,28 @@ const geocodeService = {
                     console.log(`[ArcGIS 命中] ${placeName} -> ${location.y}, ${location.x}`);
                     return { lat: location.y, lon: location.x };
                 }
-            } catch (e) { console.warn('ArcGIS 引擎超时'); }
+            } catch (_e) { /* ignore */ }
 
-            // ♻️ 引擎 C：OSM Nominatim (强制加入 ja 日语 header 偏好，防止富冈/福冈惨案)
+            // 引擎 C：OSM Nominatim
             try {
                 const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(placeName)}&format=json&limit=1&accept-language=zh-CN,ja,en-US`;
                 const osmRes = await fetch(osmUrl);
                 const osmData = await osmRes.json();
                 if (osmData?.length > 0) {
-                    console.log(`[OSM 兜底命中] ${placeName} -> ${osmData[0].lat}, ${osmData[0].lon}`);
+                    console.log(`[OSM 命中] ${placeName} -> ${osmData[0].lat}, ${osmData[0].lon}`);
                     return { lat: parseFloat(osmData[0].lat), lon: parseFloat(osmData[0].lon) };
                 }
-            } catch (e) { console.warn('OSM 引擎超时'); }
+            } catch (_e) { /* ignore */ }
 
+            console.warn(`[全部失败] ${placeName}`);
             return null;
         } catch (error) {
-            console.error(`三引擎雷达全部失效：${placeName}`, error);
+            console.error(`[免费 API 失败] ${placeName}:`, error);
             return null;
         }
     },
 
-    // 🚀 重构一：全文本级 CSV 解析器，完美兼容带换行符的“记事”和“评论”列
+    // 🚀 重构一：全文本级 CSV 解析器，完美兼容带换行符的”记事”和”评论”列
     parseCSVText(text) {
         const rows = [];
         let currentRow = [];
@@ -162,7 +241,10 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
     const [processStatus, setProcessStatus] = useState('');
     const [progress] = useState(0);
     const [failedPoints, setFailedPoints] = useState([]);
-    
+
+    // 🆕 手风琴式分组状态
+    const [expandedGroup, setExpandedGroup] = useState(null);
+
     // 手动补录状态
     const [manualData, setManualData] = useState({ name: '', lat: '', lon: '', type: 'spot' });
 
@@ -235,7 +317,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
                         coords = { lat: place.lat, lon: place.lon };
                         successCount++;
                     } else {
-                        coords = await geocodeService.geocode(place.name);
+                        coords = await geocodeService.geocode(place.name, place.url); // 🆕 传递 URL 用于提取 Place ID
                     }
 
                     if (coords) {
@@ -245,7 +327,8 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
                             lat: coords.lat,
                             lon: coords.lon,
                             category: 'auto',
-                            source: `源：${file.name}`
+                            source: file.name, // 🆕 保存为纯文件名，方便分组
+                            importedAt: Date.now() // 🆕 保存导入时间戳
                         });
                         if (!place.hasCoords) successCount++;
                     } else {
@@ -255,15 +338,33 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
                     if (!place.hasCoords) await new Promise(resolve => setTimeout(resolve, 500));
                 }
 
-                const existingNames = new Set(customPoints.map(p => p.name));
-                const uniqueNew = newPoints.filter(p => !existingNames.has(p.name));
+                // 🆕 智能去重：根据名称和坐标双重判断
+                const existingWithCoords = new Map(
+                    customPoints.map(p => [`${p.name}_${p.lat.toFixed(4)}_${p.lon.toFixed(4)}`, true])
+                );
+                const uniqueNew = newPoints.filter(p =>
+                    !existingWithCoords.has(`${p.name}_${p.lat.toFixed(4)}_${p.lon.toFixed(4)}`)
+                );
+                const skippedCount = newPoints.length - uniqueNew.length;
+
                 onPointsUpdate([...customPoints, ...uniqueNew]);
 
                 if (fails.length > 0) setFailedPoints(prev => [...new Set([...prev, ...fails])]);
-                
+
                 const geoCount = placesToFetch.filter(p => !p.hasCoords).length;
                 const coordCount = placesToFetch.filter(p => p.hasCoords).length;
-                setProcessStatus(`✅ 解析完成！共 ${placesToFetch.length} 个地点（${coordCount} 含坐标，${geoCount} 需解析），新增 ${successCount} 个坐标，未识别 ${fails.length} 个。`);
+
+                // 🆕 更准确的统计信息
+                let statusMsg = `✅ 解析完成！共 ${placesToFetch.length} 个地点（${coordCount} 含坐标，${geoCount} 需解析），成功 ${successCount} 个`;
+                if (skippedCount > 0) {
+                    statusMsg += `，新增 ${uniqueNew.length} 个（跳过 ${skippedCount} 个重复）`;
+                } else {
+                    statusMsg += `，新增 ${uniqueNew.length} 个`;
+                }
+                if (fails.length > 0) {
+                    statusMsg += `，未识别 ${fails.length} 个`;
+                }
+                setProcessStatus(statusMsg);
             } catch (error) {
                 setProcessStatus(`❌ 错误：${error.message}`);
             } finally {
@@ -347,6 +448,60 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
 
     const removeFailedPoint = useCallback((name) => setFailedPoints(prev => prev.filter(p => p !== name)), []);
 
+    // 🆕 格式化导入时间为相对时间
+    const formatImportTime = useCallback((timestamp) => {
+        if (!timestamp) return '';
+        const now = Date.now();
+        const diff = now - timestamp;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return '刚刚';
+        if (minutes < 60) return `${minutes}分钟前`;
+        if (hours < 24) return `${hours}小时前`;
+        return `${days}天前`;
+    }, []);
+
+    // 🆕 按照来源文件分组
+    const groupedPoints = useMemo(() => {
+        const groups = {};
+        customPoints.forEach(pt => {
+            // 🔧 统一 source 格式：移除旧格式的"源："前缀
+            let source = pt.source || '未分类';
+            if (source.startsWith('源：')) {
+                source = source.substring(2); // 移除"源："前缀
+            }
+
+            // 特殊处理：智能检索、手动录入等
+            if (!source.endsWith('.csv') && !source.includes('検索') && !source.includes('录入')) {
+                // 如果是其他来源，保持原样或归类
+            }
+
+            if (!groups[source]) {
+                groups[source] = {
+                    name: source,
+                    count: 0,
+                    lastImport: 0,
+                    points: []
+                };
+            }
+            groups[source].count++;
+            groups[source].points.push(pt);
+            if (pt.importedAt && pt.importedAt > groups[source].lastImport) {
+                groups[source].lastImport = pt.importedAt;
+            }
+        });
+        return Object.values(groups).sort((a, b) => b.lastImport - a.lastImport);
+    }, [customPoints]);
+
+    // 🆕 点击地点跳转到地图并弹出面板
+    const handlePointClick = useCallback((point) => {
+        if (window.__locatePointOnMap) {
+            window.__locatePointOnMap(point.id);
+        }
+    }, []);
+
     const memoizedCustomPoints = useMemo(() => customPoints, [customPoints]);
     const memoizedFailedPoints = useMemo(() => failedPoints, [failedPoints]);
 
@@ -380,21 +535,57 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
                         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-sm font-bold text-green-800 flex items-center"><CheckCircle2 className="w-5 h-5 mr-2 text-green-600" /> {processStatus}</div>
                     )}
 
-                    {/* 已存储点位列表 */}
+                    {/* 🆕 已存储点位列表：手风琴式分组显示 */}
                     <div className="mt-8">
                         <div className="flex justify-between items-end mb-3 border-b pb-2">
                             <h4 className="font-bold text-gray-700">本地已存储的星标库 ({memoizedCustomPoints.length})</h4>
                             {memoizedCustomPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-red-500 hover:text-red-700 flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空全部</button>}
                         </div>
-                        <div className="max-h-[350px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                        <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                             {memoizedCustomPoints.length === 0 && <p className="text-sm text-gray-400 text-center py-8">地图目前很空旷，试试上传或搜索添加地标吧。</p>}
-                            {memoizedCustomPoints.map(pt => (
-                                <div key={pt.id} className="flex justify-between items-center bg-gray-50 p-2.5 rounded-xl border border-gray-100 hover:border-cyan-200 transition-colors">
-                                    <span className="font-bold text-sm text-gray-800 flex items-center">
-                                        <span className="mr-2 text-lg">{getIconStyle(pt.category, pt.source).icon}</span> 
-                                        <span className="truncate max-w-[180px]" title={pt.name}>{pt.name}</span>
-                                    </span>
-                                    <span className="font-mono text-[10px] text-cyan-700 bg-cyan-100/50 px-2 py-1 rounded-md border border-cyan-200">{pt.lat.toFixed(4)}, {pt.lon.toFixed(4)}</span>
+
+                            {/* 🆕 分组列表 */}
+                            {groupedPoints.map(group => (
+                                <div key={group.name} className="mb-2">
+                                    {/* 分组标题（可点击展开/收起） */}
+                                    <button
+                                        onClick={() => setExpandedGroup(expandedGroup === group.name ? null : group.name)}
+                                        className="w-full flex items-center justify-between bg-gradient-to-r from-slate-50 to-white p-3 rounded-xl border border-gray-200 hover:border-cyan-300 transition-all"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {expandedGroup === group.name ? (
+                                                <ChevronDown className="w-4 h-4 text-cyan-600" />
+                                            ) : (
+                                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                                            )}
+                                            <span className="font-bold text-sm text-gray-800 truncate max-w-[150px]" title={group.name}>{group.name}</span>
+                                            <span className="text-xs text-gray-500">({group.count})</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-gray-400">{formatImportTime(group.lastImport)}</span>
+                                        </div>
+                                    </button>
+
+                                    {/* 展开的地点列表 */}
+                                    {expandedGroup === group.name && (
+                                        <div className="mt-1 ml-4 space-y-1 animate-in slide-in-from-top-1 duration-200">
+                                            {group.points.map(pt => (
+                                                <button
+                                                    key={pt.id}
+                                                    onClick={() => handlePointClick(pt)}
+                                                    className="w-full flex justify-between items-center bg-white p-2.5 rounded-lg border border-gray-100 hover:border-cyan-400 hover:bg-cyan-50 transition-all text-left"
+                                                >
+                                                    <span className="font-bold text-sm text-gray-800 flex items-center">
+                                                        <span className="mr-2 text-lg">{getIconStyle(pt.category, pt.source).icon}</span>
+                                                        <span className="truncate max-w-[180px]" title={pt.name}>{pt.name}</span>
+                                                    </span>
+                                                    <span className="font-mono text-[10px] text-cyan-700 bg-cyan-100/50 px-2 py-1 rounded-md border border-cyan-200">
+                                                        {pt.lat.toFixed(4)}, {pt.lon.toFixed(4)}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

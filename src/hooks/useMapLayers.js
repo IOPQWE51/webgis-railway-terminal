@@ -33,13 +33,13 @@ const TARGET_BEACON_HTML = `
     </div>
 `;
 
-export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, isMeasuring = false) => {
+export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, isMeasuring = false, pendingMapTarget = null, onTargetHandled = null) => {
     const baseMapLayerRef = useRef(null);
     const baseLayerRef = useRef(null);
-    const clusterGroupsRef = useRef({}); 
-    const weatherLayerRef = useRef(null); 
+    const clusterGroupsRef = useRef({});
+    const weatherLayerRef = useRef(null);
     const cityWeatherNodesRef = useRef(null);
-    // 🎯 用于存放并管理“战术锁定信标”的引用，保证每次只有一个准星
+    // 🎯 用于存放并管理”战术锁定信标”的引用，保证每次只有一个准星
     const targetBeaconRef = useRef(null);
 
     /** 将准星移动到指定经纬度并智能偏移镜头（避开移动端底部面板） */
@@ -47,7 +47,7 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         const map = mapRef.current;
         if (!map || !window.L) return;
         const L = window.L;
-        
+
         // 🚀 1. 智能视口偏移计算
         const targetPoint = map.project([lat, lng], map.getZoom());
         let offsetX = 0;
@@ -55,26 +55,50 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
 
         if (window.innerWidth < 1024) {
             // 手机端：面板在底部，往下移 25vh 保证目标在上半区居中
-            offsetY = window.innerHeight * 0.25; 
+            offsetY = window.innerHeight * 0.25;
         }
-        
+
         const newCenter = map.unproject([targetPoint.x + offsetX, targetPoint.y + offsetY], map.getZoom());
         map.panTo(newCenter, { animate: true, duration: 0.6, easeLinearity: 0.25 });
 
         // 🎯 2. 刷新准星信标
         if (targetBeaconRef.current) {
-            try { map.removeLayer(targetBeaconRef.current); } catch {}
+            try { map.removeLayer(targetBeaconRef.current); } catch (_e) { /* ignore */ }
             targetBeaconRef.current = null;
         }
         // 🎯 修复大小与锚点，让科幻雷达完美居中！
-        const beaconIcon = L.divIcon({ 
-            html: TARGET_BEACON_HTML, 
-            className: 'target-beacon-icon', 
+        const beaconIcon = L.divIcon({
+            html: TARGET_BEACON_HTML,
+            className: 'target-beacon-icon',
             iconSize: [60, 60],    // 👈 告诉地图我们的大招有 60x60 这么大
             iconAnchor: [30, 30]   // 👈 把物理圆心死死钉在坐标点上！
         });
         targetBeaconRef.current = L.marker([lat, lng], { icon: beaconIcon, zIndexOffset: 600 }).addTo(map);
     }, [mapRef]);
+
+    // 🆕 外部触发定位：当收到 pendingMapTarget 时定位并弹出面板
+    useEffect(() => {
+        if (!pendingMapTarget || !leafletReady || !mapRef.current) return;
+
+        const pt = pendingMapTarget;
+        const style = getIconStyle(pt.category, pt.source);
+
+        // 延迟执行以确保地图已经完全渲染
+        setTimeout(() => {
+            updateTargetBeacon(pt.lat, pt.lon);
+            openCyberPanel(
+                generatePopupContent(
+                    pt,
+                    `custom_${pt.id}`,
+                    style.icon,
+                    pt.name,
+                    pt.source
+                )
+            );
+            // 通知父组件已经处理完成
+            if (onTargetHandled) onTargetHandled();
+        }, 300);
+    }, [pendingMapTarget, leafletReady, mapRef, onTargetHandled, updateTargetBeacon]);
 
     // 1. 初始化底图
     useEffect(() => {
@@ -91,7 +115,6 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
     // 1b. 点击地图任意空白处：战术锁定、绘制信标并打开分析面板
     useEffect(() => {
         if (!leafletReady || !mapRef.current) return;
-        const L = window.L;
         const map = mapRef.current;
         
         const onMapPick = (e) => {
@@ -114,7 +137,7 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         
         map.on('click', onMapPick);
         return () => map.off('click', onMapPick);
-    }, [leafletReady, isMeasuring, mapRef]);
+    }, [leafletReady, isMeasuring, mapRef, updateTargetBeacon]);
 
     // 2. 渲染气象雷达层
     useEffect(() => {
