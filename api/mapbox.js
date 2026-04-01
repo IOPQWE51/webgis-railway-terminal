@@ -4,7 +4,10 @@
 // - 15分钟缓存（交通流量实时变化）
 // - 用于判断：地点特征、交通流量、涂鸦墙等
 
-export default async function handler(req, res) {
+import { withRateLimit, mapboxRateLimiter } from './rateLimiter.js';
+
+// 🛡️ 应用速率限制：每个IP每分钟最多10次请求
+export default withRateLimit(mapboxRateLimiter)(async function handler(req, res) {
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -87,4 +90,4 @@ export default async function handler(req, res) {
         console.error("❌ Mapbox API 调用失败:", error);
         res.status(500).json({ error: "Mapbox 数据获取失败", features: [], traffic: { level: 'unknown' } });
     }
-}
+}); // 结束 withRateLimit 包装

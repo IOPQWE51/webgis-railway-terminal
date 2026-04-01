@@ -7,6 +7,10 @@
     {
       "path": "/api/weather?lat=0&lon=0",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/usage-monitor?key=monitor_secret_change_me",
+      "schedule": "0 9 * * 1"
     }
   ],
   "headers": [
