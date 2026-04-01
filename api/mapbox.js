@@ -20,9 +20,16 @@ export default async function handler(req, res) {
     const { lat, lon, type } = req.query;
     if (!lat || !lon) return res.status(400).json({ error: "缺少经纬度参数" });
 
-    const MAPBOX_TOKEN = process.env.MAPBOX_ACCESS_TOKEN;
+    // 🔧 根据环境自动选择 Token
+    // 开发环境使用 DEV Token（允许 localhost）
+    // 生产环境使用 PROD Token（仅允许 Vercel 域名）
+    const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.VERCEL_ENV;
+    const MAPBOX_TOKEN = isDevelopment
+        ? process.env.MAPBOX_ACCESS_TOKEN_DEV
+        : process.env.MAPBOX_ACCESS_TOKEN_PROD;
+
     if (!MAPBOX_TOKEN) {
-        return res.status(500).json({ error: "未配置 Mapbox Access Token" });
+        return res.status(500).json({ error: `未配置 Mapbox Access Token (环境: ${isDevelopment ? 'development' : 'production'})` });
     }
 
     try {
