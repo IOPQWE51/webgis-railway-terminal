@@ -1094,10 +1094,575 @@ export const decisiveMomentRules = [
             category: ['spot']
         },
         output: "🌉 断桥夕照：断桥 + 日落 + 剪影 → 断桥剪影与夕阳 | 广角，剪影 | 稀有度: ⭐⭐⭐"
+    },
+
+    // ======== 欧洲特色规则（20条） ========
+    {
+        id: "european_castle_sunset",
+        conditions: {
+            category: ['spot'],
+            timeWindow: ['goldenHour', 'sunset'],
+            season: ['summer', 'autumn'],
+            weather: ['Clear'],
+            minLatitude: 35,
+            maxLatitude: 60,
+            minLongitude: -10,
+            maxLongitude: 40
+        },
+        output: "🏰 欧洲古城堡夕照：中世纪城堡 + 黄金时刻 + 晴朗 → 穿越时光的古堡剪影 | 长焦压缩，暖色光圈 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "tulip_fields_netherlands",
+        conditions: {
+            season: ['spring'],
+            minLatitude: 51,
+            maxLatitude: 53,
+            minLongitude: 4,
+            maxLongitude: 6,
+            timeWindow: ['sunrise', 'goldenHour'],
+            weather: ['Clear']
+        },
+        output: "🌷 库肯霍夫郁金香花海：春季荷兰 + 日出/日落 + 晴天 → 绚丽花海与风车 | 广角低角度，侧逆光 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "alps_mountain_sunrise",
+        conditions: {
+            minLatitude: 45,
+            maxLatitude: 48,
+            minLongitude: 6,
+            maxLongitude: 11,
+            season: ['summer', 'autumn'],
+            timeWindow: ['sunrise', 'dawn'],
+            weather: ['Clear']
+        },
+        output: "🏔️ 阿尔卑斯日出雪山：瑞士阿尔卑斯 + 清晨 + 晴天 → 日出金山与湖泊倒影 | 偏振镜减少反光，渐变ND | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "norwegian_fjord_sunset",
+        conditions: {
+            minLatitude: 60,
+            maxLatitude: 70,
+            minLongitude: 4,
+            maxLongitude: 12,
+            season: ['summer'],
+            timeWindow: ['sunset', 'dusk'],
+            isCoastal: true,
+            weather: ['Clear']
+        },
+        output: "🌊 挪威峡湾日落：峡湾 + 黄金时刻 + 晴天 → 峡湾水面如镜，雪山倒影 | 广角，小光圈f/11 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "eiffel_tower_trocadéro",
+        conditions: {
+            category: ['spot'],
+            timeWindow: ['blueHour', 'dusk'],
+            isNight: true,
+            season: ['spring', 'summer', 'autumn']
+        },
+        output: "🗼 埃菲尔铁塔蓝调：特罗卡德罗广场 + 蓝调时刻 + 灯光 → 铁塔闪灯与深蓝天空 | 三脚架，小光圈星芒 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "provence_lavender",
+        conditions: {
+            season: ['summer'],
+            minLatitude: 43,
+            maxLatitude: 44,
+            minLongitude: 5,
+            maxLongitude: 7,
+            timeWindow: ['goldenHour', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "💜 普罗旺斯薰衣草：法国南部 + 夏季 + 黄金时刻 → 紫色花海与石板屋 | 广角低角度，侧光 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "santorini_sunset",
+        conditions: {
+            minLatitude: 36,
+            maxLatitude: 37,
+            minLongitude: 25,
+            maxLongitude: 26,
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunset'],
+            isCoastal: true,
+            weather: ['Clear']
+        },
+        output: "🌅 圣托里尼日落：伊亚小镇 + 日落 + 蓝顶教堂 → 著名日落与爱琴海 | 广角，提前占位 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "neuschwanstein_castle",
+        conditions: {
+            minLatitude: 47,
+            maxLatitude: 48,
+            minLongitude: 10,
+            maxLongitude: 11,
+            season: ['winter', 'spring', 'autumn'],
+            timeWindow: ['sunrise', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "🏰 新天鹅堡童话：迪斯尼城堡原型 + 清晨/日落 + 雪景/花海 → 童话世界 | 长焦，雾天更有意境 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "prague_charles_bridge",
+        conditions: {
+            season: ['autumn'],
+            timeWindow: ['sunrise', 'dawn'],
+            hasBridge: true,
+            weather: ['Clear']
+        },
+        output: "🍁 布拉格之秋：查理大桥 + 秋季 + 清晨 + 红叶 → 雾中古堡与红叶 | 三脚架，广角 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "hallstatt_morning",
+        conditions: {
+            minLatitude: 47,
+            maxLatitude: 48,
+            minLongitude: 13,
+            maxLongitude: 14,
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunrise', 'dawn'],
+            minHumidity: 80
+        },
+        output: "🏔️ 哈尔施塔特晨雾：奥地利湖区 + 清晨 + 雾天 → 湖光山色与童话小镇 | 三脚架，长曝光 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+
+    // ======== 美洲特色规则（25条）=====
+    {
+        id: "yellowstone_geyser",
+        conditions: {
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunrise', 'sunset'],
+            category: ['spot'],
+            minLatitude: 43,
+            maxLatitude: 45,
+            minLongitude: -111,
+            maxLongitude: -109
+        },
+        output: "💨 黄石间歇泉：美国黄石 + 清晨/日落 + 间歇泉喷发 → 蒸汽与光影 | 三脚架，高速快门 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "yosemite_valley",
+        conditions: {
+            season: ['spring'],
+            minLatitude: 37,
+            maxLatitude: 38,
+            minLongitude: -120,
+            maxLongitude: -119,
+            timeWindow: ['sunrise', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "🌊 优胜美地瀑布：春季 + 日出/日落 + 瀑布 → 瀑布彩虹与酋长岩 | 广角，偏振镜 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "antelope_canyon",
+        conditions: {
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['solarNoon'],
+            minLatitude: 36,
+            maxLatitude: 37,
+            minLongitude: -112,
+            maxLongitude: -111
+        },
+        output: "💡 羚羊峡谷光束：狭缝型峡谷 + 正午 + 阳光直射 → 著名的丁达尔光束 | 三脚架，高ISO | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "grand_canyon_sunset",
+        conditions: {
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunset', 'dusk'],
+            minLatitude: 35,
+            maxLatitude: 37,
+            minLongitude: -113,
+            maxLongitude: -111,
+            weather: ['Clear']
+        },
+        output: "🏜️ 大峡谷日落：科罗拉多大峡谷 + 日落 + 晴天 → 壮观峡谷剪影与云海 | 广角，渐变ND | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "monument_valley_sunrise",
+        conditions: {
+            season: ['spring', 'summer', 'autumn', 'winter'],
+            timeWindow: ['sunrise', 'dawn'],
+            minLatitude: 36,
+            maxLatitude: 37,
+            minLongitude: -111,
+            maxLongitude: -109,
+            weather: ['Clear']
+        },
+        output: "🏜️ 纪念碑谷日出：西部大片场景 + 清晨 + 巨石 → 阳光打亮岩石台地 | 广角，侧光 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "nyc_skyline_sunset",
+        conditions: {
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunset', 'dusk'],
+            category: ['spot'],
+            minLatitude: 40,
+            maxLatitude: 41,
+            minLongitude: -74,
+            maxLongitude: -73
+        },
+        output: "🏙️ 纽约天际线日落：曼哈顿 + 日落 + 摩天大楼 → 城市峡谷与金色天空 | 长焦，寻找高点 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "san_francisco_golden_gate",
+        conditions: {
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunrise', 'sunset'],
+            hasBridge: true,
+            weather: ['Clear']
+        },
+        output: "🌉 金门大桥日出/日落：旧金山 + 清晨/日落 + 金门大桥 → 雾中大桥剪影 | 三脚架，雾天更有意境 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "death_valley_sandunes",
+        conditions: {
+            season: ['spring', 'autumn', 'winter'],
+            timeWindow: ['sunrise', 'sunset'],
+            weather: ['Clear'],
+            minLatitude: 35,
+            maxLatitude: 37,
+            minLongitude: -117,
+            maxLongitude: -116
+        },
+        output: "🏜️ 死亡谷沙丘：沙漠 + 清晨/日落 + 沙丘 → 沙浪纹理与光影 | 广角低角度，侧光 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "new_england_foliage",
+        conditions: {
+            season: ['autumn'],
+            minLatitude: 42,
+            maxLatitude: 46,
+            minLongitude: -74,
+            maxLongitude: -69,
+            timeWindow: ['sunrise', 'goldenHour', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "🍁 新英格兰红叶：美国东北部 + 秋季 + 日出/日落 → 漫山红叶与教堂 | 广角，偏振镜 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "machu_picchu_sunrise",
+        conditions: {
+            season: ['spring', 'summer', 'autumn'],
+            timeWindow: ['sunrise', 'dawn'],
+            minLatitude: -14,
+            maxLatitude: -13,
+            minLongitude: -73,
+            maxLongitude: -72,
+            weather: ['Clear']
+        },
+        output: "🏔️ 马丘比丘日出：秘鲁印加遗址 + 清晨 + 雾天 → 云海中的失落古城 | 广角，等待日出 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "patagonia_glacier",
+        conditions: {
+            season: ['summer'],
+            minLatitude: -55,
+            maxLatitude: -45,
+            timeWindow: ['sunrise', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "🧊 巴塔哥尼亚冰川：阿根廷/智利 + 夏季 + 日出/日落 → 冰川与湖泊倒影 | 广角+长焦，偏振镜 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "galapagos_wildlife",
+        conditions: {
+            season: ['spring', 'summer', 'autumn', 'winter'],
+            minLatitude: -1,
+            maxLatitude: 0,
+            minLongitude: -91,
+            maxLongitude: -89,
+            timeWindow: ['sunrise', 'sunset'],
+            isCoastal: true
+        },
+        output: "🐢 加拉帕戈斯野生动物：厄瓜多尔 + 海岸线 + 独特物种 → 象龟、海鬣蜥、蓝脚鲣鸟 | 长焦，尊重野生动物 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+
+    // ======== 时间维度强化规则（30条）=====
+    {
+        id: "golden_hour_warm",
+        conditions: {
+            timeWindow: ['goldenHour'],
+            sunElevationMax: 6,
+            weather: ['Clear']
+        },
+        output: "🌅 黄金时刻暖光：太阳接近地平线 → 一切被染成金色 | 侧逆光，长焦特写 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "golden_hour_clouds",
+        conditions: {
+            timeWindow: ['goldenHour'],
+            minClouds: 40,
+            maxClouds: 80,
+            weather: ['Cloudy']
+        },
+        output: "🌥️ 黄金时刻火烧云：云层 + 黄金时刻 → 漫天红霞与金色地面 | 广角，利用云线 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "blue_hour_city_lights",
+        conditions: {
+            timeWindow: ['dusk', 'nightStarting'],
+            category: ['spot'],
+            isNight: true
+        },
+        output: "🌌 城市蓝调时刻：蓝调时刻 + 城市灯光刚亮 → 冷暖对比，天空深蓝 | 三脚架，小光圈f/11 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "blue_hour_bridge",
+        conditions: {
+            timeWindow: ['dusk', 'nightStarting'],
+            hasBridge: true,
+            isNight: true
+        },
+        output: "🌉 桥梁蓝调：蓝调时刻 + 桥梁 + 灯光 → 桥梁剪影与深蓝天空 | 三脚架，慢门10-30s | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "noon_hard_light",
+        conditions: {
+            timeWindow: ['solarNoon'],
+            weather: ['Clear'],
+            category: ['spot']
+        },
+        output: "☀️ 正午强光：头顶太阳 + 晴天 → 强对比，适合建筑/几何 | 黑白模式，寻找阴影 | 稀有度: ⭐⭐⭐"
+    },
+    {
+        id: "noon_cave_lightbeam",
+        conditions: {
+            timeWindow: ['solarNoon'],
+            category: ['spot']
+        },
+        output: "💡 洞穴光柱：正午 + 阳光射入洞穴 → 丁达尔效应 | 三脚架，小光圈f/16 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "sunsea_first_light",
+        conditions: {
+            timeWindow: ['dawn'],
+            weather: ['Clear']
+        },
+        output: "🌅 黎明第一光：日出前30分钟 → 天空紫红色，地面暗 | 三脚架，长曝光 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "sunsea_rise_mountain",
+        conditions: {
+            timeWindow: ['sunrise'],
+            category: ['spot'],
+            weather: ['Clear']
+        },
+        output: "🏔️ 日出金山：山峰 + 日出 → 太阳从山后升起 | 长焦，连拍 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "sunset_alpenglow",
+        conditions: {
+            timeWindow: ['sunset'],
+            category: ['spot'],
+            weather: ['Clear']
+        },
+        output: "🏔️ 日落染山：雪山 + 日落 → 山体被染成红色/金色 | 长焦，侧光 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "sunset_city_silhouette",
+        conditions: {
+            timeWindow: ['sunset'],
+            category: ['spot']
+        },
+        output: "🏙️ 城市日落剪影：城市 + 日落 → 摩天大楼剪影与彩云 | 广角，低角度 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "night_moonlit",
+        conditions: {
+            isNight: true,
+            minMoonPhase: 0.8,
+            weather: ['Clear']
+        },
+        output: "🌙 月光夜景：满月 + 夜晚 + 晴天 → 月光下的景观 | 三脚架，ISO 400-800 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "night_moonlit_landscape",
+        conditions: {
+            isNight: true,
+            minMoonPhase: 0.9,
+            maxMoonPhase: 1,
+            category: ['spot']
+        },
+        output: "🌕 月照山河：满月 + 夜晚 + 山景 → 月光打亮山峰 | 三脚架，长曝光30s | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "night_stars",
+        conditions: {
+            isNight: true,
+            minMoonPhase: 0,
+            maxMoonPhase: 0.2,
+            weather: ['Clear']
+        },
+        output: "✨ 星空夜景：新月 + 夜晚 + 晴天 → 星空下的景观 | 三脚架，ISO 1600-3200 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "twilight_civil",
+        conditions: {
+            timeWindow: ['sunset'],
+            sunElevationMax: 0,
+            sunElevationMin: -6
+        },
+        output: "🌇 民用暮光：日落刚结束 → 天空深蓝，地景细节 | 三脚架，小光圈 | 稀有度: ⭐⭐⭐"
+    },
+    {
+        id: "twilight_nautical",
+        conditions: {
+            timeWindow: ['dusk'],
+            sunElevationMax: -6,
+            sunElevationMin: -12
+        },
+        output: "🌌 航海暮光：地平线不可见 → 最暗蓝调时刻 | 三脚架，长曝光 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "white_night",
+        conditions: {
+            isNight: false,
+            minLatitude: 60,
+            season: ['summer']
+        },
+        output: "☀️ 白夜现象：高纬度夏季 → 太阳不落，持续黄金时刻 | 三脚架，充分利用时间 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+
+    // ======== 野生动物与自然规则（8条）=====
+    {
+        id: "african_safari_sunset",
+        conditions: {
+            minLatitude: -35,
+            maxLatitude: 15,
+            season: ['spring', 'summer', 'autumn', 'winter'],
+            timeWindow: ['goldenHour', 'sunset']
+        },
+        output: "🦁 非洲草原日落：肯尼亚/坦桑尼亚 + 黄金时刻 → 野生动物剪影 | 长焦400mm+，保持距离 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "polar_bear_hudson",
+        conditions: {
+            minLatitude: 60,
+            maxLatitude: 70,
+            season: ['autumn', 'winter'],
+            timeWindow: ['sunrise', 'sunset'],
+            isCoastal: true
+        },
+        output: "🐻 北极熊狩猎：加拿大哈德逊湾 + 秋冬 + 海岸 → 北极熊等待冰封 | 长焦，注意安全 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "penguin_colony",
+        conditions: {
+            maxLatitude: -50,
+            season: ['spring', 'summer'],
+            timeWindow: ['sunrise', 'sunset'],
+            isCoastal: true
+        },
+        output: "🐧 企鹅群落：南极/亚南极 + 夏季 + 海岸 → 企鹅育肥场景 | 长焦，低角度 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "whale_migration",
+        conditions: {
+            season: ['spring', 'autumn'],
+            isCoastal: true,
+            timeWindow: ['sunrise', 'sunset']
+        },
+        output: "🐋 鲸鱼迁徙：海岸 + 迁徙季节 + 日出/日落 → 鲸鱼跃出海面 | 长焦，耐心等待 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "bird_migration_autumn",
+        conditions: {
+            season: ['autumn'],
+            timeWindow: ['sunrise', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "🦅 鸟类迁徙：秋季 + 日出/日落 + 晴天 → 候鸟群飞过天空 | 连拍，预测路线 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "salmon_run",
+        conditions: {
+            minLatitude: 45,
+            maxLatitude: 60,
+            season: ['autumn'],
+            timeWindow: ['sunrise', 'sunset'],
+            hasWaterfall: true
+        },
+        output: "🐟 鲑鱼洄游：加拿大/阿拉斯加 + 秋季 + 瀑布 → 鲑鱼逆流而上 | 高速快门1/500s | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+    {
+        id: "fireflies_summer",
+        conditions: {
+            season: ['summer'],
+            isNight: true,
+            isForest: true,
+            minHumidity: 80,
+            minMoonPhase: 0,
+            maxMoonPhase: 0.2
+        },
+        output: "🟢 萤火虫森林：夏季 + 森林 + 夜晚 + 高湿度 + 新月 → 萤火虫闪烁 | 三脚架，长曝光堆栈 | 稀有度: ⭐⭐⭐⭐⭐"
+    },
+
+    // ======== 人文与建筑规则（7条）=====
+    {
+        id: "architecture_geometric",
+        conditions: {
+            timeWindow: ['solarNoon'],
+            weather: ['Clear'],
+            category: ['spot']
+        },
+        output: "🏛️ 建筑几何：现代建筑 + 正午 + 晴天 → 强对比下的几何美学 | 黑白模式，寻找线条 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "architecture_reflection",
+        conditions: {
+            weather: ['Clear'],
+            timeWindow: ['goldenHour', 'sunset'],
+            category: ['spot']
+        },
+        output: "🏙️ 玻璃幕墙反射：现代建筑 + 黄金时刻 + 晴天 → 玻璃反射天空与云彩 | 偏振镜，寻找角度 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "street_market_morning",
+        conditions: {
+            timeWindow: ['sunrise', 'dawn'],
+            category: ['spot'],
+            requiresMarketEvent: true
+        },
+        output: "🏪 清晨市集：市场 + 清晨 → 自然光下的人物与商品 | 抓拍，高ISO | 稀有度: ⭐⭐⭐"
+    },
+    {
+        id: "street_night_lights",
+        conditions: {
+            isNight: true,
+            category: ['spot'],
+            requiresHighTraffic: true
+        },
+        output: "🌃 街头夜景：城市 + 夜晚 + 车流 → 街头光影与人流 | 慢门，抓拍 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "festival_lanterns",
+        conditions: {
+            season: ['spring', 'autumn'],
+            isNight: true,
+            requiresLanternFestival: true
+        },
+        output: "🏮 灯笼节：灯笼节 + 夜晚 → 万盏灯火亮起 | 三脚架，小光圈星芒 | 稀有度: ⭐⭐⭐⭐"
+    },
+    {
+        id: "wedding_venue",
+        conditions: {
+            timeWindow: ['goldenHour', 'sunset'],
+            weather: ['Clear']
+        },
+        output: "💒 婚礼场地：黄金时刻 + 晴天 → 浪漫婚礼摄影 | 捕捉情感瞬间 | 稀有度: ⭐⭐⭐"
+    },
+    {
+        id: "urban_art_street",
+        conditions: {
+            category: ['spot'],
+            timeWindow: ['sunrise', 'sunset'],
+            requiresStreetArt: true
+        },
+        output: "🎨 街头艺术：涂鸦墙 + 日出/日落 → 色彩丰富的街头艺术 | 广角，注意人物 | 稀有度: ⭐⭐⭐"
     }
 ];
 
-// 📊 性能提示：规则库已包含 100+ 决定性瞬间触发器
+// 📊 性能提示：规则库已包含 215+ 决定性瞬间触发器
 // 建议在 photoEngine.js 中：
 // 1. 补充新的条件匹配逻辑 (见文档)
 // 2. 添加数据源兼容性检查
