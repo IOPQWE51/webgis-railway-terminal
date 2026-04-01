@@ -3,6 +3,7 @@
 // 将 dataGateway 的环境数据转换为 decisiveMoments 规则库可用的格式
 
 import SunCalc from 'suncalc';
+import { checkAstronomyEvents } from './astronomyCalculator';
 
 /**
  * 根据当前时间和太阳位置计算时间窗口类型
@@ -145,40 +146,91 @@ const distanceKmToMountFuji = (lat, lon) => {
 
 /**
  * 检测特殊地理和季节条件（requires* 字段）
- * 用于判断是否应该应用特定地区的规则（如日本樱花、枫叶）
+ * 🌍 全球化版本：支持所有地区，不限于日本
  * @param {number} lat - 纬度
  * @param {number} lon - 经度
  * @param {string} season - 季节字符串 ('spring', 'summer', 'autumn', 'winter')
+ * @param {Object} gatewayData - dataGateway 的完整数据
  * @returns {Object} 包含所有 requires* 条件的布尔值对象
  */
-export const checkRequiredConditions = (lat, lon, season) => {
-    // 🎌 日本地理范围：北纬约 24° ~ 45°
-    const isJapanRegion = lat >= 24 && lat <= 45;
-    // 🗻 富士题材：仅主峰周边约 150km 内（五湖、箱根西侧、部分静冈等），排除北海道等
-    const requiresMountFuji = distanceKmToMountFuji(lat, lon) <= 150;
-    
-    return {
-        // 🌸 樱花满开条件：春季 + 日本地区
-        requiresSakuraFull: season === 'spring' && isJapanRegion,
-        
-        // 🍁 枫叶条件：秋季 + 日本地区
-        requiresMapleLeaves: season === 'autumn' && isJapanRegion,
+export const checkRequiredConditions = (lat, lon, season, gatewayData = {}) => {
+    const absLat = Math.abs(lat);
+    const isNorthernHemisphere = lat >= 0;
 
+    // 🌍 全球化地理范围判定
+    const isTemperateZone = absLat >= 25 && absLat <= 60; // 温带地区（适合樱花、枫叶）
+    const isSnowRegion = absLat >= 35; // 会下雪的地区
+
+    // 🗻 富士山题材：仅日本周边约 150km
+    const requiresMountFuji = distanceKmToMountFuji(lat, lon) <= 150;
+
+    // 🌸 樱花满开条件：全球温带/亚热带地区
+    // 北半球：3-5月（春季） | 南半球：9-11月（春季）
+    // 覆盖：中国、日本、韩国、美国华盛顿州/法国等
+    const sakuraBloomStage = gatewayData.ecology?.sakura?.bloom_stage || 0;
+    const isSakuraSeason = isNorthernHemisphere ? season === 'spring' : season === 'autumn';
+    const requiresSakuraFull = isSakuraSeason && isTemperateZone && sakuraBloomStage >= 70;
+
+    // 🍁 枫叶红叶条件：全球温带/寒带地区
+    // 北半球：9-11月（秋季） | 南半球：3-5月（秋季）
+    // 覆盖：日本、加拿大、美国新英格兰、中国东北等
+    const mapleLeafStage = gatewayData.ecology?.maple?.leaf_change_stage || 0;
+    const isMapleSeason = isNorthernHemisphere ? season === 'autumn' : season === 'spring';
+    const requiresMapleLeaves = isMapleSeason && isTemperateZone && mapleLeafStage >= 50;
+
+    // 🌊 微风天气判断：全球通用
+    const windKph = gatewayData.weather?.windKph || 0;
+    const requiresWindyWeather = windKph > 10; // > 10 km/h 为微风
+
+    // 🌠 天文事件：全球通用
+    const astroEvents = checkAstronomyEvents(new Date());
+
+    // ❄️ 冬季特定条件（冰雪景观）
+    const isWinterSeason = isNorthernHemisphere ? season === 'winter' : season === 'summer';
+    // isSnowRegion 已在上面第162行声明，这里复用
+
+    // 🏔️ 新增：海拔和地形条件
+    const elevation = gatewayData.terrain?.elevation || 0;
+    const isMountainous = elevation > 500; // 海拔>500米为山区
+    const isHighland = elevation > 1000; // 海拔>1000米为高原
+
+    // 🚗 新增：交通和城市条件
+    const trafficLevel = gatewayData.mapbox?.trafficLevel || 'unknown';
+    const requiresHighTraffic = trafficLevel === 'high' || trafficLevel === 'moderate';
+
+    // 🎨 新增：涂鸦墙和街头艺术
+    const hasStreetArt = gatewayData.mapbox?.hasStreetArt || false;
+
+    return {
+        requiresSakuraFull,
+        requiresMapleLeaves,
         requiresMountFuji,
-        
-        // 🌊 微风天气（这个需要从天气数据判断，暂设为 false，交由匹配器处理）
-        requiresWindyWeather: false, // 在 ruleMatcher 中通过 windKph 字段判断
-        
+        requiresWindyWeather,
+
+        // ❄️ 冬季雪景条件（全球）
+        requiresSnowyWeather: isWinterSeason && isSnowRegion,
+
         // 🌌 低光污染（需要外部 API 判断，暂设为 false）
         requiresLowLightPollution: false,
-        
+
         // ⛰️ 地磁/极光：由 convertToRuleFormat 根据 gatewayData.aurora 覆盖
         requiresGeomagneticActivity: false,
-        requiresMeteorEvent: false,         // 流星雨，需要事件日期数据
-        requiresSolarEclipse: false,        // 日食，需要事件日期数据
-        requiresLunarEclipse: false,        // 月食，需要事件日期数据
-        requiresSuperMoon: false,           // 超级月亮，需要事件日期数据
-        requiresCometEvent: false           // 彗星，需要事件日期数据
+
+        // 🌠 天文事件（自动计算）
+        requiresMeteorEvent: astroEvents.requiresMeteorEvent,
+        requiresSolarEclipse: astroEvents.requiresSolarEclipse,
+        requiresLunarEclipse: astroEvents.requiresLunarEclipse,
+        requiresSuperMoon: astroEvents.requiresSuperMoon,
+        requiresCometEvent: astroEvents.requiresCometEvent,
+
+        // 🆕 新增：海拔和地形
+        requiresMountainous: isMountainous,
+        requiresHighland: isHighland,
+        requiresElevationGain: isMountainous, // 地形起伏判断（用于瀑布等）
+
+        // 🆕 新增：交通和城市
+        requiresHighTraffic,
+        requiresStreetArt: hasStreetArt,
     };
 };
 
@@ -210,9 +262,10 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
     
     // 提取分类
     const category = extractCategory(terrain.poiTypes);
-    
+
     // ✨ 检测特殊地理条件（樱花、枫叶等地区特定规则）
-    const requiredConditions = checkRequiredConditions(lat, lon, climate.season);
+    // 🆕 传入完整的 gatewayData 以获取风速和物候数据
+    const requiredConditions = checkRequiredConditions(lat, lon, climate.season, gatewayData);
 
     // NOAA OVATION 格点值当前观测量级约 0–25；≥8 视为「有可用极光信号」
     const auroraProb = Number(gatewayData.aurora?.probability) || 0;
@@ -224,7 +277,7 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         timeWindow: timeWindow,
         season: [climate.season],
         isNight: astronomy.isNight,
-        
+
         // ========== 地理位置 ==========
         latitude: lat,
         longitude: lon,
@@ -233,12 +286,17 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         isCoastal: landmarkConditions.hasCoast,
         isForest: landmarkConditions.hasForest,
         category: category,
-        
+
         // ========== 地标与特征 ==========
         hasWaterfall: landmarkConditions.hasWaterfall,
         hasShrine: landmarkConditions.hasShrine,
         hasBridge: landmarkConditions.hasBridge,
-        
+
+        // ========== 🆕 海拔与地形 ==========
+        elevation: gatewayData.terrain?.elevation || 0,
+        isMountainous: gatewayData.terrain?.isMountainous || false,
+        isHighland: gatewayData.terrain?.isHighland || false,
+
         // ========== 气象数据（数值） ==========
         minHumidity: weather?.humidity || 0,
         maxHumidity: weather?.humidity || 100,
@@ -248,12 +306,12 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         minTemp: weather?.temp || 0,
         maxTemp: weather?.temp || 30,
         windKph: weather?.windKph || 0,
-        
+
         // ========== 天体数据 ==========
         minMoonPhase: astronomy.moonPhase,
         maxMoonPhase: astronomy.moonPhase,
         sunElevationMax: astronomy.solarAltitude,
-        
+
         // ========== 特殊地理条件（requires* 字段）🌏 ==========
         requiresSakuraFull: requiredConditions.requiresSakuraFull,
         requiresMapleLeaves: requiredConditions.requiresMapleLeaves,
@@ -266,7 +324,24 @@ export const convertToRuleFormat = (gatewayData, lat, lon) => {
         requiresSuperMoon: requiredConditions.requiresSuperMoon,
         requiresCometEvent: requiredConditions.requiresCometEvent,
         requiresMountFuji: requiredConditions.requiresMountFuji,
-        
+
+        // ========== 🆕 新增条件（海拔、交通、艺术） ==========
+        requiresMountainous: requiredConditions.requiresMountainous,
+        requiresHighland: requiredConditions.requiresHighland,
+        requiresElevationGain: requiredConditions.requiresElevationGain,
+        requiresHighTraffic: requiredConditions.requiresHighTraffic,
+        requiresStreetArt: requiredConditions.requiresStreetArt,
+
+        // ========== 🆕 Mapbox 数据 ==========
+        trafficLevel: gatewayData.mapbox?.trafficLevel || 'unknown',
+        isUrbanArea: gatewayData.mapbox?.isUrbanArea || false,
+        hasStreetArt: gatewayData.mapbox?.hasStreetArt || false,
+
+        // ========== 🆕 物候详细数据（用于规则匹配） ==========
+        sakuraBloomStage: gatewayData.ecology?.sakura?.bloom_stage || 0,
+        mapleLeafStage: gatewayData.ecology?.maple?.leaf_change_stage || 0,
+        flowerCondition: gatewayData.ecology?.weather_impact?.flower_impact || 'pristine',
+
         // ========== 原始数据（保留备用） ==========
         _raw: gatewayData,
         _lat: lat,
@@ -306,6 +381,11 @@ export const debugPrintRuleData = (ruleData) => {
         shrine: ruleData.hasShrine,
         bridge: ruleData.hasBridge
     });
+    console.log('🌸 樱花盛开度:', ruleData.sakuraBloomStage, '%');
+    console.log('🍁 枫叶变红度:', ruleData.mapleLeafStage, '%');
+    console.log('💨 微风判断:', ruleData.requiresWindyWeather);
+    console.log('🌠 流星雨:', ruleData.requiresMeteorEvent);
+    console.log('🌙 超级月亮:', ruleData.requiresSuperMoon);
     console.groupEnd();
 };
 

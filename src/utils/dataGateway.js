@@ -12,7 +12,9 @@ const CACHE_TTL = {
     daily_solar_track: 24 * 60 * 60 * 1000, // 24 小时：太阳轨迹基本不变
     monthly_gdd: 24 * 60 * 60 * 1000,       // 24 小时：积温一天一更
     const_terrain: 7 * 24 * 60 * 60 * 1000, // 7 天：地形数据几乎不变
-    plant_phenology: 7 * 24 * 60 * 60 * 1000 // 🌸 7 天：樱花/枫叶物候数据稳定
+    plant_phenology: 7 * 24 * 60 * 60 * 1000, // 🌸 7 天：樱花/枫叶物候数据稳定
+    elevation_data: 7 * 24 * 60 * 60 * 1000, // 🏔️ 7 天：海拔数据永久不变
+    traffic_data: 15 * 60 * 1000           // 🚗 15 分钟：交通流量实时变化
 };
 
 // 内存缓存存储库
@@ -165,7 +167,39 @@ const fetchAuroraConcurrently = async (lat, lon) => {
         if (!res.ok) return { probability: 0 };
         return await res.json();
     } catch (e) {
-        return { probability: 0 }; 
+        return { probability: 0 };
+    }
+};
+
+// 🏔️ 新增：海拔数据并发获取函数 (Open-Meteo，无需注册)
+const fetchElevationConcurrently = async (lat, lon) => {
+    try {
+        const res = await fetch(`/api/elevation?lat=${lat}&lon=${lon}`);
+        if (!res.ok) return { elevation: 0 };
+        return await res.json();
+    } catch (e) {
+        return { elevation: 0 };
+    }
+};
+
+// 🚗 新增：Mapbox 数据并发获取函数 (地点特征 + 交通流量)
+const fetchMapboxConcurrently = async (lat, lon) => {
+    try {
+        // 并发获取地理特征和交通数据
+        const [featuresRes, trafficRes] = await Promise.all([
+            fetch(`/api/mapbox?lat=${lat}&lon=${lon}&type=geocoding`),
+            fetch(`/api/mapbox?lat=${lat}&lon=${lon}&type=traffic`)
+        ]);
+
+        const features = featuresRes.ok ? await featuresRes.json() : { features: [] };
+        const traffic = trafficRes.ok ? await trafficRes.json() : { traffic: { level: 'unknown' } };
+
+        return {
+            features: features.features || [],
+            traffic: traffic.traffic || { level: 'unknown' }
+        };
+    } catch (e) {
+        return { features: [], traffic: { level: 'unknown' } };
     }
 };
 
@@ -185,12 +219,18 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     const terrainCacheKey = `terrain_${Math.round(lat)}_${Math.round(lon)}`;
     const phenologyCacheKey = `phenology_${Math.round(lat)}_${Math.round(lon)}`;
     const auroraCacheKey = `aurora_${Math.round(lat)}_${Math.round(lon)}`; // 🌌 极光缓存键
-    
+    const elevationCacheKey = `elevation_${Math.round(lat)}_${Math.round(lon)}`; // 🏔️ 海拔缓存键
+    const mapboxCacheKey = `mapbox_${Math.round(lat)}_${Math.round(lon)}`; // 🚗 Mapbox缓存键
+
     let weatherData = getCachedData(weatherCacheKey, CACHE_TTL.realtime_weather);
     let terrainTags = getCachedData(terrainCacheKey, CACHE_TTL.const_terrain);
     let phenologyData = getCachedData(phenologyCacheKey, CACHE_TTL.plant_phenology);
     // 🌌 极光缓存 TTL 建议与天气相同 (15-30分钟)
-    let auroraData = getCachedData(auroraCacheKey, CACHE_TTL.realtime_weather); 
+    let auroraData = getCachedData(auroraCacheKey, CACHE_TTL.realtime_weather);
+    // 🏔️ 海拔数据缓存（7天）
+    let elevationData = getCachedData(elevationCacheKey, CACHE_TTL.elevation_data);
+    // 🚗 Mapbox数据缓存（15分钟）
+    let mapboxData = getCachedData(mapboxCacheKey, CACHE_TTL.traffic_data); 
 
     // 📌 策略一：对缺失的数据使用 Promise.all 并发请求
     const fetchPromises = [];
@@ -233,6 +273,26 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
         );
     }
 
+    // 🏔️ 海拔 API：Open-Meteo Elevation
+    if (!elevationData) {
+        fetchPromises.push(
+            fetchElevationConcurrently(lat, lon).then(data => {
+                elevationData = data;
+                if (data) setCachedData(elevationCacheKey, data);
+            })
+        );
+    }
+
+    // 🚗 Mapbox API：地理特征 + 交通流量
+    if (!mapboxData) {
+        fetchPromises.push(
+            fetchMapboxConcurrently(lat, lon).then(data => {
+                mapboxData = data;
+                if (data) setCachedData(mapboxCacheKey, data);
+            })
+        );
+    }
+
     // 等待所有请求完成（如果同时发出）
     if (fetchPromises.length > 0) {
         await Promise.all(fetchPromises);
@@ -243,6 +303,8 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
     terrainTags = terrainTags || [];
     phenologyData = phenologyData || {};
     auroraData = auroraData || { probability: 0 }; // 🌌 极光安全兜底
+    elevationData = elevationData || { elevation: 0 }; // 🏔️ 海拔安全兜底
+    mapboxData = mapboxData || { features: [], traffic: { level: 'unknown' } }; // 🚗 Mapbox安全兜底
 
     // 为了兼容规则库的 poiTypes 需求
     const poiTypes = [...terrainTags]; // 继承基础地形
@@ -287,12 +349,27 @@ export const fetchGlobalEnvironmentData = async (lat, lon) => {
         },
         terrain: {
             rawTags: terrainTags,
-            poiTypes: [...new Set(poiTypes)] // 最后再去重
+            poiTypes: [...new Set(poiTypes)], // 最后再去重
+            // 🏔️ 海拔数据
+            elevation: elevationData.elevation || 0,
+            isMountainous: (elevationData.elevation || 0) > 500, // 海拔>500米为山区
+            isHighland: (elevationData.elevation || 0) > 1000, // 海拔>1000米为高原
         },
         // 🌌 极光预警数据暴露给上层雷达
         aurora: {
             probability: auroraData.probability,
             forecastTime: auroraData.forecastTime
+        },
+        // 🚗 Mapbox 数据：地点特征 + 交通流量
+        mapbox: {
+            features: mapboxData.features || [],
+            trafficLevel: mapboxData.traffic?.level || 'unknown',
+            isUrbanArea: mapboxData.traffic?.isUrbanArea || false,
+            hasStreetArt: mapboxData.features?.some(f =>
+                f.categories?.includes('Art') ||
+                f.text?.includes('street art') ||
+                f.text?.includes('mural')
+            ) || false,
         }
     };
 
