@@ -8,11 +8,13 @@
     "dev:stack": "vercel dev --listen 3000 --yes --local",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "security-check": "node scripts/security-check.cjs"
   },
   "dependencies": {
     "@sentry/react": "^10.46.0",
     "lucide-react": "^0.577.0",
+    "mapbox-gl": "^3.21.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "suncalc": "^1.9.0"
