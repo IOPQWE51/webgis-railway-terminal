@@ -3,15 +3,31 @@ import { useState, useEffect } from 'react';
 import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
+// 🆕 导入战术地图组件
+import MapTestTactical from './pages/MapTestTactical';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
     const [pendingMapTarget, setPendingMapTarget] = useState(null); // 🆕 待定位的地点
+    const [isTacticalMode, setIsTacticalMode] = useState(false); // 🎯 战术模式状态
 
     const [customPoints, setCustomPoints] = useState(() => {
         try {
-            const saved = localStorage.getItem('railway_custom_points');
+            // 🆕 尝试从新系统键读取
+            let saved = localStorage.getItem('earth_terminal_custom_points');
+
+            // 🔄 如果新系统没有数据，尝试从旧系统迁移
+            if (!saved) {
+                const oldData = localStorage.getItem('railway_custom_points');
+                if (oldData) {
+                    console.log('🔄 发现旧系统数据，正在迁移到 EarthTerminal...');
+                    localStorage.setItem('earth_terminal_custom_points', oldData);
+                    saved = oldData;
+                    console.log('✅ 数据迁移完成');
+                }
+            }
+
             if (saved) {
                 const parsed = JSON.parse(saved);
                 return parsed;
@@ -25,7 +41,7 @@ const App = () => {
 
     useEffect(() => {
         try {
-            localStorage.setItem('railway_custom_points', JSON.stringify(customPoints));
+            localStorage.setItem('earth_terminal_custom_points', JSON.stringify(customPoints));
         } catch (e) {
             console.error('❌ 保存本地存储失败:', e);
         }
@@ -47,36 +63,44 @@ const App = () => {
     }, [customPoints]);
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans selection:bg-green-200 text-gray-800">
-            <div className="max-w-6xl mx-auto">
-                <header className="mb-4">
-                    <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 flex flex-wrap items-end gap-x-3 gap-y-1">
-                        <span>WebGIS</span>
-                        <span className="text-cyan-600">主干地形图终端</span>
-                    </h1>
-                    <p className="text-gray-500 mt-2 font-medium flex items-center">
-                        <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
-                    </p>
-                </header>
+        <>
+            {/* 🎯 战术模式全屏覆盖 */}
+            {isTacticalMode ? (
+                <MapTestTactical
+                    customPoints={customPoints}
+                    onPointsUpdate={setCustomPoints}
+                    onExit={() => setIsTacticalMode(false)}
+                />
+            ) : (
+                <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans selection:bg-green-200 text-gray-800">
+                    <div className="max-w-6xl mx-auto">
+                        <header className="mb-4">
+                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 flex flex-wrap items-end gap-x-3 gap-y-1">
+                                <span className="text-cyan-600">Earth</span>
+                                <span>Terminal</span>
+                            </h1>
+                            <p className="text-gray-500 mt-2 font-medium flex items-center">
+                                <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
+                            </p>
+                        </header>
 
-                <nav className="flex overflow-x-auto flex-nowrap bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2 scrollbar-hide" role="tablist">
+                        <nav className="flex overflow-x-auto flex-nowrap bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2 scrollbar-hide" role="tablist">
                     {[
                         { id: 'map', label: '高精度地形终端', icon: MapIcon },
                         { id: 'data', label: '数据解析与管理', icon: Database },
                         { id: 'rules', label: '系统生存法则', icon: Info },
                         { id: 'tools', label: '双向汇率引擎', icon: Calculator },
                         { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
-                        // 3. 在这里加上跨国航线雷达的入口
                         { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
                     ].map((tab) => (
-                        <button 
-                            key={tab.id} 
-                            onClick={() => setActiveTab(tab.id)} 
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
                             role="tab"
                             aria-selected={activeTab === tab.id}
                             className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-                                activeTab === tab.id 
-                                    ? 'bg-zinc-900 text-white shadow-md' 
+                                activeTab === tab.id
+                                    ? 'bg-zinc-900 text-white shadow-md'
                                     : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                             }`}
                         >
@@ -96,31 +120,34 @@ const App = () => {
                         onPointsUpdate={setCustomPoints}
                         pendingMapTarget={pendingMapTarget}
                         onTargetHandled={() => setPendingMapTarget(null)}
+                        onEnterTactical={() => setIsTacticalMode(true)}
                     />
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={setCustomPoints} />
                     <RulesTab isActive={activeTab === 'rules'} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
                     {/* 4. 挂载跨国航线雷达模块 */}
                     <AviationEngine isActive={activeTab === 'aviation'} />
-                    
-                    {activeTab === 'sub-culture' && (
-        <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
-            <PilgrimageRadar isActive={true} />
-            
-            {/* 极简分割线，增加空间感 */}
-            <div className="flex items-center justify-center py-4">
-                <div className="h-px bg-gray-200 flex-1"></div>
-                <div className="mx-4 text-gray-400 text-xs font-bold tracking-widest uppercase">Dimension Divider</div>
-                <div className="h-px bg-gray-200 flex-1"></div>
-            </div>
 
-            <HanabiRadar isActive={true} />
-        </div>
-    )}
+                        {activeTab === 'sub-culture' && (
+            <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
+                <PilgrimageRadar isActive={true} />
 
-                </main>
+                {/* 极简分割线，增加空间感 */}
+                <div className="flex items-center justify-center py-4">
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                    <div className="mx-4 text-gray-400 text-xs font-bold tracking-widest uppercase">Dimension Divider</div>
+                    <div className="h-px bg-gray-200 flex-1"></div>
+                </div>
+
+                <HanabiRadar isActive={true} />
             </div>
-        </div>
+        )}
+
+                    </main>
+                </div>
+            </div>
+        )}
+    </>
     );
 };
 

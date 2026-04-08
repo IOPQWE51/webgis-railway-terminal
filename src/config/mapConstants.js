@@ -1,6 +1,11 @@
 // src/config/mapConstants.js
 
-export const OWM_API_KEY = 'f248f355671dcb0ffa5645c53823d4e5';
+// 🔑 OpenWeatherMap API Key - 从环境变量读取
+export const OWM_API_KEY = import.meta.env.VITE_OWM_KEY || '';
+
+if (!OWM_API_KEY) {
+  console.warn('⚠️ OpenWeatherMap API Key 未设置，天气图层将不可用');
+}
 
 export const RAILWAY_LINES_CONFIG = [
     { points: ['wakkanai', 'nayoro', 'asahikawa', 'iwamizawa', 'sapporo', 'tomakomai', 'hakodate'], color: '#22c55e', dashArray: null },

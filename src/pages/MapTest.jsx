@@ -11,10 +11,12 @@ export default function MapTest() {
   // 🎨 地图样式定义
   const mapStyles = {
     default: 'mapbox://styles/mapbox/streets-v12',
-    dark: 'mapbox://styles/mapbox/dark-v11',
-    satellite: 'mapbox://styles/mapbox/satellite-v9',
-    light: 'mapbox://styles/mapbox/light-v11'
-    // neon: 'mapbox://styles/iopqwe51/xxxxxxxxxxxxxxxx', // 🌟 在 Mapbox Studio 创建后替换
+    dark: 'mapbox://styles/mapbox/dark-v11',           // 暗色主题（更有科技感）
+    dark2D: 'mapbox://styles/iopqwe51/cmnoq0jyc008501sg88f6en5z', // 🌟 自定义 Dark 2D
+    satellite: 'mapbox://styles/mapbox/satellite-v9',    // 卫星图
+    light: 'mapbox://styles/mapbox/light-v11',          // 明亮主题
+    darkMatter: 'mapbox://styles/mapbox/dark-v10',       // 暗物质（更酷炫）
+    navigation: 'mapbox://styles/mapbox/navigation-v1'   // 夜间导航（交通更明显）
   };
 
   // 🏙️ 城市数据
@@ -134,9 +136,13 @@ export default function MapTest() {
                 fontWeight: currentStyle === style ? 'bold' : 'normal'
               }}
             >
-              {style === 'default' ? '默认' :
-               style === 'dark' ? '暗色' :
-               style === 'satellite' ? '卫星' : '明亮'}
+              {style === 'default' ? '经典 Streets' :
+               style === 'dark' ? 'Mapbox Dark' :
+               style === 'dark2D' ? 'Dark 2D (自)' :
+               style === 'satellite' ? '卫星' :
+               style === 'light' ? '明亮' :
+               style === 'darkMatter' ? '暗物质' :
+               style === 'navigation' ? '夜间导航' : style}
             </button>
           ))}
         </div>

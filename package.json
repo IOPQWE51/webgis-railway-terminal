@@ -9,7 +9,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "security-check": "node scripts/security-check.cjs"
+    "security-check": "node scripts/security-check.cjs",
+    "api-security-check": "node scripts/api-security-check.cjs"
   },
   "dependencies": {
     "@sentry/react": "^10.46.0",

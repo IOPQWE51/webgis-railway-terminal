@@ -213,21 +213,24 @@ export const checkConditions = (ruleConditions, envData) => {
 
 /**
  * 计算规则匹配度分数（0-100）
- * 用于排序多个匹配的规则
+ * 🎯 优化：稀有度越高，基础分数越高
  * @param {Object} ruleConditions - 规则条件
  * @param {Object} envData - 环境数据
  * @param {Object} conditionCheck - checkConditions 的返回值
+ * @param {number} rarity - 稀有度星级 (1-5)
  * @returns {number} 0-100 的匹配分数
  */
-export const calculateMatchScore = (ruleConditions, envData, conditionCheck) => {
+export const calculateMatchScore = (ruleConditions, envData, conditionCheck, rarity = 3) => {
     if (!conditionCheck.matched) {
         return 0; // 未匹配返回 0
     }
-    
-    // 基础分：完全匹配
-    let score = 100;
+
+    // 🎯 稀有度加权：5星规则基础分更高
+    const rarityBonus = (rarity - 3) * 10; // 5星+20分, 4星+10分, 3星+0分, 2星-10分, 1星-20分
+    let score = 80 + rarityBonus; // 基础分从80开始
+
     const details = conditionCheck.details;
-    
+
     // 惩罚项：调整分数基于细节
     for (const [, detail] of Object.entries(details)) {
         if (detail.status === 'optional') {
@@ -237,16 +240,16 @@ export const calculateMatchScore = (ruleConditions, envData, conditionCheck) => 
             score -= 5; // 失败条件扣 5 分
         }
     }
-    
+
     // 加分项：特定条件增加权重
     if (details.weather?.status === 'passed') score += 10; // 天气匹配加分
     if (details.season?.status === 'passed') score += 5;   // 季节匹配加分
     if (details.timeWindow?.status === 'passed') score += 15; // 时间窗口很重要
-    if (details.hasWaterfall?.status === 'passed' || 
+    if (details.hasWaterfall?.status === 'passed' ||
         details.hasShrine?.status === 'passed') score += 8; // 地标匹配加分
-    
-    // 确保分数在 0-100 范围内
-    return Math.max(0, Math.min(100, score));
+
+    // 确保分数在 0-120 范围内（允许超过100，便于排序）
+    return Math.max(0, Math.min(120, score));
 };
 
 /**
@@ -272,13 +275,17 @@ export const matchRules = (envData, rules = decisiveMomentRules, options = {}) =
         const conditionCheck = checkConditions(rule.conditions, envData);
         
         if (conditionCheck.matched) {
-            // 计算匹配分数
+            // 🎯 先提取稀有度，再计算分数（稀有度影响分数）
+            const rarity = extractRarity(rule.output);
+
+            // 计算匹配分数（传入稀有度）
             const score = calculateMatchScore(
                 rule.conditions,
                 envData,
-                conditionCheck
+                conditionCheck,
+                rarity // 传入稀有度
             );
-            
+
             // 只保留分数 >= 阈值的结果
             if (score >= minScore) {
                 matches.push({
@@ -287,12 +294,12 @@ export const matchRules = (envData, rules = decisiveMomentRules, options = {}) =
                     score: score,
                     conditions: rule.conditions,
                     details: conditionCheck.details,
-                    rarity: extractRarity(rule.output) // 提取稀有度
+                    rarity: rarity // 稀有度星级 (1-5)
                 });
-                
+
                 if (verbose) {
                     console.log(
-                        `✅ 匹配规则: ${rule.id} (分数: ${score})\n`,
+                        `✅ 匹配规则: ${rule.id} (分数: ${score}, 稀有度: ${'⭐'.repeat(rarity)})\n`,
                         `   输出: ${rule.output.substring(0, 50)}...`
                     );
                 }
@@ -321,33 +328,44 @@ const extractRarity = (output) => {
 
 /**
  * 获取顶级建议
+ * 🎯 优化：按稀有度优先排序，同稀有度内按分数排序
  * @param {Object} envData - 环境数据
  * @param {number} topN - 返回前 N 个建议
  * @param {Object} options - 选项
- * @returns {Array} 顶级建议列表
+ * @returns {Array} 顶级建议列表（已按稀有度排序）
  */
 export const getTopSuggestions = (envData, topN = 5, options = {}) => {
     const matches = matchRules(envData, decisiveMomentRules, options);
+
+    // 🎯 双重排序：先按稀有度降序，同稀有度内按分数降序
+    matches.sort((a, b) => {
+        if (a.rarity !== b.rarity) {
+            return b.rarity - a.rarity; // 稀有度高的优先
+        }
+        return b.score - a.score; // 同稀有度内，分数高的优先
+    });
+
     return matches.slice(0, topN);
 };
 
 /**
  * 获取按稀有度分组的建议
+ * 🎯 优化：每个组内按分数排序，添加友好标签
  * @param {Object} envData - 环境数据
- * @returns {Object} {rare: [], uncommon: [], common: []}
+ * @returns {Object} 按稀有度分组的建议（每组内部已按分数排序）
  */
 export const groupSuggestionsByRarity = (envData) => {
     const options = { sortByScore: true, minScore: 0, verbose: false };
     const matches = matchRules(envData, decisiveMomentRules, options);
-    
+
     const grouped = {
-        legendary: [],  // 5星
-        epic: [],       // 4星
-        rare: [],       // 3星
-        uncommon: [],   // 2星
-        common: []      // 1星
+        legendary: [],  // 5星 - 极其罕见
+        epic: [],       // 4星 - 非常稀有
+        rare: [],       // 3星 - 比较少见
+        uncommon: [],   // 2星 - 偶尔遇到
+        common: []      // 1星 - 常见现象
     };
-    
+
     for (const match of matches) {
         if (match.rarity >= 5) grouped.legendary.push(match);
         else if (match.rarity === 4) grouped.epic.push(match);
@@ -355,8 +373,49 @@ export const groupSuggestionsByRarity = (envData) => {
         else if (match.rarity === 2) grouped.uncommon.push(match);
         else grouped.common.push(match);
     }
-    
+
+    // 每个组内按分数排序（降序）
+    for (const key of Object.keys(grouped)) {
+        grouped[key].sort((a, b) => b.score - a.score);
+    }
+
     return grouped;
+};
+
+/**
+ * 🆕 获取格式化的稀有度展示
+ * 用于 UI 展示，返回带颜色标签的建议列表
+ * @param {Object} envData - 环境数据
+ * @param {number} maxPerGroup - 每个稀有度组最多显示几条
+ * @returns {Array} 格式化的建议数组
+ */
+export const getFormattedSuggestions = (envData, maxPerGroup = 3) => {
+    const grouped = groupSuggestionsByRarity(envData);
+    const formatted = [];
+
+    const labels = {
+        legendary: { label: '🏆 极其罕见', color: '#8b5cf6', icon: '👑' },
+        epic: { label: '💎 非常稀有', color: '#3b82f6', icon: '⭐' },
+        rare: { label: '✨ 比较少见', color: '#10b981', icon: '💫' },
+        uncommon: { label: '🌟 偶尔遇到', color: '#f59e0b', icon: '🌠' },
+        common: { label: '📌 常见现象', color: '#6b7280', icon: '📍' }
+    };
+
+    for (const [rarity, matches] of Object.entries(grouped)) {
+        if (matches.length > 0) {
+            const labelInfo = labels[rarity];
+            formatted.push({
+                rarity: rarity,
+                label: labelInfo.label,
+                color: labelInfo.color,
+                icon: labelInfo.icon,
+                count: matches.length,
+                suggestions: matches.slice(0, maxPerGroup) // 限制每组显示数量
+            });
+        }
+    }
+
+    return formatted;
 };
 
 /**
