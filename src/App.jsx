@@ -4,7 +4,7 @@ import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff } f
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 // 🆕 导入战术地图组件
-import MapTestTactical from './pages/MapTestTactical';
+import MapTactical from './pages/MapTactical';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
 
 const App = () => {
@@ -66,7 +66,7 @@ const App = () => {
         <>
             {/* 🎯 战术模式全屏覆盖 */}
             {isTacticalMode ? (
-                <MapTestTactical
+                <MapTactical
                     customPoints={customPoints}
                     onPointsUpdate={setCustomPoints}
                     onExit={() => setIsTacticalMode(false)}
@@ -84,18 +84,96 @@ const App = () => {
                             </p>
                         </header>
 
-                        <nav className="flex overflow-x-auto flex-nowrap bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2 scrollbar-hide" role="tablist">
+                        <nav
+                            className="flex overflow-x-auto flex-nowrap bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2 scrollbar-hide"
+                            role="tablist"
+                            ref={(el) => {
+                                if (el && !el.dataset.centered) {
+                                    // 🎯 默认将"高精度地形终端"居中显示
+                                    const tabs = el.querySelectorAll('button[role="tab"]');
+                                    const mapTabs = Array.from(tabs).filter(tab => tab.textContent.includes('高精度地形'));
+
+                                    // 找到中间组的"高精度地形终端"
+                                    if (mapTabs.length >= 2) {
+                                        const centerTab = mapTabs[Math.floor(mapTabs.length / 2)];
+                                        const scrollLeft = centerTab.offsetLeft - (el.clientWidth / 2) + (centerTab.clientWidth / 2);
+                                        el.scrollLeft = scrollLeft;
+                                        el.dataset.centered = 'true';
+
+                                        // 🔄 实现无缝循环滑动
+                                        let isScrolling = false;
+                                        const handleScroll = () => {
+                                            if (isScrolling) return;
+
+                                            const maxScroll = el.scrollWidth - el.clientWidth;
+                                            const threshold = 50; // 触发循环的阈值
+
+                                            // 到达最左端，跳转到最右端
+                                            if (el.scrollLeft < threshold) {
+                                                isScrolling = true;
+                                                el.scrollLeft = maxScroll - threshold;
+                                                setTimeout(() => { isScrolling = false; }, 100);
+                                            }
+                                            // 到达最右端，跳转到最左端
+                                            else if (el.scrollLeft > maxScroll - threshold) {
+                                                isScrolling = true;
+                                                el.scrollLeft = threshold;
+                                                setTimeout(() => { isScrolling = false; }, 100);
+                                            }
+                                        };
+
+                                        el.addEventListener('scroll', handleScroll, { passive: true });
+                                    }
+
+                                    // 💾 保存nav元素引用供点击使用
+                                    el.dataset.navRef = 'true';
+                                    window.__tabNav = el;
+                                }
+                            }}
+                        >
                     {[
-                        { id: 'map', label: '高精度地形终端', icon: MapIcon },
-                        { id: 'data', label: '数据解析与管理', icon: Database },
-                        { id: 'rules', label: '系统生存法则', icon: Info },
-                        { id: 'tools', label: '双向汇率引擎', icon: Calculator },
-                        { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
-                        { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
-                    ].map((tab) => (
+                        // 🔄 重复3次实现循环滑动效果（原始组 + 副本1 + 副本2）
+                        ...[
+                            { id: 'map', label: '高精度地形终端', icon: MapIcon },
+                            { id: 'data', label: '数据解析与管理', icon: Database },
+                            { id: 'rules', label: '系统生存法则', icon: Info },
+                            { id: 'tools', label: '双向汇率引擎', icon: Calculator },
+                            { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
+                            { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
+                        ],
+                        ...[
+                            { id: 'map', label: '高精度地形终端', icon: MapIcon },
+                            { id: 'data', label: '数据解析与管理', icon: Database },
+                            { id: 'rules', label: '系统生存法则', icon: Info },
+                            { id: 'tools', label: '双向汇率引擎', icon: Calculator },
+                            { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
+                            { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
+                        ],
+                        ...[
+                            { id: 'map', label: '高精度地形终端', icon: MapIcon },
+                            { id: 'data', label: '数据解析与管理', icon: Database },
+                            { id: 'rules', label: '系统生存法则', icon: Info },
+                            { id: 'tools', label: '双向汇率引擎', icon: Calculator },
+                            { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
+                            { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
+                        ]
+                    ].map((tab, index) => (
                         <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
+                            key={`${tab.id}-${index}`}
+                            onClick={(e) => {
+                                setActiveTab(tab.id);
+
+                                // 🎯 点击时将tab滚动到中心位置
+                                const nav = window.__tabNav;
+                                if (nav) {
+                                    const button = e.currentTarget;
+                                    const scrollLeft = button.offsetLeft - (nav.clientWidth / 2) + (button.clientWidth / 2);
+                                    nav.scrollTo({
+                                        left: scrollLeft,
+                                        behavior: 'smooth'
+                                    });
+                                }
+                            }}
                             role="tab"
                             aria-selected={activeTab === tab.id}
                             className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${

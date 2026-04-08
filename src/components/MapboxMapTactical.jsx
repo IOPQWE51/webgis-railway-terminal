@@ -29,7 +29,6 @@ export default function MapboxMapTactical({
   const mapContainer = useRef(null);
   const map = useRef(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  const flyToDebouncedRef = useRef(null); // 🛡️ 防抖函数引用
 
   // 🎨 初始化地图
   useEffect(() => {
@@ -115,21 +114,20 @@ export default function MapboxMapTactical({
   useEffect(() => {
     if (!map.current || !center || !isLoaded) return;
 
-    // 🛡️ 创建或更新防抖函数
-    if (!flyToDebouncedRef.current) {
-      flyToDebouncedRef.current = debounce(() => {
-        if (map.current) {
-          map.current.flyTo({
-            center: center,
-            zoom: zoom,
-            duration: 2000,
-            essential: true
-          });
-        }
-      }, 500); // 500ms 防抖
-    }
+    // 🛡️ 创建防抖函数（每次 center/zoom 变化时重新创建）
+    const flyToDebounced = debounce(() => {
+      if (map.current) {
+        console.log('🎯 地图跳转中...', { center, zoom });
+        map.current.flyTo({
+          center: center,
+          zoom: zoom,
+          duration: 2000,
+          essential: true
+        });
+      }
+    }, 300); // 300ms 防抖，更快的响应
 
-    flyToDebouncedRef.current();
+    flyToDebounced();
   }, [center, zoom, isLoaded]);
 
   // 📍 渲染自定义标记点
