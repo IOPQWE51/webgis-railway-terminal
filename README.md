@@ -414,8 +414,7 @@ vercel --prod
 
 ---
 
-**项目维护者**: IOPQWE51
-**AI 协作开发**: Claude Sonnet 4.6 & Gemini
+**项目维护者**: IOPQWE51 & Gemini & Claude Sonnet 4.6 
 **项目地址**: https://github.com/IOPQWE51/webgis-railway-terminal
 **许可证**: MIT
 
