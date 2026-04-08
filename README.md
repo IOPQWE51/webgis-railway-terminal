@@ -1,6 +1,6 @@
-# 🚂 WebGIS 主干地形图系统 v3.1
+# 🌍 EarthTerminal v3.1
 
-**Japanese Railway Holographic Terminal · WebGIS Base Map System**
+**地球终端系统 · Earth Terminal System**
 
 > 一个基于 **WebGIS 技术**的个人定制版**旅行漫游系统**，集成了**卫星地图导览**、**气象雷达覆盖**、**铁道网线追踪**、**实体坐标定位**与**次元圣地巡礼**功能的"赛博控制台"。
 

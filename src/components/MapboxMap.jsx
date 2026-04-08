@@ -92,6 +92,23 @@ export default function MapboxMap({
     }
   }, [center, isLoaded]);
 
+  // 动态切换地图样式
+  useEffect(() => {
+    if (!map.current || !styleUrl || !isLoaded) return;
+
+    try {
+      map.current.setStyle(styleUrl);
+      console.log('🎨 地图样式已切换:', styleUrl);
+
+      // 样式切换后重新添加自定义效果
+      setTimeout(() => {
+        addRailwayGlowEffect();
+      }, 1000);
+    } catch (error) {
+      console.error('❌ 样式切换失败:', error);
+    }
+  }, [styleUrl, isLoaded]);
+
   // 添加标记点
   useEffect(() => {
     if (!map.current || !markers.length || !isLoaded) return;

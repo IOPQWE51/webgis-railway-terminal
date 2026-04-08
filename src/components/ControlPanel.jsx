@@ -1,11 +1,11 @@
-import { Loader2, CloudRain, Cloud, Map as MapIcon, Moon, Globe, Ruler, Layers, Target, Navigation, Crosshair } from 'lucide-react';
+import { Loader2, CloudRain, Cloud, Map as MapIcon, Moon, Globe, Ruler, Layers, Target, Navigation, Crosshair, Radar } from 'lucide-react';
 import SearchNavEngine from './SearchNavEngine';
 
 const ControlPanel = ({
     // 状态
     isLocating, isMeasuring, measurePoints, measureDistance, baseMapType, weatherType, filters,
     // 操作方法
-    handleSearchLocationFound, locatePlayer, setIsMeasuring, setMeasurePoints, setMeasureDistance, clearMeasurement, setBaseMapType, setWeatherType, toggleFilter
+    handleSearchLocationFound, locatePlayer, setIsMeasuring, setMeasurePoints, setMeasureDistance, clearMeasurement, setBaseMapType, setWeatherType, toggleFilter, onEnterTactical
 }) => {
     return (
         <div className="flex flex-col gap-4">
@@ -40,21 +40,38 @@ const ControlPanel = ({
                 )}
             </div>
 
-            {/* 4. 环境矩阵 */}
+            {/* 4. 环境矩阵 (💥 Dark 2D 入口已整合) */}
             <div className="bg-white rounded-2xl p-4 border border-gray-200">
                 <div className="flex items-center text-gray-500 font-bold text-xs uppercase tracking-wider mb-3">
                     <Globe className="w-4 h-4 mr-2" /> 环境矩阵
                 </div>
+                {/* 基础底图切换 */}
                 <div className="flex bg-gray-100 p-1.5 rounded-xl mb-3">
                     <button onClick={() => setBaseMapType('topo')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex justify-center items-center transition-all ${baseMapType === 'topo' ? 'bg-white text-cyan-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><MapIcon className="w-3 h-3 mr-1" /> 拓扑</button>
                     <button onClick={() => setBaseMapType('satellite')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex justify-center items-center transition-all ${baseMapType === 'satellite' ? 'bg-white text-cyan-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><Globe className="w-3 h-3 mr-1" /> 卫星</button>
                     <button onClick={() => setBaseMapType('dark')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex justify-center items-center transition-all ${baseMapType === 'dark' ? 'bg-zinc-800 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}><Moon className="w-3 h-3 mr-1" /> 暗黑</button>
                 </div>
+                {/* 天气图层切换 */}
                 <div className="flex bg-rose-50 p-1.5 rounded-xl border border-rose-100">
                     <button onClick={() => setWeatherType('none')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${weatherType === 'none' ? 'bg-white text-rose-700 shadow-sm' : 'text-rose-400 hover:text-rose-600'}`}>关闭</button>
                     <button onClick={() => setWeatherType('precipitation_new')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex justify-center items-center transition-all ${weatherType === 'precipitation_new' ? 'bg-white text-blue-600 shadow-sm' : 'text-rose-400 hover:text-rose-600'}`}><CloudRain className="w-3 h-3 mr-1" /> 降雨</button>
                     <button onClick={() => setWeatherType('clouds_new')} className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex justify-center items-center transition-all ${weatherType === 'clouds_new' ? 'bg-white text-gray-700 shadow-sm' : 'text-rose-400 hover:text-rose-600'}`}><Cloud className="w-3 h-3 mr-1" /> 云层</button>
                 </div>
+
+                {/* 💥 Dark 2D 全息雷达专用入口 */}
+                {onEnterTactical && (
+                    <>
+                        <div className="h-px bg-gray-100 my-4 w-full"></div>
+                        <button
+                            onClick={onEnterTactical}
+                            className="group relative w-full py-2.5 px-4 bg-zinc-900 hover:bg-black text-[#fbbf24] font-black text-xs tracking-widest uppercase rounded-xl shadow-md border border-zinc-800 transition-all duration-300 overflow-hidden flex items-center justify-center gap-2"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12"></div>
+                            <Radar className="w-4 h-4 animate-pulse" />
+                            <span>[ 启动 Dark_2D 全息雷达 ]</span>
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* 5. 战术过滤 */}
