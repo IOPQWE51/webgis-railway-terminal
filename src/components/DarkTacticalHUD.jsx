@@ -62,11 +62,8 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
 
     // 只在移动端发射
     if (isMobile) {
-      if (hasDispatchedMobileRef.current) {
-        console.log('⚠️ 已经发射过，跳过');
-        return;
-      }
-      hasDispatchedMobileRef.current = true;
+      // 🔄 每次 stationData 变化时都重置标志，允许重新发射
+      hasDispatchedMobileRef.current = false;
 
       const { name, lat, lon, source } = stationData;
       const coords = formatCoordinate(lat, lon);

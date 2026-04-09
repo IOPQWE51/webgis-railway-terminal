@@ -20,6 +20,7 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   const [searchQuery, setSearchQuery] = useState(''); // 🔍 搜索关键词
   const [isSearching, setIsSearching] = useState(false); // 🔍 搜索状态
   const [isLocating, setIsLocating] = useState(false); // 📍 定位中状态
+  const [userLocation, setUserLocation] = useState(null); // 📍 用户当前位置（幽灵蓝）
 
   // 📱 移动端抽屉状态
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
@@ -73,22 +74,12 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   };
 
   const [currentStyle, setCurrentStyle] = useState('dark2D');
+  const [clickedCoord, setClickedCoord] = useState(null); // 🖱️ 点击的坐标（显示面板用）
 
-  // 🖱️ 地图点击处理
+  // 🖱️ 地图点击处理 - 不创建标记点，只显示坐标面板
   const handleMapClick = ({ longitude, latitude }) => {
     console.log('🖱️ Dark 2D 地图点击:', { longitude, latitude });
-
-    const timestamp = Date.now();
-    const newPoint = {
-      id: `click_${timestamp}`,
-      name: `标记 ${new Date(timestamp).toLocaleTimeString('zh-CN', { hour12: false })}`,
-      lat: latitude,
-      lon: longitude,
-      category: 'spot',
-      source: 'Dark 2D 地图手动标记'
-    };
-
-    setCustomPoints(prev => [...prev, newPoint]);
+    setClickedCoord({ longitude, latitude });
   };
 
   // 📍 位置搜索处理（使用统一的地理编码工具）
@@ -135,10 +126,42 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   const handleLocate = async () => {
     setIsLocating(true);
     try {
-      const position = await getCurrentPosition();
+      const position = await getCurrentPosition({ fallbackToIP: true });
       setMapCenter([position.longitude, position.latitude]);
-      setMapZoom(13);
-      console.log('📍 定位成功:', position);
+      setMapZoom(position.accuracy === 'low' ? 10 : 13);
+
+      // 📍 设置用户位置（用于渲染幽灵蓝标记）
+      setUserLocation({
+        latitude: position.latitude,
+        longitude: position.longitude
+      });
+
+      // 显示定位方式提示
+      const method = position.method === 'gps' ? 'GPS' : 'IP 地址';
+      console.log(`📍 定位成功 (${method}):`, position);
+
+      if (position.warning) {
+        // 延迟显示警告，不打断用户
+        setTimeout(() => {
+          const notice = document.createElement('div');
+          notice.style.cssText = `
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(14, 165, 233, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 10000;
+            animation: fadeInOut 3s forwards;
+          `;
+          notice.textContent = `📍 ${position.warning}`;
+          document.body.appendChild(notice);
+          setTimeout(() => notice.remove(), 3000);
+        }, 100);
+      }
     } catch (error) {
       console.error('❌ 定位失败:', error);
       alert(error.message);
@@ -331,7 +354,15 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
             <div style={{ position: 'absolute', top: 0, left: 0, width: '15px', height: '15px', borderTop: '2px solid #fbbf24', borderLeft: '2px solid #fbbf24', zIndex: 10 }}></div>
             <div style={{ position: 'absolute', bottom: 0, right: 0, width: '15px', height: '15px', borderBottom: '2px solid #fbbf24', borderRight: '2px solid #fbbf24', zIndex: 10 }}></div>
             
-            <MapboxMapTactical styleUrl={mapStyles[currentStyle]} center={mapCenter} zoom={mapZoom} customPoints={customPoints} onMapClick={handleMapClick} />
+            <MapboxMapTactical
+              styleUrl={mapStyles[currentStyle]}
+              center={mapCenter}
+              zoom={mapZoom}
+              customPoints={customPoints}
+              onMapClick={handleMapClick}
+              clickedCoord={clickedCoord}
+              userLocation={userLocation}
+            />
           </div>
         ) : (
           <div style={{
@@ -370,6 +401,16 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
         htmlContent={bottomSheetContent}
         onDismiss={() => setBottomSheetOpen(false)}
       />
+
+      {/* 全局样式 */}
+      <style>{`
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+          10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+          90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+          100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+        }
+      `}</style>
     </div>
   );
-}
+};

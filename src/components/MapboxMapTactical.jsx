@@ -25,16 +25,113 @@ export default function MapboxMapTactical({
   onMapClick = null,
   styleUrl = 'mapbox://styles/iopqwe51/cmnoq0jyc008501sg88f6en5z', // Dark 2D 样式
   pitch = 0,
-  bearing = 0
+  bearing = 0,
+  clickedCoord = null, // 🖱️ 点击的坐标（显示面板用）
+  userLocation = null // 📍 用户当前位置（幽灵蓝）
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const radarMarkerRef = useRef(null); // 🎯 雷达准星引用
+  const userMarkerRef = useRef(null); // 📍 用户位置标记引用
+  const coordMarkerRef = useRef(null); // 🖱️ 点击位置方框标记引用
   const clickHandlerRef = useRef(null); // 🎯 点击事件处理器引用（用于防重复绑定）
   const mouseEnterHandlerRef = useRef(null); // 🖱️ 鼠标进入处理器引用
   const mouseLeaveHandlerRef = useRef(null); // 🖱️ 鼠标离开处理器引用
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null); // 🎯 当前选中的站点
+
+  // 🖱️ 监听 clickedCoord 变化，显示坐标面板 + 方框标记
+  useEffect(() => {
+    if (!clickedCoord) return;
+
+    const { longitude, latitude } = clickedCoord;
+
+    // 创建临时坐标数据用于显示面板
+    const coordData = {
+      id: `coord_${Date.now()}`,
+      name: `坐标 ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+      lat: latitude,
+      lon: longitude,
+      category: 'spot',
+      source: '地图点击'
+    };
+
+    setSelectedStation(coordData);
+
+    // 🎯 渲染点击位置的战术方框标记（白色）
+    if (!map.current || !isLoaded) return;
+
+    // 清除旧的点击位置标记
+    if (coordMarkerRef.current) {
+      coordMarkerRef.current.remove();
+      coordMarkerRef.current = null;
+    }
+
+    // 创建战术方框标记元素
+    const coordEl = document.createElement('div');
+    coordEl.innerHTML = `
+      <div style="position: relative; width: 50px; height: 50px;">
+        <!-- 战术方框 -->
+        <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.8)); z-index: 2; position: absolute; top: 0; left: 0;">
+          <!-- 外框 -->
+          <rect x="8" y="8" width="34" height="34" fill="none" stroke="#ffffff" stroke-width="2" rx="2"/>
+          <!-- 四角 -->
+          <path d="M8 16 L8 8 L16 8" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          <path d="M34 8 L42 8 L42 16" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          <path d="M42 34 L42 42 L34 42" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16 42 L8 42 L8 34" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+          <!-- 中心点 -->
+          <circle cx="25" cy="25" r="3" fill="#ffffff"/>
+        </svg>
+        <!-- 脉冲动画 -->
+        <div style="position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 4px; transform: translate(-50%, -50%); animation: coordBoxPulse 1.5s ease-out infinite;"></div>
+      </div>
+    `;
+
+    coordMarkerRef.current = new mapboxgl.Marker({
+      element: coordEl,
+      anchor: 'center'
+    })
+      .setLngLat([longitude, latitude])
+      .addTo(map.current);
+
+    // 37秒后自动消失
+    setTimeout(() => {
+      if (coordMarkerRef.current) {
+        coordMarkerRef.current.remove();
+        coordMarkerRef.current = null;
+      }
+    }, 37000);
+
+    console.log('🎯 点击位置标记已添加');
+  }, [clickedCoord, isLoaded]);
+
+  // 📍 渲染用户位置标记（幽灵蓝雷达波）
+  useEffect(() => {
+    if (!map.current || !isLoaded) return;
+
+    // 清除旧的用户位置标记
+    if (userMarkerRef.current) {
+      userMarkerRef.current.remove();
+      userMarkerRef.current = null;
+    }
+
+    if (!userLocation) return;
+
+    // 创建用户位置标记元素
+    const userEl = document.createElement('div');
+    userEl.innerHTML = USER_LOCATION_HTML;
+    userEl.className = 'user-location-marker';
+
+    userMarkerRef.current = new mapboxgl.Marker({
+      element: userEl,
+      anchor: 'center'
+    })
+      .setLngLat([userLocation.longitude, userLocation.latitude])
+      .addTo(map.current);
+
+    console.log('📍 用户位置已更新:', userLocation);
+  }, [userLocation, isLoaded]);
 
   // 🚪 关闭 HUD
   const handleCloseHUD = () => {
@@ -62,6 +159,31 @@ export default function MapboxMapTactical({
     </div>
   `;
 
+  // 📍 用户位置 HTML（幽灵蓝雷达波）- 自机位
+  const USER_LOCATION_HTML = `
+    <div style="position: relative; width: 70px; height: 70px;">
+      <!-- 外圈雷达波 - 动态扩散 -->
+      <div class="user-radar-wave-1"></div>
+      <div class="user-radar-wave-2"></div>
+      <div class="user-radar-wave-3"></div>
+      <!-- 核心标记 -->
+      <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.9)); z-index: 3; position: absolute; top: 0; left: 0;">
+        <!-- 外圈虚线环 -->
+        <circle cx="35" cy="35" r="28" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>
+        <!-- 中圈实线环 -->
+        <circle cx="35" cy="35" r="20" stroke="#0ea5e9" stroke-width="2.5" opacity="0.9"/>
+        <!-- 十字准星 -->
+        <line x1="35" y1="10" x2="35" y2="20" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+        <line x1="35" y1="50" x2="35" y2="60" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+        <line x1="10" y1="35" x2="20" y2="35" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+        <line x1="50" y1="35" x2="60" y2="35" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+        <!-- 核心点（高亮） -->
+        <circle cx="35" cy="35" r="5" fill="#0ea5e9"/>
+        <circle cx="35" cy="35" r="2.5" fill="#ffffff"/>
+      </svg>
+    </div>
+  `;
+
   // 🎨 初始化地图
   useEffect(() => {
     if (map.current) return;
@@ -85,16 +207,76 @@ export default function MapboxMapTactical({
       // ✨ 地图加载完成
       map.current.on('load', () => {
         console.log('🗺️ Dark 2D 地图加载完成');
+
+        // 🔍 调试：列出所有可用图层
+        const style = map.current.getStyle();
+        if (style && style.layers) {
+          console.log('📋 Mapbox 图层列表:');
+          style.layers.forEach(layer => {
+            if (layer.type === 'symbol' || layer.id.includes('station') || layer.id.includes('poi') || layer.id.includes('transit')) {
+              console.log(`  - ${layer.id} (${layer.type})`);
+            }
+          });
+        }
+
         setIsLoaded(true);
       });
 
-      // 🖱️ 地图点击事件
-      if (onMapClick) {
-        map.current.on('click', (e) => {
-          const { lng, lat } = e.lngLat;
-          onMapClick({ longitude: lng, latitude: lat });
+      // 🖱️ 地图点击事件 - 检测 POI 和普通点击
+      map.current.on('click', (e) => {
+        const { lng, lat } = e.lngLat;
+
+        // 🔍 检测是否点击了 Mapbox 的 POI
+        const poiFeatures = map.current.queryRenderedFeatures(e.point, {
+          layers: [] // 空数组 = 查询所有图层
         });
-      }
+
+        console.log('🔍 点击位置检测到要素数量:', poiFeatures.length);
+        if (poiFeatures.length > 0) {
+          console.log('📋 要素列表:', poiFeatures.map(f => ({ layer: f.layer?.id, type: f.layer?.type, properties: f.properties })));
+        }
+
+        // 寻找交通站点相关的 POI
+        const stationFeature = poiFeatures.find(f => {
+          const layerId = f.layer?.id || '';
+          const props = f.properties || {};
+          // 检查图层 ID 或属性中是否包含站点相关关键词
+          return layerId.includes('station') ||
+                 layerId.includes('poi') ||
+                 layerId.includes('transit') ||
+                 props.category === 'station' ||
+                 props.type === 'station' ||
+                 props.class === 'station';
+        });
+
+        if (stationFeature) {
+          const feature = stationFeature;
+          const props = feature.properties;
+          const coords = feature.geometry?.coordinates || [lng, lat];
+
+          console.log('🎯 点击了站点 POI:', { layer: feature.layer?.id, properties: props });
+
+          // 提取 POI 名称
+          const poiName = props.name || props.title || props.station || props.description || '未知站点';
+
+          // 设置选中的站点数据
+          setSelectedStation({
+            id: props.id || `poi_${Date.now()}`,
+            name: poiName,
+            lat: coords[1] || lat,
+            lon: coords[0] || lng,
+            category: 'spot',
+            source: `Mapbox (${feature.layer?.id})`
+          });
+
+          return; // POI 点击处理完成
+        }
+
+        // 普通点击：触发 handleMapClick
+        if (onMapClick) {
+          onMapClick({ longitude: lng, latitude: lat });
+        }
+      });
 
     } catch (error) {
       console.error('❌ 地图初始化失败:', error);
@@ -400,7 +582,78 @@ export default function MapboxMapTactical({
             border-width: 0.5px;
           }
         }
-          
+
+        /* 📍 用户位置雷达波 - 幽灵蓝三重扩散 */
+        .user-radar-wave-1,
+        .user-radar-wave-2,
+        .user-radar-wave-3 {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          border: 2px solid #0ea5e9;
+          border-radius: 50%;
+          transform: translate(-50%, -50%);
+          pointer-events: none;
+          z-index: 1;
+        }
+
+        .user-radar-wave-1 {
+          animation: userRadarWave 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        .user-radar-wave-2 {
+          animation: userRadarWave 2.4s cubic-bezier(0.4, 0, 0.2, 1) 0.8s infinite;
+        }
+
+        .user-radar-wave-3 {
+          animation: userRadarWave 2.4s cubic-bezier(0.4, 0, 0.2, 1) 1.6s infinite;
+        }
+
+        @keyframes userRadarWave {
+          0% {
+            width: 20px;
+            height: 20px;
+            opacity: 0.8;
+            border-width: 2px;
+          }
+          100% {
+            width: 70px;
+            height: 70px;
+            opacity: 0;
+            border-width: 0.5px;
+          }
+        }
+
+        /* 📍 用户位置核心脉冲 */
+        .user-location-marker svg {
+          animation: userCorePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes userCorePulse {
+          0%, 100% {
+            filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.9));
+          }
+          50% {
+            filter: drop-shadow(0 0 35px rgba(14, 165, 233, 1));
+          }
+        }
+
+        /* 🎯 点击位置方框脉冲 */
+        @keyframes coordBoxPulse {
+          0% {
+            opacity: 1;
+            width: 40px;
+            height: 40px;
+            border-width: 1px;
+          }
+          100% {
+            opacity: 0;
+            width: 60px;
+            height: 60px;
+            border-width: 0.5px;
+          }
+        }
+
       `}</style>
     </>
   );
