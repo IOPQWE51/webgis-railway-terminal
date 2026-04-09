@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { generatePopupContent } from '../utils/photoEngine';
 import { openCyberPanel } from '../utils/cyberPanel';
+import { getCurrentPosition } from '../utils/performanceHelpers';
 
 export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
     const [isMeasuring, setIsMeasuring] = useState(false);
@@ -31,18 +32,17 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
     };
 
     // 2. 玩家定位逻辑
-    const locatePlayer = () => {
-        if (!navigator.geolocation) return alert('不支持空间定位');
+    const locatePlayer = async () => {
         setIsLocating(true);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setUserLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-                setIsLocating(false);
-                if (window.innerWidth < 1024) setShowDrawer(false);
-            },
-            () => { alert('获取定位失败'); setIsLocating(false); },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
+        try {
+            const position = await getCurrentPosition();
+            setUserLocation({ lat: position.latitude, lon: position.longitude });
+            if (window.innerWidth < 1024) setShowDrawer(false);
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            setIsLocating(false);
+        }
     };
 
     // 监听定位更新并渲染玩家标靶

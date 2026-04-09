@@ -1,25 +1,60 @@
 // src/pages/MapTactical.jsx
 // 🗺️ 战术地图页面
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import MapboxMapTactical from '../components/MapboxMapTactical';
 import DataCenter from '../components/DataCenter';
-import { Map, Database, Search } from 'lucide-react';
+import TacticalBottomSheet from '../components/TacticalBottomSheet';
+import { Map, Database, Search, Crosshair, Loader2 } from 'lucide-react';
+import { storage, geocodeRequest, getCurrentPosition } from '../utils/performanceHelpers';
+import { TACTICAL_STYLES } from '../config/mapConstants';
 
-export default function MapTactical({ customPoints: initialPoints = [], onPointsUpdate, onExit }) {
-  const [customPoints, setCustomPoints] = useState(initialPoints);
+export default function MapTactical({ customPoints: initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
+  // 🎯 Dark 2D 模式使用独立的点位存储（不继承主地图的点）
+  const [customPoints, setCustomPoints] = useState(() => {
+    return storage.load('earth_terminal_dark2d_points', []);
+  });
   const [activeTab, setActiveTab] = useState('map'); // 'map' 或 'data'
   const [mapCenter, setMapCenter] = useState([-73.9851, 40.7484]); // 🗽 纽约（美国第一城）
   const [mapZoom, setMapZoom] = useState(1); // 🌍 缩放到地球视图级别（0-22，1=全地球）
   const [searchQuery, setSearchQuery] = useState(''); // 🔍 搜索关键词
   const [isSearching, setIsSearching] = useState(false); // 🔍 搜索状态
+  const [isLocating, setIsLocating] = useState(false); // 📍 定位中状态
 
-  // 🔄 处理点位更新（同步给父组件）
+  // 📱 移动端抽屉状态
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const [bottomSheetContent, setBottomSheetContent] = useState('');
+
+  // 📱 监听移动端抽屉事件
+  useEffect(() => {
+    const handleOpenSheet = (e) => {
+      console.log('📱 收到 openTacticalBottomSheet 事件');
+      setBottomSheetContent(e.detail);
+      setBottomSheetOpen(true);
+    };
+
+    const handleCloseSheet = () => {
+      console.log('📱 收到 closeTacticalBottomSheet 事件');
+      setBottomSheetOpen(false);
+    };
+
+    window.addEventListener('openTacticalBottomSheet', handleOpenSheet);
+    window.addEventListener('closeTacticalBottomSheet', handleCloseSheet);
+
+    return () => {
+      window.removeEventListener('openTacticalBottomSheet', handleOpenSheet);
+      window.removeEventListener('closeTacticalBottomSheet', handleCloseSheet);
+    };
+  }, []);
+
+  // 💾 Dark 2D 点位独立存储（不影响主地图）
+  useEffect(() => {
+    storage.save('earth_terminal_dark2d_points', customPoints);
+  }, [customPoints]);
+
+  // 🔄 处理点位更新（Dark 2D 独立存储，不同步给主地图）
   const handlePointsUpdate = (newPoints) => {
     setCustomPoints(newPoints);
-    if (onPointsUpdate) {
-      onPointsUpdate(newPoints);
-    }
   };
 
   // 🚪 退出战术模式
@@ -43,45 +78,37 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   const handleMapClick = ({ longitude, latitude }) => {
     console.log('🖱️ Dark 2D 地图点击:', { longitude, latitude });
 
+    const timestamp = Date.now();
     const newPoint = {
-      id: `click_${Date.now()}`,
-      name: `标记 ${customPoints.length + 1}`,
+      id: `click_${timestamp}`,
+      name: `标记 ${new Date(timestamp).toLocaleTimeString('zh-CN', { hour12: false })}`,
       lat: latitude,
       lon: longitude,
       category: 'spot',
       source: 'Dark 2D 地图手动标记'
     };
 
-    setCustomPoints([...customPoints, newPoint]);
+    setCustomPoints(prev => [...prev, newPoint]);
   };
 
-  // 📍 位置搜索处理（使用 OSM Nominatim API）
+  // 📍 位置搜索处理（使用统一的地理编码工具）
   const handleSearch = async (query) => {
     if (!query.trim()) return;
 
     setIsSearching(true);
     try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-        {
-          headers: {
-            'User-Agent': 'EarthTerminal/5.0.1'
-          }
-        }
-      );
+      const result = await geocodeRequest(query, 'nominatim');
 
-      const results = await response.json();
-
-      if (results && results.length > 0) {
-        const { lat, lon, display_name } = results[0];
-        const newCenter = [parseFloat(lon), parseFloat(lat)];
+      if (result) {
+        const { lat, lon, displayName } = result;
+        const newCenter = [lon, lat];
         const newZoom = 12;
 
         console.log('🎯 搜索定位成功:', { lat, lon, center: newCenter, zoom: newZoom });
 
         setMapCenter(newCenter);
         setMapZoom(newZoom);
-        setSearchQuery(display_name.split(',')[0]); // 使用简短名称
+        setSearchQuery(displayName.split(',')[0]); // 使用简短名称
 
         // 🔍 确保切换到地图视图
         setActiveTab('map');
@@ -101,6 +128,22 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   const handleSearchSubmit = (e) => {
     if (e.key === 'Enter') {
       handleSearch(searchQuery);
+    }
+  };
+
+  // 📍 定位自身
+  const handleLocate = async () => {
+    setIsLocating(true);
+    try {
+      const position = await getCurrentPosition();
+      setMapCenter([position.longitude, position.latitude]);
+      setMapZoom(13);
+      console.log('📍 定位成功:', position);
+    } catch (error) {
+      console.error('❌ 定位失败:', error);
+      alert(error.message);
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -131,22 +174,15 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
       {/* 📋 战术 HUD 控制台 */}
       <div style={{
         marginBottom: '10px',
-        padding: '12px 15px',
-        backgroundColor: 'rgba(15, 23, 42, 0.4)',
-        borderRadius: '0',
-        borderTop: '1px solid rgba(251, 191, 36, 0.2)',
-        borderRight: '1px solid rgba(251, 191, 36, 0.2)',
-        borderBottom: '1px solid rgba(251, 191, 36, 0.2)',
-        borderLeft: '4px solid #fbbf24',
-        boxShadow: 'inset 0 0 20px rgba(251, 191, 36, 0.05)',
-        flexShrink: 0 // 确保控制台不会被地图压扁
+        flexShrink: 0,
+        ...TACTICAL_STYLES.panel.base
       }}>
-        {/* 标题与状态行 (允许换行适配小屏幕) */}
+        {/* 标题与状态行 */}
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
           <h1 style={{
             margin: '0',
-            fontSize: '18px', // 稍微缩小一点字号
-            color: '#fbbf24',
+            fontSize: '18px',
+            color: TACTICAL_STYLES.colors.amber,
             textShadow: '0 0 8px rgba(251, 191, 36, 0.6)',
             display: 'flex',
             alignItems: 'center',
@@ -158,11 +194,11 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
             <Map size={18} />
             [ DARK_2D_RADAR ]
           </h1>
-          
+
           {/* 雷达状态灯 + 退出按钮 */}
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-            <div style={{ fontSize: '10px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-              <div style={{ width: '6px', height: '6px', backgroundColor: '#fbbf24', borderRadius: '50%', boxShadow: '0 0 8px #fbbf24' }}></div>
+            <div style={{ fontSize: '10px', color: TACTICAL_STYLES.colors.amber, display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+              <div style={{ width: '6px', height: '6px', backgroundColor: TACTICAL_STYLES.colors.amber, borderRadius: '50%', boxShadow: `0 0 8px ${TACTICAL_STYLES.colors.amber}` }}></div>
               SYS.ONLINE // TARGETS: {customPoints.length}
             </div>
 
@@ -171,18 +207,8 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
               <button
                 onClick={handleExit}
                 style={{
-                  padding: '4px 8px',
-                  backgroundColor: 'transparent',
-                  color: '#ef4444',
-                  border: '1px solid #ef4444',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  letterSpacing: '1px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap'
+                  ...TACTICAL_STYLES.button.base,
+                  ...TACTICAL_STYLES.button.danger
                 }}
               >
                 ⚠️ EXIT
@@ -191,14 +217,14 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
           </div>
         </div>
 
-        {/* 控制按钮群 (全面弹性化) */}
+        {/* 控制按钮群 */}
         <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', alignItems: 'center' }}>
-          
+
           {/* 位置搜索模块 */}
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ color: '#64748b', fontSize: '10px', letterSpacing: '1px' }}>ZONE</span>
+            <span style={{ color: TACTICAL_STYLES.colors.grayText, fontSize: '10px', letterSpacing: '1px' }}>ZONE</span>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Search size={12} style={{ position: 'absolute', left: '8px', color: '#64748b', pointerEvents: 'none' }} />
+              <Search size={12} style={{ position: 'absolute', left: '8px', color: TACTICAL_STYLES.colors.grayText, pointerEvents: 'none' }} />
               <input
                 type="text"
                 value={searchQuery}
@@ -207,21 +233,34 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
                 placeholder="搜索城市/地点..."
                 disabled={isSearching}
                 style={{
-                  padding: '4px 10px 4px 24px',
-                  backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                  border: '1px solid rgba(100, 116, 139, 0.3)',
-                  color: '#fbbf24',
-                  fontSize: '10px',
-                  letterSpacing: '1px',
-                  outline: 'none',
-                  cursor: isSearching ? 'wait' : 'text',
-                  opacity: isSearching ? 0.6 : 1,
+                  ...TACTICAL_STYLES.input.base,
+                  paddingLeft: '24px',
                   minWidth: '150px',
-                  fontFamily: '"Courier New", Courier, monospace'
+                  cursor: isSearching ? 'wait' : 'text',
+                  opacity: isSearching ? 0.6 : 1
                 }}
               />
             </div>
           </div>
+
+          {/* 📍 定位按钮 */}
+          <button
+            onClick={handleLocate}
+            disabled={isLocating}
+            style={{
+              ...TACTICAL_STYLES.button.base,
+              ...TACTICAL_STYLES.button.primary,
+              backgroundColor: isLocating ? 'rgba(251, 191, 36, 0.2)' : TACTICAL_STYLES.button.primary.backgroundColor,
+              opacity: isLocating ? 0.7 : 1,
+              cursor: isLocating ? 'wait' : 'pointer',
+              gap: '6px',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            {isLocating ? <Loader2 size={12} className="animate-spin" /> : <Crosshair size={12} />}
+            {isLocating ? 'LOCATING...' : 'LOCATE'}
+          </button>
 
           {/* 样式选择模块 */}
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
@@ -248,21 +287,16 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
             </div>
           </div>
 
-          {/* 视图切换开关 (利用 flexGrow 自动推到右侧或换行) */}
+          {/* 视图切换开关 */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', flexGrow: 1, justifyContent: 'flex-end' }}>
             <button
               onClick={() => setActiveTab('map')}
               style={{
-                padding: '4px 12px',
-                backgroundColor: activeTab === 'map' ? 'rgba(14, 165, 233, 0.15)' : 'transparent',
-                color: activeTab === 'map' ? '#0ea5e9' : '#64748b',
-                border: activeTab === 'map' ? '1px solid #0ea5e9' : '1px solid rgba(100, 116, 139, 0.3)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
+                ...TACTICAL_STYLES.button.base,
+                ...(activeTab === 'map' ? TACTICAL_STYLES.button.active : TACTICAL_STYLES.button.secondary),
                 gap: '4px',
-                fontSize: '10px',
-                whiteSpace: 'nowrap'
+                display: 'flex',
+                alignItems: 'center'
               }}
             >
               <Map size={12} /> TACTICAL
@@ -270,16 +304,11 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
             <button
               onClick={() => setActiveTab('data')}
               style={{
-                padding: '4px 12px',
-                backgroundColor: activeTab === 'data' ? 'rgba(14, 165, 233, 0.15)' : 'transparent',
-                color: activeTab === 'data' ? '#0ea5e9' : '#64748b',
-                border: activeTab === 'data' ? '1px solid #0ea5e9' : '1px solid rgba(100, 116, 139, 0.3)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
+                ...TACTICAL_STYLES.button.base,
+                ...(activeTab === 'data' ? TACTICAL_STYLES.button.active : TACTICAL_STYLES.button.secondary),
                 gap: '4px',
-                fontSize: '10px',
-                whiteSpace: 'nowrap'
+                display: 'flex',
+                alignItems: 'center'
               }}
             >
               <Database size={12} /> DATA
@@ -334,6 +363,13 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
         <span>SYS_STATUS: NORMAL</span>
         <span style={{ wordBreak: 'break-all' }}>LAT: {mapCenter[1].toFixed(4)} // LNG: {mapCenter[0].toFixed(4)} // Z: {mapZoom}</span>
       </div>
+
+      {/* 📱 移动端战术抽屉 */}
+      <TacticalBottomSheet
+        open={bottomSheetOpen}
+        htmlContent={bottomSheetContent}
+        onDismiss={() => setBottomSheetOpen(false)}
+      />
     </div>
   );
 }

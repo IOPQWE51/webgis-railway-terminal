@@ -30,6 +30,9 @@ export default function MapboxMapTactical({
   const mapContainer = useRef(null);
   const map = useRef(null);
   const radarMarkerRef = useRef(null); // 🎯 雷达准星引用
+  const clickHandlerRef = useRef(null); // 🎯 点击事件处理器引用（用于防重复绑定）
+  const mouseEnterHandlerRef = useRef(null); // 🖱️ 鼠标进入处理器引用
+  const mouseLeaveHandlerRef = useRef(null); // 🖱️ 鼠标离开处理器引用
   const [isLoaded, setIsLoaded] = useState(false);
   const [selectedStation, setSelectedStation] = useState(null); // 🎯 当前选中的站点
 
@@ -161,7 +164,18 @@ export default function MapboxMapTactical({
 
   // 📍 渲染自定义标记点
   useEffect(() => {
-    if (!map.current || !customPoints.length || !isLoaded) return;
+    if (!map.current || !isLoaded) return;
+
+    // 🚑 移除旧的事件监听器（防止重复绑定）
+    if (clickHandlerRef.current) {
+      try {
+        map.current.off('click', 'custom-points-circle', clickHandlerRef.current);
+        map.current.off('mouseenter', 'custom-points-circle', mouseEnterHandlerRef.current);
+        map.current.off('mouseleave', 'custom-points-circle', mouseLeaveHandlerRef.current);
+      } catch (e) {
+        // 图层可能不存在，忽略错误
+      }
+    }
 
     // 清除现有标记
     const existingMarkers = document.querySelectorAll('.custom-dark-marker');
@@ -173,6 +187,9 @@ export default function MapboxMapTactical({
       map.current.removeLayer('custom-points-label');
       map.current.removeSource('custom-points');
     }
+
+    // 如果没有点位，直接返回
+    if (!customPoints.length) return;
 
     // 创建 GeoJSON 数据
     const geoJSONData = {
@@ -231,17 +248,21 @@ export default function MapboxMapTactical({
       }
     });
 
-    // 🖱️ 鼠标悬停效果
-    map.current.on('mouseenter', 'custom-points-circle', () => {
+    // 🖱️ 鼠标悬停效果处理器
+    const mouseEnterHandler = () => {
       map.current.getCanvas().style.cursor = 'pointer';
-    });
+    };
+    mouseEnterHandlerRef.current = mouseEnterHandler;
 
-    map.current.on('mouseleave', 'custom-points-circle', () => {
+    const mouseLeaveHandler = () => {
       map.current.getCanvas().style.cursor = '';
-    });
+    };
+    mouseLeaveHandlerRef.current = mouseLeaveHandler;
 
-    // 🎯 点击标记显示 HUD + 雷达动画
-    map.current.on('click', 'custom-points-circle', (e) => {
+    // 🎯 点击标记显示 HUD + 雷达动画处理器
+    const clickHandler = (e) => {
+      console.log('🖱️ 点击标记触发'); // 🔥 调试日志
+
       const features = map.current.queryRenderedFeatures(e.point, {
         layers: ['custom-points-circle']
       });
@@ -250,6 +271,8 @@ export default function MapboxMapTactical({
         const feature = features[0];
         const props = feature.properties;
         const coords = feature.geometry.coordinates;
+
+        console.log('🎯 选中的站点:', props); // 🔥 调试日志
 
         // 创建站点数据对象
         const stationData = {
@@ -280,7 +303,13 @@ export default function MapboxMapTactical({
           .setLngLat([coords[0], coords[1]])
           .addTo(map.current);
       }
-    });
+    };
+    clickHandlerRef.current = clickHandler;
+
+    // 绑定事件监听器
+    map.current.on('mouseenter', 'custom-points-circle', mouseEnterHandler);
+    map.current.on('mouseleave', 'custom-points-circle', mouseLeaveHandler);
+    map.current.on('click', 'custom-points-circle', clickHandler);
 
   }, [customPoints, isLoaded]);
 
@@ -317,6 +346,11 @@ export default function MapboxMapTactical({
           outline: none;
         }
 
+        /* 🚫 隐藏版权声明，让 HUD 面板可以覆盖 */
+        .mapboxgl-ctrl-attrib {
+          display: none !important;
+        }
+
         /* 🎯 战术雷达脉冲动画 */
         .tactical-radar-pulse {
           position: absolute;
@@ -331,6 +365,28 @@ export default function MapboxMapTactical({
           z-index: 1;
         }
 
+        /* 🛰️ 战术节点发光装甲 */
+        .tactical-node-gold {
+            width: 12px;
+            height: 12px;
+            background-color: #fbbf24; /* 琥珀金 */
+            border: 2px solid rgba(251, 191, 36, 0.5);
+            border-radius: 50%;
+            box-shadow: 0 0 15px #fbbf24, 0 0 5px #fbbf24 inset;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+.tactical-node-gold:hover {
+    transform: scale(1.5);
+    box-shadow: 0 0 25px #fbbf24, 0 0 10px #ffffff;
+    background-color: #ffffff; /* 悬停变白，模拟过载发光 */
+}
+
+
+
+
+
         @keyframes tacticalPulse {
           0% {
             opacity: 1;
@@ -344,6 +400,7 @@ export default function MapboxMapTactical({
             border-width: 0.5px;
           }
         }
+          
       `}</style>
     </>
   );
