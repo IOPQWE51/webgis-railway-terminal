@@ -23,17 +23,30 @@ const geocodeService = {
         return match ? match[1] : null;
     },
 
-    // 🧹 智能地址清洗（大幅提升 Google 命中率）
+    // 🧹 智能地址清洗（不再强制加"日本"）
     sanitizeQuery(name, type) {
         let query = name.trim();
-        // 如果是日本的项目，强制加上上下文，防止坐标飘到中国或欧美
-        if (!query.includes('日本') && !query.includes('Japan') && !query.match(/[ぁ-んァ-ヶ]/)) {
-            query = '日本 ' + query;
+
+        // ✅ 策略1：只在明确有日本信号时才添加限定
+        // - 包含 🇯🇵 emoji
+        // - 包含日文假名（不包括汉字，因为汉字中日韩通用）
+        // - 明确包含"日本"关键词
+        const hasJapanSignal = query.includes('🇯🇵') ||
+                               query.match(/[ぁ-んァ-ヶ]/) || // 只匹配日文假名
+                               query.includes('日本') ||
+                               query.includes('Japan');
+
+        if (hasJapanSignal) {
+            // 移除 emoji 和"日本"，避免重复
+            query = query.replace(/🇯🇵/g, '').replace(/日本/g, '').replace(/Japan/g, '').trim();
+            query = '日本 ' + query; // 加在前面，更符合 Google 的理解
         }
+
         // 如果明确是车站，补齐后缀
         if (type === 'station' && !query.includes('駅') && !query.includes('Station')) {
             query += '駅';
         }
+
         return query;
     },
 
