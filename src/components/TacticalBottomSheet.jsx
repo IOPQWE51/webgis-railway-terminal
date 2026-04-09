@@ -2,24 +2,32 @@ import { useState, useEffect, useRef } from 'react';
 import { X, Maximize2, Minimize2 } from 'lucide-react';
 
 const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [sheetHeight, setSheetHeight] = useState(40);
+  // 档位配置
+  const SNAP_POINTS = {
+    HIDDEN: 0,
+    SCOUT: 25,
+    MIDDLE: 55,
+    BATTLE: 92
+  };
+
+  const [currentSnap, setCurrentSnap] = useState('SCOUT');
+  const [sheetHeight, setSheetHeight] = useState(25);
   const [isDragging, setIsDragging] = useState(false);
 
   const dragRef = useRef({ startY: 0, startHeight: 0 });
 
   useEffect(() => {
     if (open) {
-      setIsExpanded(false);
-      setSheetHeight(40);
+      setCurrentSnap('SCOUT');
+      setSheetHeight(25);
     }
   }, [open]);
 
   useEffect(() => {
     if (!isDragging) {
-      setSheetHeight(isExpanded ? 92 : 40);
+      setSheetHeight(SNAP_POINTS[currentSnap]);
     }
-  }, [isExpanded, isDragging]);
+  }, [currentSnap, isDragging]);
 
   const onDragStart = (clientY) => {
     setIsDragging(true);
@@ -40,14 +48,23 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
 
   const onDragEnd = () => {
     setIsDragging(false);
-    if (sheetHeight > 65) {
-      setIsExpanded(true);
-      setSheetHeight(92);
-    } else if (sheetHeight < 25) {
+
+    // 根据高度判断吸附到哪个档位
+    if (sheetHeight < 12) {
+      // 吸附到隐藏档
       onDismiss();
+    } else if (sheetHeight < 40) {
+      // 吸附到侦察档
+      setCurrentSnap('SCOUT');
+      setSheetHeight(25);
+    } else if (sheetHeight < 75) {
+      // 吸附到中间档
+      setCurrentSnap('MIDDLE');
+      setSheetHeight(55);
     } else {
-      setIsExpanded(false);
-      setSheetHeight(40);
+      // 吸附到作战档
+      setCurrentSnap('BATTLE');
+      setSheetHeight(92);
     }
   };
 
@@ -133,8 +150,8 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
 
           {/* 左侧状态文字 */}
           <div style={{ position: 'absolute', left: '20px', color: '#fbbf24', opacity: 0.5, fontSize: '10px', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '2px' }}>
-            {isExpanded ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
-            {isExpanded ? 'COLLAPSE' : 'EXPAND'}
+            {currentSnap === 'BATTLE' ? <Minimize2 size={12} /> : <Maximize2 size={12} />}
+            {currentSnap === 'SCOUT' ? 'RECON' : currentSnap === 'MIDDLE' ? 'MIDDLE' : 'FULL'}
           </div>
 
           {/* 右侧关闭按钮 */}
