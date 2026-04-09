@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, X, ChevronUp, Trash2, Ruler } from 'lucide-react';
+import TacticalBottomSheet from './TacticalBottomSheet'; // 引入战术抽屉
 
-// 导入外部依赖 (配置、渲染面板、打分系统)
+// 导入外部依赖
 import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
@@ -14,12 +15,29 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const [leafletReady, setLeafletReady] = useState(false);
-    const [showDrawer, setShowDrawer] = useState(false);
+    const [showDrawer, setShowDrawer] = useState(false); // 控制台抽屉
     
+    // 💥 新增：地点详情的底部战术抽屉状态
+    const [bottomSheetHtml, setBottomSheetHtml] = useState(null); 
+
     const [baseMapType, setBaseMapType] = useState('topo'); 
     const [weatherType, setWeatherType] = useState('none'); 
     const [filters, setFilters] = useState({ framework: true, station: true, airport: true, anime: true, hotel: true, spot: true });
     const toggleFilter = (key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+
+    // 💥 新增：全息雷达监听网络 (接收 cyberPanel 发来的抽屉开启指令)
+    useEffect(() => {
+        const handleOpenSheet = (e) => setBottomSheetHtml(e.detail);
+        const handleCloseSheet = () => setBottomSheetHtml(null);
+
+        window.addEventListener('openTacticalBottomSheet', handleOpenSheet);
+        window.addEventListener('closeTacticalBottomSheet', handleCloseSheet);
+
+        return () => {
+            window.removeEventListener('openTacticalBottomSheet', handleOpenSheet);
+            window.removeEventListener('closeTacticalBottomSheet', handleCloseSheet);
+        };
+    }, []);
 
     // 2. 初始化核心系统环境
     useEffect(() => {
@@ -29,11 +47,11 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         window.__deleteCustomPoint = (id) => {
             if (window.confirm('⚠️ 确定删除此坐标点吗？')) {
                 if (onDeletePoint) onDeletePoint(id);
-                closeCyberPanel();
+                closeCyberPanel(); // 这里也会触发关闭抽屉的事件
             }
         };
 
-        // 📥 🆕 全局收藏入库信号接收
+        // 📥 全局收藏入库信号接收
         window.__saveToCustomPoints = (name, lat, lon, category, btnElement) => {
             const newPt = {
                 id: `custom_${Date.now()}`,
@@ -160,12 +178,12 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         baseMapType={baseMapType} setBaseMapType={setBaseMapType} 
                         weatherType={weatherType} setWeatherType={setWeatherType} 
                         filters={filters} toggleFilter={toggleFilter} 
-                        onEnterTactical={onEnterTactical} /* 💥 核心：将战术入口下发给 ControlPanel */
+                        onEnterTactical={onEnterTactical}
                         {...tools} 
                     />
                 </div>
 
-                {/* 地点详情浮窗 */}
+                {/* 💻 PC端：地点详情浮窗 (原生 DOM 渲染) */}
                 <div
                     id="cyber-panel"
                     className="cyber-panel cyber-panel--map-dock hidden"
@@ -180,7 +198,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     <div id="cyber-panel-content" />
                 </div>
 
-                {/* 移动端底部抽屉 */}
+                {/* 📱 移动端：控制面板抽屉 */}
                 {showDrawer && (
                     <div className="lg:hidden fixed inset-0 z-[2000] flex flex-col justify-end">
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowDrawer(false)}></div>
@@ -197,6 +215,14 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     </div>
                 )}
             </div>
+
+            {/* 💥 核心装载：移动端地点详情底部战术抽屉 */}
+            <TacticalBottomSheet 
+                open={!!bottomSheetHtml} 
+                htmlContent={bottomSheetHtml} 
+                onDismiss={() => setBottomSheetHtml(null)} 
+            />
+            
         </div>
     );
 };
