@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "npm install && npm run build",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
   "crons": [
@@ -15,38 +15,13 @@
   ],
   "headers": [
     {
-      "source": "/api/weather",
+      "source": "/api/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, s-maxage=300, stale-while-revalidate=600"
         }
       ]
-    },
-    {
-      "source": "/api/astronomy",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, s-maxage=86400"
-        }
-      ]
-    }
-  ],
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    },
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node",
-      "config": {
-        "maxDuration": 10
-      }
     }
   ]
 }
