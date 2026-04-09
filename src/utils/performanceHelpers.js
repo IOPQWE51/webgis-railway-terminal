@@ -335,48 +335,138 @@ export const geocodeRequest = async (query, provider = 'nominatim') => {
 };
 
 /**
+ * 🌐 IP 地址定位（备用方案）
+ * 通过 IP 地址获取大致位置，无需用户授权
+ * @returns {Promise<{latitude: number, longitude: number, city: string, country: string}>}
+ */
+export const getPositionByIP = async () => {
+  console.log('🌐 使用 IP 地址定位...');
+
+  try {
+    // 使用免费的 IP 定位 API
+    const response = await fetch('https://ipapi.co/json/', {
+      timeout: 10000,
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!response.ok) {
+      throw new Error(`IP 定位服务响应错误: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.reason || 'IP 定位失败');
+    }
+
+    // ipapi.co 返回的字段
+    const position = {
+      latitude: data.latitude,
+      longitude: data.longitude,
+      city: data.city || '未知城市',
+      country: data.country_name || data.country || '',
+      region: data.region || '',
+      accuracy: 'low', // IP 定位精度较低
+      method: 'ip'
+    };
+
+    console.log('✅ IP 定位成功:', position);
+    return position;
+  } catch (error) {
+    console.error('❌ IP 定位失败:', error);
+    throw new Error(`IP 定位失败: ${error.message}`);
+  }
+};
+
+/**
  * 📍 浏览器地理定位工具
  * 获取用户当前位置
  * @param {Object} options - 定位选项
  * @returns {Promise<{latitude: number, longitude: number}>}
  */
-export const getCurrentPosition = (options = {}) => {
+export const getPositionByGPS = (options = {}) => {
   const {
-    enableHighAccuracy = false, // 默认关闭高精度，提高速度
-    timeout = 30000, // 增加超时时间到 30 秒
-    maximumAge = 60000 // 允许使用 1 分钟内的缓存位置
+    enableHighAccuracy = false,
+    timeout = 15000,
+    maximumAge = 60000
   } = options;
 
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('您的浏览器不支持地理定位'));
+      reject(new Error('BROWSER_NOT_SUPPORTED'));
       return;
     }
 
-    // 添加调试日志
-    console.log('📍 开始定位...', { enableHighAccuracy, timeout, maximumAge });
+    console.log('🛰️ 使用 GPS 定位...', { enableHighAccuracy, timeout, maximumAge });
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        console.log('✅ 定位成功:', position.coords);
+        console.log('✅ GPS 定位成功:', position.coords);
         resolve({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-          accuracy: position.coords.accuracy
+          accuracy: position.coords.accuracy,
+          method: 'gps'
         });
       },
       (error) => {
-        // 使用 error.code 作为键 (1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT)
-        const errorMessages = {
-          1: '定位权限被拒绝，请在浏览器设置中允许定位',
-          2: '无法获取位置信息，请检查设备 GPS 或网络连接',
-          3: '定位请求超时，请稍后重试或检查 GPS 信号'
+        const errorTypes = {
+          1: 'PERMISSION_DENIED',
+          2: 'POSITION_UNAVAILABLE',
+          3: 'TIMEOUT'
         };
-        const message = errorMessages[error.code] || '定位失败';
-        console.error('❌ 定位失败:', error.code, message);
-        reject(new Error(message));
+        reject(new Error(errorTypes[error.code] || 'UNKNOWN'));
       },
       { enableHighAccuracy, timeout, maximumAge }
     );
   });
+};
+
+/**
+ * 🎯 智能定位（优先 GPS，失败则 IP）
+ * 自动选择最佳定位方式
+ * @param {Object} options - 定位选项
+ * @returns {Promise<{latitude: number, longitude: number, method: string}>}
+ */
+export const getCurrentPosition = async (options = {}) => {
+  const {
+    preferGPS = true,
+    fallbackToIP = true,
+    gpsTimeout = 15000
+  } = options;
+
+  // 优先尝试 GPS 定位
+  if (preferGPS && navigator.geolocation) {
+    try {
+      console.log('📍 启动智能定位（优先 GPS）...');
+      const position = await getPositionByGPS({ ...options, timeout: gpsTimeout });
+      return position;
+    } catch (error) {
+      console.warn('⚠️ GPS 定位失败:', error.message);
+
+      // 如果是权限被拒绝，不再尝试 IP 定位
+      if (error.message === 'PERMISSION_DENIED') {
+        throw new Error('定位权限被拒绝，请在浏览器设置中允许定位');
+      }
+
+      // 其他错误，尝试 IP 定位
+      if (!fallbackToIP) {
+        throw error;
+      }
+    }
+  }
+
+  // GPS 失败，尝试 IP 定位
+  if (fallbackToIP) {
+    console.log('🔄 GPS 失败，降级到 IP 定位...');
+    try {
+      const position = await getPositionByIP();
+      position.warning = 'IP 定位精度较低，仅供参考';
+      return position;
+    } catch (ipError) {
+      throw new Error(`所有定位方式均失败：${ipError.message}`);
+    }
+  }
+
+  throw new Error('无可用的定位方式');
 };
