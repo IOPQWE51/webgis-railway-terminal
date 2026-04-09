@@ -1,46 +1,8 @@
 // src/utils/debounce.js
-// 🛡️ 防抖工具 - 防止用户快速连续点击导致重复API调用
+// 🛡️ 防抖工具 - 从 performanceHelpers 重新导出 + Mapbox 专用功能
 
-/**
- * 防抖函数 - 在指定时间内只执行最后一次调用
- * @param {Function} func - 要防抖的函数
- * @param {number} wait - 等待时间（毫秒）
- * @returns {Function} 防抖后的函数
- */
-export const debounce = (func, wait = 500) => {
-  let timeout = null;
-
-  return function executedFunction(...args) {
-    const later = () => {
-      timeout = null;
-      func(...args);
-    };
-
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-
-    timeout = setTimeout(later, wait);
-  };
-};
-
-/**
- * 节流函数 - 在指定时间内只执行一次
- * @param {Function} func - 要节流的函数
- * @param {number} limit - 时间间隔（毫秒）
- * @returns {Function} 节流后的函数
- */
-export const throttle = (func, limit = 1000) => {
-  let inThrottle = false;
-
-  return function executedFunction(...args) {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-};
+// 从 performanceHelpers 重新导出通用函数
+export { debounce, throttle } from './performanceHelpers.js';
 
 /**
  * Mapbox API 专用防抖

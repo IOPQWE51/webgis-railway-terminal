@@ -9,13 +9,18 @@
  * @returns {Function} 防抖后的函数
  */
 export const debounce = (func, wait = 300) => {
-  let timeout;
+  let timeout = null;
+
   return function executedFunction(...args) {
     const later = () => {
-      clearTimeout(timeout);
+      timeout = null;
       func(...args);
     };
-    clearTimeout(timeout);
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
     timeout = setTimeout(later, wait);
   };
 };
@@ -241,4 +246,137 @@ export const retryMechanism = {
       }
     }
   }
+};
+
+/**
+ * 🌐 通用 API 请求工具
+ * 统一处理 fetch 请求、错误处理和响应解析
+ */
+export const apiRequest = async (url, options = {}) => {
+  const {
+    method = 'GET',
+    headers = {},
+    body = null,
+    timeout = 10000,
+    retries = 2
+  } = options;
+
+  // 构建请求配置
+  const config = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers
+    },
+    ...(body && { body: JSON.stringify(body) })
+  };
+
+  // 带重试的请求执行
+  return retryMechanism.execute(async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...config,
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error(`请求超时 (${timeout}ms)`);
+      }
+      throw error;
+    }
+  }, retries);
+};
+
+/**
+ * 🌐 地理编码 API 请求
+ * 专门用于地址转坐标的 API 请求
+ */
+export const geocodeRequest = async (query, provider = 'nominatim') => {
+  const providers = {
+    nominatim: {
+      url: (q) => `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`,
+      headers: { 'User-Agent': 'EarthTerminal/5.0.1' }
+    }
+    // 可扩展其他提供商
+  };
+
+  const providerConfig = providers[provider];
+  if (!providerConfig) {
+    throw new Error(`不支持的地理编码提供商: ${provider}`);
+  }
+
+  const results = await apiRequest(providerConfig.url(query), {
+    headers: providerConfig.headers,
+    timeout: 10000
+  });
+
+  if (!results || results.length === 0) {
+    return null;
+  }
+
+  const { lat, lon, display_name } = results[0];
+  return {
+    lat: parseFloat(lat),
+    lon: parseFloat(lon),
+    displayName: display_name
+  };
+};
+
+/**
+ * 📍 浏览器地理定位工具
+ * 获取用户当前位置
+ * @param {Object} options - 定位选项
+ * @returns {Promise<{latitude: number, longitude: number}>}
+ */
+export const getCurrentPosition = (options = {}) => {
+  const {
+    enableHighAccuracy = false, // 默认关闭高精度，提高速度
+    timeout = 30000, // 增加超时时间到 30 秒
+    maximumAge = 60000 // 允许使用 1 分钟内的缓存位置
+  } = options;
+
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('您的浏览器不支持地理定位'));
+      return;
+    }
+
+    // 添加调试日志
+    console.log('📍 开始定位...', { enableHighAccuracy, timeout, maximumAge });
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('✅ 定位成功:', position.coords);
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      (error) => {
+        // 使用 error.code 作为键 (1=PERMISSION_DENIED, 2=POSITION_UNAVAILABLE, 3=TIMEOUT)
+        const errorMessages = {
+          1: '定位权限被拒绝，请在浏览器设置中允许定位',
+          2: '无法获取位置信息，请检查设备 GPS 或网络连接',
+          3: '定位请求超时，请稍后重试或检查 GPS 信号'
+        };
+        const message = errorMessages[error.code] || '定位失败';
+        console.error('❌ 定位失败:', error.code, message);
+        reject(new Error(message));
+      },
+      { enableHighAccuracy, timeout, maximumAge }
+    );
+  });
 };

@@ -6,6 +6,8 @@ import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationE
 // 🆕 导入战术地图组件
 import MapTactical from './pages/MapTactical';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
+// 🛠️ 导入工具函数
+import { storage } from './utils/performanceHelpers';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
@@ -13,38 +15,25 @@ const App = () => {
     const [isTacticalMode, setIsTacticalMode] = useState(false); // 🎯 战术模式状态
 
     const [customPoints, setCustomPoints] = useState(() => {
-        try {
-            // 🆕 尝试从新系统键读取
-            let saved = localStorage.getItem('earth_terminal_custom_points');
+        // 🆕 尝试从新系统键读取
+        let saved = storage.load('earth_terminal_custom_points', null);
 
-            // 🔄 如果新系统没有数据，尝试从旧系统迁移
-            if (!saved) {
-                const oldData = localStorage.getItem('railway_custom_points');
-                if (oldData) {
-                    console.log('🔄 发现旧系统数据，正在迁移到 EarthTerminal...');
-                    localStorage.setItem('earth_terminal_custom_points', oldData);
-                    saved = oldData;
-                    console.log('✅ 数据迁移完成');
-                }
+        // 🔄 如果新系统没有数据，尝试从旧系统迁移
+        if (!saved) {
+            const oldData = storage.load('railway_custom_points', null);
+            if (oldData) {
+                console.log('🔄 发现旧系统数据，正在迁移到 EarthTerminal...');
+                storage.save('earth_terminal_custom_points', oldData);
+                saved = oldData;
+                console.log('✅ 数据迁移完成');
             }
-
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                return parsed;
-            }
-            return [];
-        } catch (e) {
-            console.error('❌ 读取本地存储失败:', e);
-            return [];
         }
+
+        return saved || [];
     });
 
     useEffect(() => {
-        try {
-            localStorage.setItem('earth_terminal_custom_points', JSON.stringify(customPoints));
-        } catch (e) {
-            console.error('❌ 保存本地存储失败:', e);
-        }
+        storage.save('earth_terminal_custom_points', customPoints);
     }, [customPoints]);
 
     // 🆕 全局通信：从外部触发地图定位并弹出面板
@@ -131,33 +120,14 @@ const App = () => {
                                 }
                             }}
                         >
-                    {[
-                        // 🔄 重复3次实现循环滑动效果（原始组 + 副本1 + 副本2）
-                        ...[
-                            { id: 'map', label: '高精度地形终端', icon: MapIcon },
-                            { id: 'data', label: '数据解析与管理', icon: Database },
-                            { id: 'rules', label: '系统生存法则', icon: Info },
-                            { id: 'tools', label: '双向汇率引擎', icon: Calculator },
-                            { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
-                            { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
-                        ],
-                        ...[
-                            { id: 'map', label: '高精度地形终端', icon: MapIcon },
-                            { id: 'data', label: '数据解析与管理', icon: Database },
-                            { id: 'rules', label: '系统生存法则', icon: Info },
-                            { id: 'tools', label: '双向汇率引擎', icon: Calculator },
-                            { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
-                            { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
-                        ],
-                        ...[
-                            { id: 'map', label: '高精度地形终端', icon: MapIcon },
-                            { id: 'data', label: '数据解析与管理', icon: Database },
-                            { id: 'rules', label: '系统生存法则', icon: Info },
-                            { id: 'tools', label: '双向汇率引擎', icon: Calculator },
-                            { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
-                            { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
-                        ]
-                    ].map((tab, index) => (
+                    {Array(3).fill(null).flatMap(() => [
+                        { id: 'map', label: '高精度地形终端', icon: MapIcon },
+                        { id: 'data', label: '数据解析与管理', icon: Database },
+                        { id: 'rules', label: '系统生存法则', icon: Info },
+                        { id: 'tools', label: '双向汇率引擎', icon: Calculator },
+                        { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
+                        { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
+                    ]).map((tab, index) => (
                         <button
                             key={`${tab.id}-${index}`}
                             onClick={(e) => {
