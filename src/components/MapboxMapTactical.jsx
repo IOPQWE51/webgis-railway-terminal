@@ -143,17 +143,17 @@ export default function MapboxMapTactical({
     }
   };
 
-  // 🎯 雷达准星 HTML（Dark 2D 风格）
+  // 🎯 雷达准星 HTML（Dark 2D 风格 - 正方形青色准心）
   const TACTICAL_BEACON_HTML = `
     <div style="position: relative; width: 60px; height: 60px;">
       <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); z-index: 2; position: absolute; top: 0; left: 0;">
-        <circle cx="30" cy="30" r="24" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.8"/>
-        <circle cx="30" cy="30" r="18" stroke="#fbbf24" stroke-width="2" stroke-dasharray="14 14" stroke-dashoffset="7"/>
-        <line x1="30" y1="12" x2="30" y2="18" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="30" y1="42" x2="30" y2="48" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="12" y1="30" x2="18" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="42" y1="30" x2="48" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <circle cx="30" cy="30" r="2.5" fill="#fbbf24"/>
+        <rect x="6" y="6" width="48" height="48" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.8"/>
+        <rect x="12" y="12" width="36" height="36" stroke="#00ffff" stroke-width="2" stroke-dasharray="14 14" stroke-dashoffset="7"/>
+        <line x1="30" y1="6" x2="30" y2="18" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="30" y1="42" x2="30" y2="54" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="6" y1="30" x2="18" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="42" y1="30" x2="54" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+        <rect x="28" y="28" width="4" height="4" fill="#00ffff"/>
       </svg>
       <div class="tactical-radar-pulse"></div>
     </div>
@@ -222,59 +222,83 @@ export default function MapboxMapTactical({
         setIsLoaded(true);
       });
 
-      // 🖱️ 地图点击事件 - 检测 POI 和普通点击
+      // 🖱️ 地图点击事件 - 终极雷达扫描引擎 (替换原有的 map.current.on('click'))
       map.current.on('click', (e) => {
         const { lng, lat } = e.lngLat;
 
-        // 🔍 检测是否点击了 Mapbox 的 POI
-        const poiFeatures = map.current.queryRenderedFeatures(e.point, {
-          layers: [] // 空数组 = 查询所有图层
-        });
+        // 1. 穿透查询鼠标点击处的所有要素 (不传 layers 限制)
+        const features = map.current.queryRenderedFeatures(e.point);
 
-        console.log('🔍 点击位置检测到要素数量:', poiFeatures.length);
-        if (poiFeatures.length > 0) {
-          console.log('📋 要素列表:', poiFeatures.map(f => ({ layer: f.layer?.id, type: f.layer?.type, properties: f.properties })));
-        }
-
-        // 寻找交通站点相关的 POI
-        const stationFeature = poiFeatures.find(f => {
+        // 2. 精准狙击：只捕获原生交通站点(黄点)和自定义点位
+        const targetFeature = features.find(f => {
           const layerId = f.layer?.id || '';
-          const props = f.properties || {};
-          // 检查图层 ID 或属性中是否包含站点相关关键词
-          return layerId.includes('station') ||
-                 layerId.includes('poi') ||
-                 layerId.includes('transit') ||
-                 props.category === 'station' ||
-                 props.type === 'station' ||
-                 props.class === 'station';
+          return layerId === 'transit-stop-label' || layerId === 'custom-points-circle';
         });
 
-        if (stationFeature) {
-          const feature = stationFeature;
-          const props = feature.properties;
-          const coords = feature.geometry?.coordinates || [lng, lat];
+        if (targetFeature) {
+          const props = targetFeature.properties;
+          const layerId = targetFeature.layer?.id;
+          
+          // 提取准确的元素中心坐标
+          let targetLng = lng;
+          let targetLat = lat;
+          if (targetFeature.geometry?.type === 'Point') {
+              targetLng = targetFeature.geometry.coordinates[0];
+              targetLat = targetFeature.geometry.coordinates[1];
+          }
 
-          console.log('🎯 点击了站点 POI:', { layer: feature.layer?.id, properties: props });
+          console.log(`🎯 截获目标 [${layerId}]:`, props);
 
-          // 提取 POI 名称
-          const poiName = props.name || props.title || props.station || props.description || '未知站点';
+          // 🎯 统一绘制/更新雷达准星 (琥珀金锁定框)
+          if (radarMarkerRef.current) {
+            radarMarkerRef.current.remove();
+          }
+          const beaconEl = document.createElement('div');
+          beaconEl.innerHTML = TACTICAL_BEACON_HTML;
+          radarMarkerRef.current = new mapboxgl.Marker({
+            element: beaconEl,
+            anchor: 'center'
+          })
+          .setLngLat([targetLng, targetLat])
+          .addTo(map.current);
 
-          // 设置选中的站点数据
-          setSelectedStation({
-            id: props.id || `poi_${Date.now()}`,
-            name: poiName,
-            lat: coords[1] || lat,
-            lon: coords[0] || lng,
-            category: 'spot',
-            source: `Mapbox (${feature.layer?.id})`
-          });
+          // 📊 派发数据唤醒 HUD
+          if (layerId === 'transit-stop-label') {
+            const poiName = props.name || props.name_en || props.name_zh || 'UNKNOWN STATION';
+            setSelectedStation({
+              id: props.id || `transit_${Date.now()}`,
+              name: poiName,
+              lat: targetLat,
+              lon: targetLng,
+              category: 'station', 
+              source: 'Dark 2D Transit Node'
+            });
+          } else if (layerId === 'custom-points-circle') {
+            setSelectedStation({
+              id: props.id,
+              name: props.name,
+              lat: targetLat,
+              lon: targetLng,
+              category: props.category || 'spot',
+              source: props.source || 'Manual Uplink'
+            });
+          }
 
-          return; // POI 点击处理完成
+        } else {
+          // 🌌 没点中任何有效实体：关闭 HUD 并移除琥珀色准星
+          setSelectedStation(null);
+          if (radarMarkerRef.current) {
+            radarMarkerRef.current.remove();
+            radarMarkerRef.current = null;
+          }
         }
 
-        // 普通点击：触发 handleMapClick
+        // 无论点到什么，都将坐标传给主控台（用于触发那个 37 秒的白色脉冲坐标方框）
         if (onMapClick) {
-          onMapClick({ longitude: lng, latitude: lat });
+          onMapClick({ 
+            longitude: targetFeature ? targetLng : lng, 
+            latitude: targetFeature ? targetLat : lat 
+          });
         }
       });
 
@@ -441,57 +465,10 @@ export default function MapboxMapTactical({
     };
     mouseLeaveHandlerRef.current = mouseLeaveHandler;
 
-    // 🎯 点击标记显示 HUD + 雷达动画处理器
-    const clickHandler = (e) => {
-      console.log('🖱️ 点击标记触发'); // 🔥 调试日志
-
-      const features = map.current.queryRenderedFeatures(e.point, {
-        layers: ['custom-points-circle']
-      });
-
-      if (features.length > 0) {
-        const feature = features[0];
-        const props = feature.properties;
-        const coords = feature.geometry.coordinates;
-
-        console.log('🎯 选中的站点:', props); // 🔥 调试日志
-
-        // 创建站点数据对象
-        const stationData = {
-          id: props.id,
-          name: props.name,
-          lat: coords[1],
-          lon: coords[0],
-          category: props.category || 'spot',
-          source: props.source || 'Dark 2D 标记'
-        };
-
-        // 更新选中状态
-        setSelectedStation(stationData);
-
-        // 🎯 添加/更新雷达准星
-        if (radarMarkerRef.current) {
-          radarMarkerRef.current.remove();
-        }
-
-        // 创建雷达准星元素
-        const beaconEl = document.createElement('div');
-        beaconEl.innerHTML = TACTICAL_BEACON_HTML;
-
-        radarMarkerRef.current = new mapboxgl.Marker({
-          element: beaconEl,
-          anchor: 'center'
-        })
-          .setLngLat([coords[0], coords[1]])
-          .addTo(map.current);
-      }
-    };
-    clickHandlerRef.current = clickHandler;
 
     // 绑定事件监听器
     map.current.on('mouseenter', 'custom-points-circle', mouseEnterHandler);
     map.current.on('mouseleave', 'custom-points-circle', mouseLeaveHandler);
-    map.current.on('click', 'custom-points-circle', clickHandler);
 
   }, [customPoints, isLoaded]);
 
@@ -533,17 +510,17 @@ export default function MapboxMapTactical({
           display: none !important;
         }
 
-        /* 🎯 战术雷达脉冲动画 */
+        /* 🎯 战术雷达脉冲动画 - 正方形青色 */
         .tactical-radar-pulse {
           position: absolute;
           top: 50%;
           left: 50%;
           width: 20px;
           height: 20px;
-          border: 1.5px solid #fbbf24;
-          border-radius: 50%;
+          border: 1.5px solid #00ffff;
+          border-radius: 0;
           transform: translate(-50%, -50%);
-          animation: tacticalPulse 2.5s infinite ease-out;
+          animation: squarePulse 2.5s infinite ease-out;
           z-index: 1;
         }
 
@@ -569,7 +546,8 @@ export default function MapboxMapTactical({
 
 
 
-        @keyframes tacticalPulse {
+        /* 🎯 正方形脉冲扩散动画 */
+        @keyframes squarePulse {
           0% {
             opacity: 1;
             width: 10px;
