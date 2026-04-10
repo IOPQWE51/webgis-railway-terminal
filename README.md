@@ -1,7 +1,7 @@
-# 🌍 EarthTerminal v5.1.0 - 全球战术地理信息终端
+# 🌍 EarthTerminal v5.2.0 - 全球战术地理信息终端
 
 > **代号**: Tactical Horizon (战术地平线)
-> **发布日期**: 2026-04-09
+> **发布日期**: 2026-04-10
 > **项目类型**: 开源 WebGIS 地理信息系统
 > **定位**: 全方位地球战术终端 + 摄影决策引擎
 > **许可证**: MIT
@@ -12,15 +12,10 @@
 
 - [版本概述](#-版本概述)
 - [核心特性](#-核心特性)
-- [系统架构](#-系统架构)
-- [六大核心模块](#-六大核心模块)
-- [双模式系统](#-双模式系统)
 - [技术栈](#-技术栈)
 - [快速开始](#-快速开始)
-- [环境配置](#-环境配置)
 - [开发指南](#-开发指南)
 - [部署说明](#-部署说明)
-- [API 集成](#-api-集成)
 - [版本历史](#-版本历史)
 - [贡献指南](#-贡献指南)
 
@@ -28,24 +23,22 @@
 
 ## 🎯 版本概述
 
-### v5.1.0 最新更新
+### v5.2.0 最新更新
 
 | 项目 | 信息 |
 |------|------|
-| 版本号 | v5.1.0 |
-| 前一版本 | v5.0.2 (战术地平线) |
+| 版本号 | v5.2.0 |
+| 前一版本 | v5.1.0 |
 | React 版本 | 19.2.0 |
 | 构建工具 | Vite 7.3.1 |
-| 代码规模 | ~7,500+ 行 |
+| 代码规模 | ~8,500+ 行 |
 
 ### 核心变化
 
-- **移动端战术抽屉系统**: 四档磁吸锚点 (隐藏/侦察/中间/作战)
-- **手势劫持修复**: 完全消除浏览器原生下拉刷新干扰
-- **数据流网关重构**: 设备检测与内容分发系统
-- **视觉装甲增强**: 内联样式确保渲染稳定性
-- **空间跃迁引擎**: OSM Nominatim 地理编码集成
-- **双模式架构**: 常规模式 + 战术模式无缝切换
+- **移动端抽屉优化**: GPU 加速的 transform 位移，修复高度计算问题
+- **手势交互增强**: touchAction 防护，消除浏览器下拉刷新干扰
+- **云端数据同步**: PostgreSQL + Vercel API 双向同步
+- **架构文档完善**: ARCHITECTURE.md 系统白皮书更新
 
 ---
 
@@ -53,10 +46,18 @@
 
 ### 地图引擎
 - ✅ **双引擎支持**: Leaflet + Mapbox GL
+- ✅ **Dark 2D 样式**: 自定义战术风格地图
 - ✅ **多图层切换**: 地形/暗色/亮色/街道/卫星
 - ✅ **智能标记聚类**: MarkerCluster 自动聚合
 - ✅ **实时测距工具**: 战术 HUD 距离显示
-- ✅ **自定义点位**: 手动捕获坐标并收藏
+- ✅ **战术方框标记**: 白色发光点击标记
+- ✅ **幽灵蓝定位**: 用户位置雷达波纹
+
+### 战术系统
+- ✅ **全息 HUD 面板**: 右侧悬浮信息窗
+- ✅ **地区智能检测**: 自动识别国家/地区
+- ✅ **API 自动适配**: 根据地区选择最佳 API
+- ✅ **脉冲动画系统**: 目标锁定视觉效果
 
 ### 摄影引擎
 - ✅ **215+ 决定性瞬间规则**: 全球化摄影时机捕捉
@@ -65,268 +66,11 @@
 - ✅ **环境感知**: 时间、天气、地形综合判断
 
 ### 数据管理
+- ✅ **独立存储系统**: Dark 2D 点位独立存储
 - ✅ **CSV 批量导入**: 大规模坐标数据导入
 - ✅ **Google Geocoding**: 地名转精确坐标
 - ✅ **本地持久化**: localStorage 数据存储
-- ✅ **自动迁移**: 旧系统数据自动迁移
-
-### 次元情报
-- ✅ **花火大会雷达**: 日本全国花火时间表
-- ✅ **朝圣地图**: 寺院神社信息与最佳参拜时间
-- ✅ **地理推荐**: 基于坐标的自动推荐
-
-### 航线系统
-- ✅ **大圆航线算法**: Turf.js 真实航线计算
-- ✅ **流光动画**: 能量流动视觉效果
-- ✅ **全球城市**: 起点终点任意选择
-
-### 汇率引擎
-- ✅ **实时汇率**: 多货币双向转换
-- ✅ **历史记录**: 汇率走势查询
-
----
-
-## 🏗️ 系统架构
-
-### 整体架构图
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    EarthTerminal 主系统                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                  导航系统 (循环滚动)                 │   │
-│  │  地形 | 数据 | 法则 | 汇率 | 次元 | 航线 │         │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                      内容区                         │   │
-│  │  ┌─────────────────┐  ┌─────────────────────────┐  │   │
-│  │  │                 │  │   战术控制面板 (PC)      │  │   │
-│  │  │   地图引擎      │  │   - 样式切换             │  │   │
-│  │  │   - Leaflet     │  │   - 图层控制             │  │   │
-│  │  │   - Mapbox GL   │  │   - 测距工具             │  │   │
-│  │  │   - 自定义标记  │  │   - 空间跃迁             │  │   │
-│  │  │                 │  │   - 照相框模式           │  │   │
-│  │  └─────────────────┘  └─────────────────────────┘  │   │
-│  │                                                       │   │
-│  │  [移动端: 底部战术抽屉替代右侧面板]                   │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                               │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │                 全局通信接口                         │   │
-│  │  window.__locatePointOnMap()                        │   │
-│  │  window.__deleteCustomPoint()                       │   │
-│  │  window.__saveToCustomPoints()                      │   │
-│  │  window.__evalPhotoCondition()                      │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 数据流架构
-
-```
-┌──────────────┐
-│ 外部触发     │
-│ 定位请求     │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│  App.jsx     │ ◄──────────────┐
-│  (主控制器)  │                │
-└──────┬───────┘                │
-       │                        │
-       ├─→ MapEngine (地图引擎)  │
-       │    ├─ useMapTools      │
-       │    └─ useMapLayers     │
-       │                        │
-       ├─→ DataCenter (数据中心)│
-       │    └─ CSV + Google API │
-       │                        │
-       ├─→ RulesTab (摄影规则)  │
-       │    └─ 215+ 规则引擎    │
-       │                        │
-       ├─→ ExchangeEngine (汇率)│
-       │                        │
-       ├─→ HanabiRadar (花火)   │
-       │                        │
-       ├─→ AviationEngine (航线)│
-       │                        │
-       └─→ isTacticalMode? ─────┘
-            ↓         ↓
-       战术模式    常规模式
-```
-
----
-
-## 📦 六大核心模块
-
-### 1. 🗺️ 高精度地形终端
-
-**技术栈**: Leaflet 1.9.4 + Esri 卫星地形 + Mapbox GL
-
-**核心功能**:
-- **多图层支持**: 地形、路网、POI、天气覆盖
-- **动态底图**: topo/dark/satellite/weather 四种模式
-- **智能过滤**: 框架/车站/机场/动漫/酒店/景点筛选
-- **测距工具**: 实时测距，战术HUD显示
-- **自定义点位**: 手动捕获坐标并收藏
-
-**Hook架构**:
-```javascript
-useMapTools()   // 测距、截图、定位等工具
-useMapLayers()  // 图层管理、天气、过滤
-```
-
-**空间跃迁引擎**:
-- OSM Nominatim 地理编码集成
-- 全球任意位置搜索
-- 自动居中定位
-
----
-
-### 2. 💾 数据解析与管理
-
-**核心功能**:
-- **CSV 批量导入**: 支持大规模坐标数据导入
-- **Google Geocoding**: 将地名转换为精确坐标
-- **自定义点位库**: 本地存储，持久化管理
-- **数据迁移**: 从旧系统自动迁移数据
-
-**技术实现**:
-- `DataCenter.jsx` - 数据中心主组件
-- `geocode-service-new.js` - Google API 集成
-- `localStorage` 键名: `earth_terminal_custom_points`
-
-**数据格式**:
-```javascript
-{
-  id: 'custom_<timestamp>',
-  name: '地点名称',
-  lat: 35.6895,
-  lon: 139.6917,
-  category: 'spot',
-  source: '雷达手动捕获'
-}
-```
-
----
-
-### 3. 📜 系统生存法则
-
-**核心功能**:
-- **215+ 摄影规则**: 全球化的决定性瞬间触发器
-- **智能匹配**: 基于时间、天气、地形的自动评分
-- **稀有度优先**: ⭐⭐⭐⭐⭐ 罕有度加权排序
-- **天文事件**: 自动计算流星雨、超级月亮
-
-**技术架构**:
-```javascript
-src/utils/
-├── decisiveMoments.js      // 215+规则数据库
-├── ruleMatcher.js          // 规则匹配引擎
-├── ruleDataConverter.js    // 数据格式转换器
-├── astronomyCalculator.js  // 天文事件计算
-└── photoEngine.js          // 摄影引擎入口
-```
-
-**规则分类**:
-- **自然奇观**: 极光、流星雨、超级月亮
-- **城市景观**: 繁华夜景、古建筑群
-- **次元圣地**: 动漫取景地、朝圣地
-- **季节限定**: 樱花、红叶、花火大会
-
----
-
-### 4. 💱 双向汇率引擎
-
-**核心功能**:
-- **实时汇率**: 支持多货币双向转换
-- **汇率API**: 集成实时汇率数据源
-- **货币切换**: 动态切换源货币和目标货币
-- **历史记录**: 查询历史汇率走势
-
-**支持货币**:
-- CNY (人民币)
-- USD (美元)
-- EUR (欧元)
-- JPY (日元)
-- GBP (英镑)
-- KRW (韩元)
-
----
-
-### 5. ✨ 次元情报中心
-
-**花火大会雷达**:
-- 日本全国花火大会时间表
-- 基于地理坐标自动推荐
-- 实时距离计算
-
-**朝圣地图**:
-- 朝圣路线规划
-- 寺院/神社信息
-- 最佳参拜时间
-
-**技术实现**:
-- `HanabiRadar.jsx` - 花火雷达组件
-- `PilgrimageRadar.jsx` - 朝圣雷达组件
-
----
-
-### 6. ✈️ 跨国航线雷达
-
-**核心功能**:
-- **大圆航线算法**: 使用 Turf.js 计算真实航线
-- **流光动画**: 模拟能量在航线中流动
-- **起点终点选择**: 支持全球任意城市
-- **3D可视化**: 地球上的弧形航线
-
-**技术实现**:
-- `AviationEngine.jsx` - 航线引擎主组件
-- `Turf.js` - 地理空间计算库
-
----
-
-## 🎮 双模式系统
-
-### 常规模式
-
-**特点**:
-- 模块化功能分区
-- 清晰的导航标签
-- PC端右侧控制面板
-- 移动端底部抽屉
-
-**适用场景**:
-- 日常使用
-- 功能切换
-- 数据管理
-
-### 战术模式
-
-**特点**:
-- 全屏沉浸式地图
-- 专属测距HUD
-- 赛博朋克风格UI
-- 雷达波纹动画
-
-**适用场景**:
-- 战术规划
-- 路线测量
-- 沉浸式浏览
-
-### 模式切换
-
-```javascript
-// 进入战术模式
-onEnterTactical={() => setIsTacticalMode(true)}
-
-// 退出战术模式
-onExit={() => setIsTacticalMode(false)}
-```
+- ✅ **云端同步**: Vercel PostgreSQL 自动备份
 
 ---
 
@@ -398,40 +142,6 @@ npm run preview
 
 ---
 
-## ⚙️ 环境配置
-
-### 环境变量
-
-创建 `.env` 文件：
-
-```bash
-# Mapbox Access Token (必需)
-VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token_here
-
-# Google Maps API Key (可选 - 用于地理编码)
-VITE_GOOGLE_MAPS_API_KEY=your_google_api_key_here
-
-# 天气 API Key (可选)
-WEATHER_API_KEY=your_weather_api_key_here
-```
-
-### Mapbox Token 获取
-
-1. 访问 [Mapbox Account](https://account.mapbox.com/)
-2. 创建账号或登录
-3. 在 Access Tokens 页面创建新 Token
-4. 复制 Token 到 `.env` 文件
-
-### Google API Key 获取
-
-1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
-2. 创建新项目
-3. 启用 Maps JavaScript API 和 Geocoding API
-4. 创建 API Key
-5. 配置请求限制
-
----
-
 ## 📖 开发指南
 
 ### 项目结构
@@ -440,79 +150,62 @@ WEATHER_API_KEY=your_weather_api_key_here
 earth-terminal/
 ├── src/
 │   ├── components/          # React 组件
-│   │   ├── MapEngine.jsx           # 地图引擎核心
-│   │   ├── MapboxMapTactical.jsx   # 战术地图
-│   │   ├── ControlPanel.jsx        # 控制面板
-│   │   ├── TacticalBottomSheet.jsx # 战术抽屉
-│   │   ├── DataCenter.jsx          # 数据中心
-│   │   ├── RulesTab.jsx            # 摄影规则
-│   │   ├── ExchangeEngine.jsx      # 汇率引擎
-│   │   ├── HanabiRadar.jsx         # 花火雷达
-│   │   ├── AviationEngine.jsx      # 航线引擎
+│   │   ├── MapEngine.jsx              # 地图引擎核心
+│   │   ├── MapboxMapTactical.jsx      # 战术地图
+│   │   ├── ControlPanel.jsx           # 控制面板
+│   │   ├── TacticalBottomSheet.jsx    # 战术抽屉
+│   │   ├── DarkTacticalHUD.jsx        # 全息悬浮窗
 │   │   └── ...
 │   ├── pages/              # 页面组件
-│   │   └── MapTactical.jsx         # 战术地图页
+│   │   └── MapTactical.jsx            # 战术地图页
 │   ├── hooks/              # 自定义 Hooks
-│   │   ├── useMapTools.js          # 地图工具
-│   │   └── useMapLayers.js         # 图层管理
+│   │   ├── useMapTools.js             # 地图工具
+│   │   └── useMapLayers.js            # 图层管理
 │   ├── utils/              # 工具函数
-│   │   ├── photoEngine.js          # 摄影引擎
-│   │   ├── decisiveMoments.js      # 规则数据库
-│   │   ├── ruleMatcher.js          # 规则匹配
-│   │   ├── astronomyCalculator.js  # 天文计算
-│   │   └── cyberPanel.js           # 赛博面板
+│   │   ├── photoEngine.js             # 摄影引擎
+│   │   ├── regionDetector.js          # 地区检测
+│   │   ├── performanceHelpers.js      # 性能工具
+│   │   └── ...
 │   ├── config/             # 配置文件
-│   │   └── basePoints.js           # 基础坐标
+│   │   ├── basePoints.js              # 基础坐标
+│   │   └── mapConstants.js            # 地图常量
 │   ├── App.jsx             # 主应用
 │   └── main.jsx            # 入口文件
-├── docs/                   # 文档
-├── public/                 # 静态资源
-├── .env                    # 环境变量
-├── package.json
-└── vite.config.js
 ```
 
-### 核心组件说明
+### 六大核心模块
 
-#### MapEngine.jsx
-地图引擎核心组件，负责:
-- Leaflet 地图初始化
-- 图层管理
-- 标记渲染
-- 事件处理
+#### 1. 🗺️ 高精度地形终端
+- Leaflet + Esri 卫星地形
+- 动态底图切换
+- 智能过滤系统
+- 实时测距工具
 
-#### useMapTools Hook
-地图工具逻辑:
-- 测距功能
-- 截图功能
-- 定位功能
-- 照相框模式
+#### 2. 💾 数据解析与管理
+- CSV 批量导入
+- Google Geocoding
+- 本地持久化存储
+- 云端数据同步
 
-#### useMapLayers Hook
-图层管理逻辑:
-- 底图切换
-- 图层显示控制
-- 过滤器状态
-- 天气图层
+#### 3. 📜 系统生存法则
+- 215+ 摄影规则
+- 智能匹配评分
+- 稀有度优先排序
+- 天文事件计算
 
-### 开发命令
+#### 4. 💱 双向汇率引擎
+- 实时汇率转换
+- 多货币支持
+- 动态货币切换
 
-```bash
-# 开发服务器
-npm run dev
+#### 5. ✨ 次元情报中心
+- 花火大会雷达
+- 朝圣地图导航
 
-# Vercel 本地开发
-npm run dev:stack
-
-# 代码检查
-npm run lint
-
-# 安全检查
-npm run security-check
-
-# API 安全检查
-npm run api-security-check
-```
+#### 6. ✈️ 跨国航线雷达
+- 大圆航线算法
+- 流光动画效果
+- 3D 可视化
 
 ---
 
@@ -528,87 +221,43 @@ npm i -g vercel
 vercel --prod
 ```
 
-### 环境变量配置
+### 环境变量
 
-在 Vercel 项目设置中添加环境变量:
-- `VITE_MAPBOX_ACCESS_TOKEN`
-- `VITE_GOOGLE_MAPS_API_KEY`
-- `WEATHER_API_KEY`
+创建 `.env` 文件：
 
-### 自定义域名
+```bash
+# Mapbox Access Token (必需)
+VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token_here
 
-在 Vercel 项目设置中配置自定义域名。
+# Google Maps API Key (可选)
+VITE_GOOGLE_MAPS_API_KEY=your_google_api_key_here
 
----
-
-## 🔌 API 集成
-
-### Google Geocoding API
-
-**用途**: 将地名转换为精确坐标
-
-**端点**:
+# 数据库连接 (可选)
+DATABASE_URL=your_database_url_here
 ```
-GET https://maps.googleapis.com/maps/api/geocode/json
-```
-
-**参数**:
-- `address`: 要编码的地址
-- `key`: API 密钥
-
-**示例**:
-```javascript
-const response = await fetch(
-  `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`
-);
-```
-
-### OSM Nominatim API
-
-**用途**: 免费地理编码服务
-
-**端点**:
-```
-GET https://nominatim.openstreetmap.org/search
-```
-
-**参数**:
-- `format=json`: 返回 JSON 格式
-- `q`: 搜索查询
-- `limit=1`: 返回一个结果
-
-**使用限制**:
-- 每秒最多 1 次请求
-- 必须提供 User-Agent
-
-### 汇率 API
-
-集成实时汇率数据源，支持多货币转换。
 
 ---
 
 ## 📜 版本历史
 
+### v5.2.0 (2026-04-10)
+- 🔧 移动端抽屉高度计算修复 (GPU transform)
+- 📱 手势交互优化 (touchAction 防护)
+- 📚 文档完善更新
+
 ### v5.1.0 (2026-04-09)
-- 移动端战术抽屉系统优化
-- 手势劫持修复
-- 数据流网关重构
-- 视觉装甲增强
+- ✨ Dark 2D 战术系统
+- ✨ 地区检测引擎
+- ✨ 双重定位系统 (GPS + IP)
+- 📱 移动端战术抽屉完善
 
 ### v5.0.2 (2026-04-08)
 - 移动端战术抽屉系统
 - 四档磁吸锚点
-- 琥珀金发光拖动指示器
 
 ### v5.0.1 (2026-04-07)
 - 架构升级: Railway Map → Earth Terminal
 - 6大核心模块
-- 双模式系统
-- 215+ 摄影规则
-
-### v4.2.1
-- 单一铁路地图功能
-- Mapbox 地图引擎
 
 ---
 
@@ -624,17 +273,6 @@ GET https://nominatim.openstreetmap.org/search
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 创建 Pull Request
 
-### 提交规范
-
-使用语义化提交:
-- `feat:` 新功能
-- `fix:` 修复 bug
-- `docs:` 文档更新
-- `style:` 代码格式调整
-- `refactor:` 重构
-- `test:` 测试相关
-- `chore:` 构建/工具相关
-
 ---
 
 ## 📄 许可证
@@ -645,13 +283,13 @@ MIT License
 
 ## 👥 维护团队
 
-**项目维护者**: IOPQWE51 & Gemini & Claude Sonnet 4.6
+**项目维护者**: IOPQWE51 & Gemini & Claude
 
 **特别感谢**:
 - Mapbox Team - 优秀的地图工具
 - Leaflet Team - 开源的地图引擎
 - Esri Team - 高质量的卫星地形数据
-- 所有测试用户 - 宝贵的反馈和建议
+- OpenStreetMap - 免费的地理数据
 
 ---
 
@@ -660,19 +298,9 @@ MIT License
 - **GitHub 仓库**: https://github.com/IOPQWE51/webgis-railway-terminal
 - **在线演示**: https://eterm.vercel.app
 - **问题反馈**: https://github.com/IOPQWE51/webgis-railway-terminal/issues
-- **架构文档**: [ARCHITECTURE.md](./docs/ARCHITECTURE.md)
 
 ---
 
-## 📞 支持与反馈
-
-如有问题或建议，请:
-- 提交 Issue
-- 发起 Discussion
-- 联系维护者
-
----
-
-**Earth Terminal v5.1.0**
+**Earth Terminal v5.2.0**
 
 *> "在移动端的战场上，每一像素的响应都至关重要。"*
