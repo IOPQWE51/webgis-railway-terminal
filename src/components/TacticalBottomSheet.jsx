@@ -106,15 +106,20 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
       {/* 抽屉机甲主体 */}
       <div
         className={`fixed bottom-0 left-0 w-full z-[3001] flex flex-col overflow-hidden ${
-          isDragging ? '' : 'transition-all duration-300 ease-out'
+          // ⚠️ 战术修改 1：只对 transform 做动画，不再对 height 等做全量动画
+          isDragging ? '' : 'transition-transform duration-300 ease-out'
         }`}
         style={{
-          height: `${sheetHeight}dvh`,
-          transform: open ? 'translateY(0)' : 'translateY(100%)',
-          backgroundColor: '#f8fafc', // 强制给主体一个底色
+          // ⚠️ 战术修改 2：高度死锁 100dvh，用 GPU transform 上下位移
+          height: '100dvh', 
+          // 核心算力：如果开启，算出需要隐藏的高度并推下去；如果关闭，推下 100%
+          transform: open ? `translateY(${100 - sheetHeight}dvh)` : 'translateY(100%)', 
+          
+          backgroundColor: '#f8fafc', 
           borderTopLeftRadius: '24px',
           borderTopRightRadius: '24px',
-          boxShadow: '0 -10px 40px rgba(0,0,0,0.8)'
+          boxShadow: '0 -10px 40px rgba(0,0,0,0.8)',
+          borderTop: '1px solid rgba(251, 191, 36, 0.3)' // 琥珀金顶边
         }}
       >
         {/* 🚀 核心修复：顶部拉环区 (全内联样式，绝对防弹) */}
@@ -173,7 +178,8 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
         </div>
 
         {/* 内容注入区 */}
-        <div className="flex-1 overflow-y-auto p-4 pb-10">
+        {/* ⚠️ 战术修改 3：增加 pb (padding-bottom) 防止内容被藏在屏幕下方 */}
+        <div className="flex-1 overflow-y-auto p-4 pb-[20dvh]">
           <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
         </div>
       </div>

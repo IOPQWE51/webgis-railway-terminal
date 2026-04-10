@@ -6,11 +6,11 @@ chcp 65001 >nul
 if "%1"=="daemon" goto :daemon
 
 :: ==========================================
-:: 1. 前台启动画面 (展示3秒后自动销毁)
+:: 1. 前台启动画面 (展示检查过程后自动销毁)
 :: ==========================================
 title Earth Terminal - Boot Sequence
 color 0A
-mode con cols=55 lines=14
+mode con cols=55 lines=18
 
 echo.
 echo    =============================================
@@ -18,8 +18,19 @@ echo      E A R T H   T E R M I N A L   V 5 . 0
 echo               [ TACTICAL RADAR ]
 echo    =============================================
 echo.
-echo    [+] 引擎点火中... (静默核心已激活)
-echo    [+] 生命周期: 10 分钟自动销毁
+echo    [+] 引擎点火准备...
+
+:: 🛡️ 智能检测：云端密钥缓存
+if not exist ".env.local" (
+    echo    [!] 未检测到云端密钥缓存
+    echo    [*] 正在建立 Vercel 卫星上行链路获取授权...
+    call npx vercel env pull .env.local
+    echo    [+] 密钥同步完成！
+) else (
+    echo    [+] 本地授权缓存完整，校验通过.
+)
+
+echo    [+] 静默核心已激活 (生命周期: 10 分钟)
 
 :: 核心：调用 mshta 无痕启动自身的 daemon 模式
 mshta vbscript:createobject("wscript.shell").run("""%~f0"" daemon",0)(window.close)

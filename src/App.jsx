@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 // 1. 新增了 PlaneTakeoff 图标
-import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff } from 'lucide-react';
+import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, CloudFog } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 // 🆕 导入战术地图组件
@@ -14,11 +14,12 @@ const App = () => {
     const [pendingMapTarget, setPendingMapTarget] = useState(null); // 🆕 待定位的地点
     const [isTacticalMode, setIsTacticalMode] = useState(false); // 🎯 战术模式状态
 
-    const [customPoints, setCustomPoints] = useState(() => {
-        // 🆕 尝试从新系统键读取
-        let saved = storage.load('earth_terminal_custom_points', null);
+    // ☁️ 云端同步状态指示器 (可选：你可以在界面上展示它)
+    const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
-        // 🔄 如果新系统没有数据，尝试从旧系统迁移
+    // 1. 🛡️ 初始状态：先用本地 localStorage 垫底，保证画面瞬间渲染
+    const [customPoints, setCustomPoints] = useState(() => {
+        let saved = storage.load('earth_terminal_custom_points', null);
         if (!saved) {
             const oldData = storage.load('railway_custom_points', null);
             if (oldData) {
@@ -28,13 +29,55 @@ const App = () => {
                 console.log('✅ 数据迁移完成');
             }
         }
-
         return saved || [];
     });
 
+    // 2. 🟢 挂载时：尝试从云端数据库拉取最新情报，覆盖本地
     useEffect(() => {
-        storage.save('earth_terminal_custom_points', customPoints);
-    }, [customPoints]);
+        const fetchCloudPoints = async () => {
+            setIsCloudSyncing(true);
+            try {
+                const res = await fetch('/api/points');
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.data && Array.isArray(json.data)) {
+                        setCustomPoints(json.data);
+                        storage.save('earth_terminal_custom_points', json.data); // 同步刷新本地缓存
+                        console.log(`☁️ 云端同步完成，加载了 ${json.data.length} 个战术节点`);
+                    }
+                }
+            } catch (error) {
+                // 数据库还没建的时候会走到这里，直接忽略，使用上面的本地兜底数据即可
+                console.log('📡 云端数据库尚未连接，当前运行在本地沙盒模式。');
+            } finally {
+                setIsCloudSyncing(false);
+            }
+        };
+
+        fetchCloudPoints();
+    }, []);
+
+    // 3. 🔵 数据更新中枢：同步更新 UI、本地硬盘 和 云端数据库
+    const handlePointsUpdate = async (newPointsArray) => {
+        // ⚡️ 乐观更新：不等云端返回，先瞬间更新本地界面，保持极致丝滑
+        setCustomPoints(newPointsArray);
+        storage.save('earth_terminal_custom_points', newPointsArray);
+
+        // ☁️ 异步推送到云端
+        try {
+            const res = await fetch('/api/points', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newPointsArray)
+            });
+            if (!res.ok) throw new Error('云端写入失败');
+            console.log(`☁️ 云端备份更新成功，当前总节点数: ${newPointsArray.length}`);
+        } catch (error) {
+            // 如果报错（比如目前没建数据库），只打印不弹窗，不打断用户体验
+            console.warn('⚠️ 战术节点云端备份失败 (如果是本地测试则正常):', error.message);
+        }
+    };
+
 
     // 🆕 全局通信：从外部触发地图定位并弹出面板
     useEffect(() => {
@@ -57,7 +100,7 @@ const App = () => {
             {isTacticalMode ? (
                 <MapTactical
                     customPoints={customPoints}
-                    onPointsUpdate={setCustomPoints}
+                    onPointsUpdate={handlePointsUpdate} // 👈 接入云端同步
                     onExit={() => setIsTacticalMode(false)}
                 />
             ) : (
@@ -70,6 +113,8 @@ const App = () => {
                             </h1>
                             <p className="text-gray-500 mt-2 font-medium flex items-center">
                                 <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
+                                {/* 选配：你可以加个云端状态小图标 */}
+                                {isCloudSyncing && <CloudFog className="w-4 h-4 ml-3 text-cyan-500 animate-pulse" title="云端同步中..." />}
                             </p>
                         </header>
 
@@ -159,18 +204,21 @@ const App = () => {
                 </nav>
 
                 <main>
-                    {/* 顺手补上了 onDeletePoint，确保地图删除功能正常工作 */}
                     <MapEngine
                         isActive={activeTab === 'map'}
                         customPoints={customPoints}
                         basePoints={BASE_POINTS_CONFIG}
-                        onDeletePoint={(pointId) => setCustomPoints(prev => prev.filter(p => p.id !== pointId))}
-                        onPointsUpdate={setCustomPoints}
+                        // 👈 删除操作也必须走 handlePointsUpdate，否则删了云端又会弹回来
+                        onDeletePoint={(pointId) => handlePointsUpdate(customPoints.filter(p => p.id !== pointId))}
+                        onPointsUpdate={handlePointsUpdate} // 👈 接入云端同步
                         pendingMapTarget={pendingMapTarget}
                         onTargetHandled={() => setPendingMapTarget(null)}
                         onEnterTactical={() => setIsTacticalMode(true)}
                     />
-                    <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={setCustomPoints} />
+                    
+                    {/* 👈 接入云端同步 */}
+                    <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} />
+                    
                     <RulesTab isActive={activeTab === 'rules'} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
                     {/* 4. 挂载跨国航线雷达模块 */}
@@ -200,5 +248,3 @@ const App = () => {
 };
 
 export default App;
-
-
