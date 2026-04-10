@@ -197,8 +197,8 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
     const evalId = Math.random().toString(36).substr(2, 9);
     const category = pt.category || 'spot';
 
-    // 🆕 新增：判断是否已经是本地收藏的点位
-    const isSaved = String(ptId).startsWith('custom_') || String(ptId).startsWith('csv_') || String(ptId).startsWith('manual_') || String(ptId).startsWith('search_');
+    // 🆕 新增：判断是否已经是本地收藏的点位（排除搜索结果）
+    const isSaved = String(ptId).startsWith('custom_') || String(ptId).startsWith('csv_') || String(ptId).startsWith('manual_');
 
     // 👇 下面是带有“收藏入库”面板的全新 HTML
     return `

@@ -53,19 +53,38 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
         // 📥 全局收藏入库信号接收
         window.__saveToCustomPoints = (name, lat, lon, category, btnElement) => {
+            const targetLat = parseFloat(lat);
+            const targetLon = parseFloat(lon);
+
+            // 检查是否已存在相同坐标的点位（0.0001度约10米精度）
+            const exists = customPoints.some(p =>
+                Math.abs(p.lat - targetLat) < 0.0001 &&
+                Math.abs(p.lon - targetLon) < 0.0001
+            );
+
+            if (exists) {
+                if (btnElement) {
+                    btnElement.innerHTML = '⚠️ 已存在';
+                    btnElement.style.background = '#f59e0b';
+                    btnElement.style.boxShadow = '0 0 15px rgba(245, 158, 11, 0.4)';
+                    btnElement.style.pointerEvents = 'none';
+                }
+                return;
+            }
+
             const newPt = {
                 id: `custom_${Date.now()}`,
                 name: name,
-                lat: parseFloat(lat),
-                lon: parseFloat(lon),
+                lat: targetLat,
+                lon: targetLon,
                 category: category,
                 source: '雷达手动捕获'
             };
-            
+
             if (onPointsUpdate) {
                 onPointsUpdate(prev => [...prev, newPt]);
             }
-            
+
             if (btnElement) {
                 btnElement.innerHTML = '✅ 编入成功';
                 btnElement.style.background = '#10b981';
@@ -74,12 +93,12 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
             }
         };
 
-        return () => { 
-            delete window.__deleteCustomPoint; 
-            delete window.__evalPhotoCondition; 
+        return () => {
+            delete window.__deleteCustomPoint;
+            delete window.__evalPhotoCondition;
             delete window.__saveToCustomPoints;
         };
-    }, [onDeletePoint, onPointsUpdate]);
+    }, [onDeletePoint, onPointsUpdate, customPoints]);
 
     // 3. 异步注入 Leaflet 核心库
     useEffect(() => {
