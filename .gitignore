@@ -6,5 +6,13 @@ dist-ssr
 .vscode
 .env.claude/settings.json
 .env
+.env.local
 .claude/settings.json
 .claude/settings.local.json
+.vercel
+coverage
+*.log
+
+# 测试文件
+api/test-*.js
+.env*.local
