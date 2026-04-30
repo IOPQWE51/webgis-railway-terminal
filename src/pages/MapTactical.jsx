@@ -29,13 +29,11 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   // 📱 监听移动端抽屉事件
   useEffect(() => {
     const handleOpenSheet = (e) => {
-      console.log('📱 收到 openTacticalBottomSheet 事件');
       setBottomSheetContent(e.detail);
       setBottomSheetOpen(true);
     };
 
     const handleCloseSheet = () => {
-      console.log('📱 收到 closeTacticalBottomSheet 事件');
       setBottomSheetOpen(false);
     };
 
@@ -48,14 +46,34 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
     };
   }, []);
 
-  // 💾 Dark 2D 点位独立存储（不影响主地图）
+  // ☁️ 挂载时从云端拉取 Dark 2D 点位
   useEffect(() => {
-    storage.save('earth_terminal_dark2d_points', customPoints);
-  }, [customPoints]);
+    const fetchCloudPoints = async () => {
+      try {
+        const res = await fetch('/api/points?scope=dark2d');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && Array.isArray(json.data) && json.data.length > 0) {
+            setCustomPoints(json.data);
+            storage.save('earth_terminal_dark2d_points', json.data);
+          }
+        }
+      } catch (_) {
+        // 云端未连接时使用本地 localStorage 兜底
+      }
+    };
+    fetchCloudPoints();
+  }, []);
 
-  // 🔄 处理点位更新（Dark 2D 独立存储，不同步给主地图）
+  // 🔄 处理点位更新（乐观更新：先本地，再异步推云端）
   const handlePointsUpdate = (newPoints) => {
     setCustomPoints(newPoints);
+    storage.save('earth_terminal_dark2d_points', newPoints);
+    fetch('/api/points?scope=dark2d', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPoints)
+    }).catch(() => {});
   };
 
   // 🚪 退出战术模式
@@ -78,7 +96,6 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
 
   // 🖱️ 地图点击处理 - 不创建标记点，只显示坐标面板
   const handleMapClick = ({ longitude, latitude }) => {
-    console.log('🖱️ Dark 2D 地图点击:', { longitude, latitude });
     setClickedCoord({ longitude, latitude });
   };
 
@@ -95,8 +112,6 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
         const newCenter = [lon, lat];
         const newZoom = 12;
 
-        console.log('🎯 搜索定位成功:', { lat, lon, center: newCenter, zoom: newZoom });
-
         setMapCenter(newCenter);
         setMapZoom(newZoom);
         setSearchQuery(displayName.split(',')[0]); // 使用简短名称
@@ -104,7 +119,6 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
         // 🔍 确保切换到地图视图
         setActiveTab('map');
       } else {
-        console.warn('🔍 未找到位置:', query);
         alert(`未找到位置: ${query}`);
       }
     } catch (error) {
@@ -138,8 +152,6 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
 
       // 显示定位方式提示
       const method = position.method === 'gps' ? 'GPS' : 'IP 地址';
-      console.log(`📍 定位成功 (${method}):`, position);
-
       if (position.warning) {
         // 延迟显示警告，不打断用户
         setTimeout(() => {

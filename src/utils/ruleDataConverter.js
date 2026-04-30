@@ -366,6 +366,7 @@ export const convertMultipleLocations = (locations) => {
  * @param {Object} ruleData - convertToRuleFormat 的返回值
  */
 export const debugPrintRuleData = (ruleData) => {
+    if (!import.meta.env.DEV) return;
     console.group('🎬 规则库数据转换结果');
     console.log('⏰ 时间窗口:', ruleData.timeWindow);
     console.log('🌤️ 天气:', ruleData.weather);

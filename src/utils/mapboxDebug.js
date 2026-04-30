@@ -12,7 +12,6 @@ export const checkMapboxConfig = () => {
   const token = import.meta.env.VITE_MAPBOX_ACCESS_TOKEN;
   console.log('🔑 Token 状态:', token ? '已设置' : '❌ 未设置');
   if (token) {
-    console.log('🔑 Token 前缀:', token.substring(0, 10) + '...');
     console.log('🔑 Token 类型:', token.startsWith('pk.') ? '✅ Public Token' : '⚠️ 可能不是 Public Token');
   }
 
@@ -57,7 +56,6 @@ export const testStyleUrl = async (styleUrl) => {
  * 在控制台输出诊断信息
  */
 export const runDiagnostics = async () => {
-  console.clear();
   console.log('🚀 Mapbox 诊断工具');
   console.log('================\n');
 
@@ -97,7 +95,4 @@ if (import.meta.env.DEV) {
     testStyle: testStyleUrl,
     runDiagnostics: runDiagnostics
   };
-
-  console.log('💡 诊断工具已加载: window.__mapboxDiagnostics');
-  console.log('💡 运行诊断: window.__mapboxDiagnostics.runDiagnostics()');
 }

@@ -23,10 +23,8 @@ const App = () => {
         if (!saved) {
             const oldData = storage.load('railway_custom_points', null);
             if (oldData) {
-                console.log('🔄 发现旧系统数据，正在迁移到 EarthTerminal...');
                 storage.save('earth_terminal_custom_points', oldData);
                 saved = oldData;
-                console.log('✅ 数据迁移完成');
             }
         }
         return saved || [];
@@ -43,7 +41,6 @@ const App = () => {
                     if (json.data && Array.isArray(json.data)) {
                         setCustomPoints(json.data);
                         storage.save('earth_terminal_custom_points', json.data); // 同步刷新本地缓存
-                        console.log(`☁️ 云端同步完成，加载了 ${json.data.length} 个战术节点`);
                     }
                 }
             } catch (error) {
@@ -71,7 +68,6 @@ const App = () => {
                 body: JSON.stringify(newPointsArray)
             });
             if (!res.ok) throw new Error('云端写入失败');
-            console.log(`☁️ 云端备份更新成功，当前总节点数: ${newPointsArray.length}`);
         } catch (error) {
             // 如果报错（比如目前没建数据库），只打印不弹窗，不打断用户体验
             console.warn('⚠️ 战术节点云端备份失败 (如果是本地测试则正常):', error.message);

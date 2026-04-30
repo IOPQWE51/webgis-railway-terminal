@@ -320,7 +320,7 @@ const ExchangeEngine = ({ isActive }) => {
                     </div>
                 </div>
 
-                <div className="mt-6 flex flex-wrap justify-between items-center gap-1 text-[10px] font-mono text-gray-400 bg-gray-50 p-2 rounded-lg">
+                <div className="mt-6 flex flex-wrap justify-between gap-1 text-[10px] font-mono text-gray-400 bg-gray-50 p-2 rounded-lg">
                     <span>
                         <strong className="text-gray-600">当前汇率：</strong> 
                         1 CNY = {currentRate.toFixed(4)} {targetCurrency} 
