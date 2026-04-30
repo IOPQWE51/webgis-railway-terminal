@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, ArrowRightLeft, AlertCircle, ShoppingBag, Info, Search, X, Globe } from 'lucide-react';
 
 // =====================================================================
@@ -83,6 +83,13 @@ const ExchangeEngine = ({ isActive }) => {
             const newRates = await exchangeRateService.fetchRatesBaseCNY();
             setRates(newRates);
             setLastUpdate(formatTime(new Date()));
+            // 汇率刷新后，以人民币为基准重算外币金额
+            const currentCny = cnyAmountRef.current;
+            const currentTarget = targetCurrencyRef.current;
+            if (currentCny && newRates[currentTarget]) {
+                const num = parseFloat(currentCny);
+                if (!isNaN(num)) setTargetAmount((num * newRates[currentTarget]).toFixed(2));
+            }
         } catch (_err) {
             setError('汇率网络连接失败，请检查网络后重试');
         } finally {
@@ -90,12 +97,11 @@ const ExchangeEngine = ({ isActive }) => {
         }
     }, []);
 
-    useEffect(() => {
-        if (rates[targetCurrency] && cnyAmount) {
-            const num = parseFloat(cnyAmount);
-            if (!isNaN(num)) setTargetAmount((num * rates[targetCurrency]).toFixed(2));
-        }
-    }, [rates, targetCurrency, cnyAmount]);
+    // 追踪最新值用于 fetchRates 中的汇率刷新重算（避免 useEffect 反馈回路）
+    const cnyAmountRef = useRef(cnyAmount);
+    cnyAmountRef.current = cnyAmount;
+    const targetCurrencyRef = useRef(targetCurrency);
+    targetCurrencyRef.current = targetCurrency;
 
     useEffect(() => { fetchRates(); }, [fetchRates]);
 
