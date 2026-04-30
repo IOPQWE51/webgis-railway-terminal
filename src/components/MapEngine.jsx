@@ -82,7 +82,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
             };
 
             if (onPointsUpdate) {
-                onPointsUpdate(prev => [...prev, newPt]);
+                onPointsUpdate([...customPoints, newPt]);
             }
 
             if (btnElement) {
