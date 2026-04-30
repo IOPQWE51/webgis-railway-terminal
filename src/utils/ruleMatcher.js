@@ -424,6 +424,7 @@ export const getFormattedSuggestions = (envData, maxPerGroup = 3) => {
  * @param {string} ruleId - 特定规则 ID（可选）
  */
 export const debugMatchingReport = (envData, ruleId = null) => {
+    if (!import.meta.env.DEV) return;
     console.group('🎬 规则匹配详细报告');
     
     const options = { sortByScore: true, minScore: 0, verbose: true };
@@ -478,7 +479,6 @@ export const analyzeEnvironment = (envData) => {
         isForest: envData.isForest || false
     };
     
-    console.table(stats);
     return stats;
 };
 

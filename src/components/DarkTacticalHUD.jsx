@@ -52,8 +52,6 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
 
   // 🚑 移动端：发射事件
   useEffect(() => {
-    console.log('🔍 DarkTacticalHUD: isMobile=', isMobile, 'stationData=', !!stationData);
-
     if (!stationData) {
       hasDispatchedMobileRef.current = false;
       window.dispatchEvent(new CustomEvent('closeTacticalBottomSheet'));
@@ -104,7 +102,6 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
         </div>
       `;
 
-      console.log('🚀 发射 openTacticalBottomSheet 事件');
       window.dispatchEvent(new CustomEvent('openTacticalBottomSheet', { detail: mobileContent }));
     }
   }, [stationData, isMobile]);

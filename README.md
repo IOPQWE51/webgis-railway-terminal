@@ -37,7 +37,7 @@
 
 - **移动端抽屉优化**: GPU 加速的 transform 位移，修复高度计算问题
 - **手势交互增强**: touchAction 防护，消除浏览器下拉刷新干扰
-- **云端数据同步**: PostgreSQL + Vercel API 双向同步
+- **云端数据同步**: Upstash Redis (Vercel KV) 双向同步
 - **架构文档完善**: ARCHITECTURE.md 系统白皮书更新
 
 ---
@@ -45,7 +45,7 @@
 ## 🌟 核心特性
 
 ### 地图引擎
-- ✅ **双引擎支持**: Leaflet + Mapbox GL
+- ✅ **引擎支持**: Mapbox GL
 - ✅ **Dark 2D 样式**: 自定义战术风格地图
 - ✅ **多图层切换**: 地形/暗色/亮色/街道/卫星
 - ✅ **智能标记聚类**: MarkerCluster 自动聚合
@@ -70,7 +70,7 @@
 - ✅ **CSV 批量导入**: 大规模坐标数据导入
 - ✅ **Google Geocoding**: 地名转精确坐标
 - ✅ **本地持久化**: localStorage 数据存储
-- ✅ **云端同步**: Vercel PostgreSQL 自动备份
+- ✅ **云端同步**: Upstash Redis 自动备份
 
 ---
 
@@ -89,16 +89,13 @@
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
-| Leaflet | 1.9.4 | 开源地图引擎 |
-| Mapbox GL | 3.21.0 | 高级地图功能 |
-| MarkerCluster | 1.4.1 | 标记聚合 |
+| Mapbox GL | 3.21.0 | 地图渲染引擎 |
 
 ### 工具库
 
 | 技术 | 版本 | 用途 |
 |------|------|------|
 | SunCalc | 1.9.0 | 天文计算 |
-| Turf.js | - | 地理空间计算 |
 | Sentry | 10.46.0 | 错误监控 |
 
 ---
@@ -232,8 +229,9 @@ VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token_here
 # Google Maps API Key (可选)
 VITE_GOOGLE_MAPS_API_KEY=your_google_api_key_here
 
-# 数据库连接 (可选)
-DATABASE_URL=your_database_url_here
+# Vercel KV 数据库 (Upstash Redis)
+KV_REST_API_URL=your_kv_rest_url
+KV_REST_API_TOKEN=your_kv_rest_token
 ```
 
 ---

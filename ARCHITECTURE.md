@@ -5,7 +5,7 @@
 **项目:** earth-terminal
 **构建工具:** Vite 7.3.1
 **框架:** React 19.2.0
-**地图库:** Leaflet 1.9.4 + Mapbox GL 3.21.0
+**地图库:** Mapbox GL 3.21.0
 **发布日期:** 2026-04-10
 
 ---
@@ -95,7 +95,7 @@ window.__saveToCustomPoints(...)      // 保存新坐标
 └─────────────────────────────────────────────────────┘
          │                          │
          ▼                          ▼
-   本地持久化                Vercel PostgreSQL
+   本地持久化                Upstash Redis (Vercel KV)
 ```
 
 ---
@@ -352,8 +352,8 @@ export const openCyberPanel = (html) => {
 │ MapTactical  │      │  MapEngine   │
 │ (战术地图)    │      │  (主地图)     │
 │              │      │              │
-│ Dark 2D      │      │ Leaflet      │
-│ 独立存储      │      │ MarkerCluster│
+│ Dark 2D      │      │ Mapbox GL    │
+│ 云同步        │      │ 暗色主题     │
 │ 空间跃迁      │      │ useMapLayers │
 │ 双重定位      │      │ useMapTools  │
 └──────────────┘      └──────────────┘
@@ -427,7 +427,7 @@ export const openCyberPanel = (html) => {
 │  导航栏 (循环滚动)                   │
 ├─────────────────────────────────────┤
 │  内容区 (六大模块)                   │
-│  • 地形终端 (Leaflet)                │
+│  • 地形终端 (Mapbox GL)                │
 │  • 数据中心                          │
 │  • 摄影法则                          │
 │  • 汇率引擎                          │
@@ -569,8 +569,7 @@ Transit Maps
 ## 性能优化
 
 ### 代码分割
-- Leaflet 核心库异步加载
-- MarkerCluster 按需加载
+- Mapbox GL 异步加载
 - 路由级别懒加载
 
 ### 渲染优化
