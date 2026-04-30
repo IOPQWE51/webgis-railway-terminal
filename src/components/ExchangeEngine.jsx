@@ -221,7 +221,7 @@ const ExchangeEngine = ({ isActive }) => {
             )}
             {/* ======================================================= */}
 
-            <div className="bg-white border border-gray-200 rounded-[2rem] p-8 shadow-xl relative overflow-hidden">
+            <div className="bg-white border border-gray-200 rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-xl relative overflow-hidden">
                 <div className="flex justify-between items-center mb-8">
                     <div>
                         <h3 className="font-black text-2xl text-gray-900 flex items-center">
@@ -247,16 +247,16 @@ const ExchangeEngine = ({ isActive }) => {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                    <div className="bg-green-50 p-6 rounded-2xl border-2 border-transparent focus-within:border-green-500 transition-colors shadow-inner">
+                    <div className="bg-green-50 p-4 md:p-6 rounded-2xl border-2 border-transparent focus-within:border-green-500 transition-colors shadow-inner">
                         <div className="flex justify-between items-center mb-4">
                             <label className="text-sm font-bold text-green-800 flex items-center">
                                 <img src="https://flagcdn.com/w40/cn.png" alt="CN" className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" /> 人民币 (CNY)
                             </label>
                             <span className="text-[10px] font-mono bg-green-200 text-green-800 px-2 py-0.5 rounded uppercase font-bold">Base</span>
                         </div>
-                        <div className="flex items-center text-4xl font-black text-green-900">
+                        <div className="flex items-center text-2xl sm:text-3xl md:text-4xl font-black text-green-900">
                             <span className="text-green-600/50 mr-2">¥</span>
-                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={cnyAmount} onChange={handleCnyChange} className="bg-transparent border-none outline-none w-full appearance-none placeholder-green-300" placeholder="0" />
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={cnyAmount} onChange={handleCnyChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setCnyAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-green-300" placeholder="0" />
                         </div>
                     </div>
 
@@ -266,7 +266,7 @@ const ExchangeEngine = ({ isActive }) => {
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 p-6 rounded-2xl border-2 border-transparent focus-within:border-blue-500 transition-colors shadow-inner">
+                    <div className="bg-blue-50 p-4 md:p-6 rounded-2xl border-2 border-transparent focus-within:border-blue-500 transition-colors shadow-inner">
                         <div className="flex justify-between items-center mb-4 relative">
                             <div className="flex items-center">
                                 <img src={`https://flagcdn.com/w40/${activeConfig.flag}.png`} alt={activeConfig.code} className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" />
@@ -287,9 +287,9 @@ const ExchangeEngine = ({ isActive }) => {
                                 </select>
                             </div>
                         </div>
-                        <div className="flex items-center text-4xl font-black text-blue-900">
+                        <div className="flex items-center text-2xl sm:text-3xl md:text-4xl font-black text-blue-900">
                             <span className="text-blue-400 mr-2">{activeConfig.symbol}</span>
-                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={targetAmount} onChange={handleTargetAmountChange} className="bg-transparent border-none outline-none w-full appearance-none placeholder-blue-300" placeholder="0" />
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={targetAmount} onChange={handleTargetAmountChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setTargetAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-blue-300" placeholder="0" />
                         </div>
                     </div>
                 </div>
@@ -320,7 +320,7 @@ const ExchangeEngine = ({ isActive }) => {
                     </div>
                 </div>
 
-                <div className="mt-6 flex justify-between items-center text-[10px] font-mono text-gray-400 bg-gray-50 p-2 rounded-lg">
+                <div className="mt-6 flex flex-wrap justify-between items-center gap-1 text-[10px] font-mono text-gray-400 bg-gray-50 p-2 rounded-lg">
                     <span>
                         <strong className="text-gray-600">当前汇率：</strong> 
                         1 CNY = {currentRate.toFixed(4)} {targetCurrency} 
