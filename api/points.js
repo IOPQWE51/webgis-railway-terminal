@@ -7,7 +7,14 @@ const DB_KEYS = {
 
 export default async function handler(req, res) {
   try {
-    const redis = Redis.fromEnv();
+    const kvUrl = process.env.KV_REST_API_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN;
+
+    if (!kvUrl || !kvToken) {
+      return res.status(500).json({ error: 'KV 数据库未配置，请在 Vercel 控制台连接 KV 实例' });
+    }
+
+    const redis = new Redis({ url: kvUrl, token: kvToken });
     const scope = req.query?.scope === 'dark2d' ? 'dark2d' : 'global';
     const dbKey = DB_KEYS[scope];
 
