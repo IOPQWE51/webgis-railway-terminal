@@ -16,3 +16,6 @@ coverage
 # 测试文件
 api/test-*.js
 .env*.local
+
+# 交接运行结果（不应进入版本库）
+.handoff/
