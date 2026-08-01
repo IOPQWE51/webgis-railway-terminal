@@ -9,7 +9,7 @@ import { Map, Database, Search, Crosshair, Loader2 } from 'lucide-react';
 import { storage, geocodeRequest, getCurrentPosition } from '../utils/performanceHelpers';
 import { TACTICAL_STYLES } from '../config/mapConstants';
 
-export default function MapTactical({ customPoints: initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
+export default function MapTactical({ customPoints: _initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
   // 🎯 Dark 2D 模式使用独立的点位存储（不继承主地图的点）
   const [customPoints, setCustomPoints] = useState(() => {
     return storage.load('earth_terminal_dark2d_points', []);
@@ -150,8 +150,6 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
         longitude: position.longitude
       });
 
-      // 显示定位方式提示
-      const method = position.method === 'gps' ? 'GPS' : 'IP 地址';
       if (position.warning) {
         // 延迟显示警告，不打断用户
         setTimeout(() => {
@@ -183,7 +181,9 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
   };
 
   // 🗺️ 定位到特定点位（从 DataCenter 列表点击）
-  useState(() => {
+  // 修复：原为 useState（误用），副作用只在首渲执行一次，customPoints 变化时闭包捕获旧点位；
+  // 且卸载时不清理 window.__locatePointOnMap，退出战术模式后会残留指向已失效 setter 的野指针。
+  useEffect(() => {
     window.__locatePointOnMap = (pointId) => {
       const point = customPoints.find(p => p.id === pointId);
       if (point) {
@@ -191,6 +191,11 @@ export default function MapTactical({ customPoints: initialPoints = [], onPoints
         setMapZoom(15);
         setActiveTab('map');
       }
+    };
+
+    // 卸载时清理，避免退回常规模式时残留野指针（主 App 的 useEffect 会重新挂回自己的实现）
+    return () => {
+      delete window.__locatePointOnMap;
     };
   }, [customPoints]);
 
