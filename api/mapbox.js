@@ -4,10 +4,10 @@
 // - 15分钟缓存（交通流量实时变化）
 // - 用于判断：地点特征、交通流量、涂鸦墙等
 
-import { withRateLimit, mapboxRateLimiter } from './rateLimiter.js';
+import { withRateLimit } from './rateLimiter.js';
 
-// 🛡️ 应用速率限制：每个IP每分钟最多10次请求
-export default withRateLimit(mapboxRateLimiter)(async function handler(req, res) {
+// 🛡️ 应用速率限制：每个IP每分钟最多10次请求（rateLimiter.js 已改为 Redis 分布式限流）
+export default withRateLimit('mapbox')(async function handler(req, res) {
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
