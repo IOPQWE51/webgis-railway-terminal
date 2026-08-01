@@ -5,14 +5,18 @@ import App from './App.jsx'
 import * as Sentry from "@sentry/react";
 import './utils/mapboxDebug'; // 🔍 加载 Mapbox 诊断工具
 
-Sentry.init({
-  dsn: "https://80107cfb684f4223ceb1c5bf60295fca@o4511120233398272.ingest.us.sentry.io/4511120259284992",
-  // 允许收集用户默认 PII 数据（比如 IP 地址，方便定位是哪个国家的用户崩了）
-  sendDefaultPii: true, 
-  
-  // (可选) 你还可以加上这个来监控性能，看看地图加载有多慢
-  // tracesSampleRate: 1.0, 
-});
+// 🛰️ Sentry 初始化：DSN 走环境变量，缺失时跳过（本地/未配置环境不报错）
+// sendDefaultPii 设为 false：不再自动收集访客 IP 等默认 PII（最小化原则）
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    sendDefaultPii: false,
+
+    // (可选) 你还可以加上这个来监控性能，看看地图加载有多慢
+    // tracesSampleRate: 1.0,
+  });
+}
 
 
 
