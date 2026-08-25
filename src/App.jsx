@@ -43,7 +43,7 @@ const App = () => {
                         storage.save('earth_terminal_custom_points', json.data); // 同步刷新本地缓存
                     }
                 }
-            } catch (error) {
+            } catch {
                 // 数据库还没建的时候会走到这里，直接忽略，使用上面的本地兜底数据即可
                 console.log('📡 云端数据库尚未连接，当前运行在本地沙盒模式。');
             } finally {
@@ -169,6 +169,8 @@ const App = () => {
                         { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
                         { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
                     ]).map((tab, index) => (
+                        // 无缝循环滑动共渲染 3 组标签；第 2、3 组（index>=6）只是视觉填充，
+                        // 对读屏器与键盘焦点隐藏，避免辅助技术读到 18 个重复 tab
                         <button
                             key={`${tab.id}-${index}`}
                             onClick={(e) => {
@@ -187,6 +189,8 @@ const App = () => {
                             }}
                             role="tab"
                             aria-selected={activeTab === tab.id}
+                            aria-hidden={index >= 6 ? true : undefined}
+                            tabIndex={index >= 6 ? -1 : 0}
                             className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
                                 activeTab === tab.id
                                     ? 'bg-zinc-900 text-white shadow-md'
