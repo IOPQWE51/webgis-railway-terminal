@@ -45,6 +45,17 @@ export default [
       },
     },
   },
+  // Node 环境的独立脚本与测试（vitest / CLI 工具）
+  {
+    files: ['scripts/**/*.mjs', 'scripts/**/*.cjs', 'tests/**/*.js'],
+    languageOptions: {
+      globals: globals.node,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+  },
   {
     ...reactRefresh.configs.vite,
     files: ['src/**/*.{js,jsx}'],
