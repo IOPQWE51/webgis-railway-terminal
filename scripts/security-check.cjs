@@ -37,7 +37,7 @@ try {
   } else {
     console.log('  ✅ Git 历史中没有 .env 文件');
   }
-} catch (error) {
+} catch (_err) {
   console.log('  ✅ Git 历史中没有 .env 文件');
 }
 
@@ -80,7 +80,7 @@ searchDirs.forEach(dir => {
           risks.push(`硬编码密钥在 ${file}`);
         }
       });
-    } catch (error) {
+    } catch (_err) {
       // 忽略无法读取的文件
     }
   });
@@ -101,7 +101,7 @@ try {
   } else {
     console.log('  ✅ 没有前端环境变量');
   }
-} catch (error) {
+} catch (_err) {
   console.log('  ⚠️  未找到 .env.example 文件');
 }
 
@@ -160,7 +160,7 @@ function getAllFiles(dirPath) {
         files.push(fullPath);
       }
     });
-  } catch (error) {
+  } catch (_err) {
     // 忽略无法访问的目录
   }
 

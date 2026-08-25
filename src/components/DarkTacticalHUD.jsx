@@ -8,14 +8,13 @@
  * - 幽灵视效: 背景模糊、半透明
  */
 
-import { useEffect, useState, useRef } from 'react';
-import { X, Target, Train, MapPin, AlertTriangle, Navigation } from 'lucide-react';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { X, Train, MapPin, AlertTriangle, Navigation } from 'lucide-react';
 import { detectRegion, formatCoordinate } from '../utils/regionDetector';
 
 const DarkTacticalHUD = ({ stationData, onClose }) => {
   // 📱 首次渲染时就检测是否为移动端（使用函数形式初始化）
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
-  const [regionInfo, setRegionInfo] = useState(null);
   const [isPulseActive, setIsPulseActive] = useState(true);
   const hasDispatchedMobileRef = useRef(false);
 
@@ -34,13 +33,12 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 检测地区信息
-  useEffect(() => {
-    if (stationData?.lat && stationData?.lon) {
-      const info = detectRegion(stationData.lat, stationData.lon);
-      setRegionInfo(info);
-    }
-  }, [stationData]);
+  // 检测地区信息：纯派生值，渲染期直接计算
+  // （无坐标时为 null —— 顺带修复旧实现切换到无坐标目标时残留上一站地区信息的瑕疵）
+  const regionInfo = useMemo(
+    () => (stationData?.lat && stationData?.lon ? detectRegion(stationData.lat, stationData.lon) : null),
+    [stationData]
+  );
 
   // 脉冲动画控制
   useEffect(() => {

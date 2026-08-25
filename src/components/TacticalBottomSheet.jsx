@@ -16,18 +16,18 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
 
   const dragRef = useRef({ startY: 0, startHeight: 0 });
 
-  useEffect(() => {
+  // 打开时重置档位：用"渲染期对比上一次 props"的官方模式替代 effect 内 setState
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (open) {
       setCurrentSnap('SCOUT');
       setSheetHeight(25);
     }
-  }, [open]);
+  }
 
-  useEffect(() => {
-    if (!isDragging) {
-      setSheetHeight(SNAP_POINTS[currentSnap]);
-    }
-  }, [currentSnap, isDragging]);
+  // 非拖拽状态下，高度永远由当前档位派生（单一数据源，不再需要同步 effect）
+  const effectiveHeight = isDragging ? sheetHeight : SNAP_POINTS[currentSnap];
 
   const onDragStart = (clientY) => {
     setIsDragging(true);
@@ -91,6 +91,9 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('touchend', handleTouchEnd);
     };
+    // 拖拽监听依赖拖拽中的即时值（ref + state），onDragMove/onDragEnd 每次渲染重建，
+    // 若加入依赖会在拖拽中反复解绑/重绑，刻意只跟随 isDragging/sheetHeight
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDragging, sheetHeight]);
 
   return (
@@ -113,7 +116,7 @@ const TacticalBottomSheet = ({ open, htmlContent, onDismiss }) => {
           // ⚠️ 战术修改 2：高度死锁 100dvh，用 GPU transform 上下位移
           height: '100dvh', 
           // 核心算力：如果开启，算出需要隐藏的高度并推下去；如果关闭，推下 100%
-          transform: open ? `translateY(${100 - sheetHeight}dvh)` : 'translateY(100%)', 
+          transform: open ? `translateY(${100 - effectiveHeight}dvh)` : 'translateY(100%)', 
           
           backgroundColor: '#f8fafc', 
           borderTopLeftRadius: '24px',

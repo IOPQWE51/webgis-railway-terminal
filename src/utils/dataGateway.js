@@ -166,7 +166,7 @@ const fetchAuroraConcurrently = async (lat, lon) => {
         const res = await fetch(`/api/aurora?lat=${lat}&lon=${lon}`);
         if (!res.ok) return { probability: 0 };
         return await res.json();
-    } catch (e) {
+    } catch {
         return { probability: 0 };
     }
 };
@@ -177,7 +177,7 @@ const fetchElevationConcurrently = async (lat, lon) => {
         const res = await fetch(`/api/elevation?lat=${lat}&lon=${lon}`);
         if (!res.ok) return { elevation: 0 };
         return await res.json();
-    } catch (e) {
+    } catch {
         return { elevation: 0 };
     }
 };
@@ -198,7 +198,7 @@ const fetchMapboxConcurrently = async (lat, lon) => {
             features: features.features || [],
             traffic: traffic.traffic || { level: 'unknown' }
         };
-    } catch (e) {
+    } catch {
         return { features: [], traffic: { level: 'unknown' } };
     }
 };

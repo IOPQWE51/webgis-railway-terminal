@@ -10,14 +10,14 @@ const DANGEROUS_PATTERNS = [
   { pattern: /sk\.eyJ1[\w-]+/g, name: 'Mapbox Secret Token', severity: 'HIGH' },
   { pattern: /AIza[A-Za-z0-9_-]{35}/g, name: 'Google Maps API Key', severity: 'MEDIUM' },
 
-  // 具体的已泄露 Key（需要替换）
-  { pattern: /AIzaSyAM_-jFNtzL35fAIIveC_qrvdcO8EnrcdQ/g, name: '⚠️ 硬编码 Google Maps Key', severity: 'CRITICAL' },
-  { pattern: /f248f355671dcb0ffa5645c53823d4e5/g, name: '⚠️ 硬编码 OWM Key', severity: 'CRITICAL' },
+  // 🚨 2026-08 安全整改：此处曾以"检测模式"名义写死两个真实泄露密钥的完整值，
+  // 等于在仓库里二次公开泄密。现移除具体值，通用特征已由上方规则覆盖；
+  // 历史泄露的那两把钥匙请在 Google Cloud / OpenWeather 后台作废轮换。
 ];
 
 // ✅ 忽略的模式（这些不是 API Key）
 const IGNORE_PATTERNS = [
-  /https:\/\/[a-f0-9]+@[a-z0-9\-]+\.ingest\.us\.sentry\.io\//g, // Sentry DSN
+  /https:\/\/[a-f0-9]+@[a-z0-9-]+\.ingest\.us\.sentry\.io\//g, // Sentry DSN
 ];
 
 // ✅ 允许的文件（这些文件中的 API Key 是安全的）

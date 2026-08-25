@@ -136,7 +136,6 @@ export const getYearlyAstronomyEvents = (year = new Date().getFullYear()) => {
 
     // 每月的满月日期（检查是否有超级月亮）
     for (let month = 0; month < 12; month++) {
-        const monthDate = new Date(year, month, 1);
         // 查找该月的满月（简化版：每个月检查15号左右）
         for (let day = 10; day <= 20; day++) {
             const checkDate = new Date(year, month, day);

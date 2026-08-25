@@ -18,6 +18,48 @@ if (import.meta.env.VITE_MAPBOX_ACCESS_TOKEN) {
 let lastStyleChange = 0;
 const STYLE_CHANGE_COOLDOWN = 2000; // 2秒冷却时间
 
+// 🎯 雷达准星 HTML（Dark 2D 风格 - 正方形青色准心）
+// 模块级常量：静态模板字符串，不参与组件渲染周期（避免 hooks 规则告警）
+const TACTICAL_BEACON_HTML = `
+  <div style="position: relative; width: 60px; height: 60px;">
+    <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); z-index: 2; position: absolute; top: 0; left: 0;">
+      <rect x="6" y="6" width="48" height="48" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.8"/>
+      <rect x="12" y="12" width="36" height="36" stroke="#00ffff" stroke-width="2" stroke-dasharray="14 14" stroke-dashoffset="7"/>
+      <line x1="30" y1="6" x2="30" y2="18" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="30" y1="42" x2="30" y2="54" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="6" y1="30" x2="18" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="42" y1="30" x2="54" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="28" y="28" width="4" height="4" fill="#00ffff"/>
+    </svg>
+    <div class="tactical-radar-pulse"></div>
+  </div>
+`;
+
+// 📍 用户位置 HTML（幽灵蓝雷达波）- 自机位
+const USER_LOCATION_HTML = `
+  <div style="position: relative; width: 70px; height: 70px;">
+    <!-- 外圈雷达波 - 动态扩散 -->
+    <div class="user-radar-wave-1"></div>
+    <div class="user-radar-wave-2"></div>
+    <div class="user-radar-wave-3"></div>
+    <!-- 核心标记 -->
+    <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.9)); z-index: 3; position: absolute; top: 0; left: 0;">
+      <!-- 外圈虚线环 -->
+      <circle cx="35" cy="35" r="28" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>
+      <!-- 中圈实线环 -->
+      <circle cx="35" cy="35" r="20" stroke="#0ea5e9" stroke-width="2.5" opacity="0.9"/>
+      <!-- 十字准星 -->
+      <line x1="35" y1="10" x2="35" y2="20" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+      <line x1="35" y1="50" x2="35" y2="60" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+      <line x1="10" y1="35" x2="20" y2="35" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+      <line x1="50" y1="35" x2="60" y2="35" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
+      <!-- 核心点（高亮） -->
+      <circle cx="35" cy="35" r="5" fill="#0ea5e9"/>
+      <circle cx="35" cy="35" r="2.5" fill="#ffffff"/>
+    </svg>
+  </div>
+`;
+
 export default function MapboxMapTactical({
   center = [139.6503, 35.6762], // 默认：东京
   zoom = 12,
@@ -143,47 +185,6 @@ export default function MapboxMapTactical({
     }
   };
 
-  // 🎯 雷达准星 HTML（Dark 2D 风格 - 正方形青色准心）
-  const TACTICAL_BEACON_HTML = `
-    <div style="position: relative; width: 60px; height: 60px;">
-      <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); z-index: 2; position: absolute; top: 0; left: 0;">
-        <rect x="6" y="6" width="48" height="48" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.8"/>
-        <rect x="12" y="12" width="36" height="36" stroke="#00ffff" stroke-width="2" stroke-dasharray="14 14" stroke-dashoffset="7"/>
-        <line x1="30" y1="6" x2="30" y2="18" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="30" y1="42" x2="30" y2="54" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="6" y1="30" x2="18" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <line x1="42" y1="30" x2="54" y2="30" stroke="#1e293b" stroke-width="2.5" stroke-linecap="round"/>
-        <rect x="28" y="28" width="4" height="4" fill="#00ffff"/>
-      </svg>
-      <div class="tactical-radar-pulse"></div>
-    </div>
-  `;
-
-  // 📍 用户位置 HTML（幽灵蓝雷达波）- 自机位
-  const USER_LOCATION_HTML = `
-    <div style="position: relative; width: 70px; height: 70px;">
-      <!-- 外圈雷达波 - 动态扩散 -->
-      <div class="user-radar-wave-1"></div>
-      <div class="user-radar-wave-2"></div>
-      <div class="user-radar-wave-3"></div>
-      <!-- 核心标记 -->
-      <svg width="70" height="70" viewBox="0 0 70 70" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.9)); z-index: 3; position: absolute; top: 0; left: 0;">
-        <!-- 外圈虚线环 -->
-        <circle cx="35" cy="35" r="28" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.7"/>
-        <!-- 中圈实线环 -->
-        <circle cx="35" cy="35" r="20" stroke="#0ea5e9" stroke-width="2.5" opacity="0.9"/>
-        <!-- 十字准星 -->
-        <line x1="35" y1="10" x2="35" y2="20" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
-        <line x1="35" y1="50" x2="35" y2="60" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
-        <line x1="10" y1="35" x2="20" y2="35" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
-        <line x1="50" y1="35" x2="60" y2="35" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round"/>
-        <!-- 核心点（高亮） -->
-        <circle cx="35" cy="35" r="5" fill="#0ea5e9"/>
-        <circle cx="35" cy="35" r="2.5" fill="#ffffff"/>
-      </svg>
-    </div>
-  `;
-
   // 🎨 初始化地图
   useEffect(() => {
     if (map.current) return;
@@ -235,18 +236,20 @@ export default function MapboxMapTactical({
           return layerId === 'transit-stop-label' || layerId === 'custom-points-circle';
         });
 
+        // 提取准确的元素中心坐标（默认回退为点击坐标；
+        // 声明提到 if 块之外 —— 块外的 onMapClick 回调也要用，
+        // 旧实现把 let 藏在块内导致点击站点时 ReferenceError，白色脉冲方框因此静默失效）
+        let targetLng = lng;
+        let targetLat = lat;
+
         if (targetFeature) {
           const props = targetFeature.properties;
           const layerId = targetFeature.layer?.id;
-          
-          // 提取准确的元素中心坐标
-          let targetLng = lng;
-          let targetLat = lat;
-          if (targetFeature.geometry?.type === 'Point') {
-              targetLng = targetFeature.geometry.coordinates[0];
-              targetLat = targetFeature.geometry.coordinates[1];
-          }
 
+          if (targetFeature.geometry?.type === 'Point') {
+            targetLng = targetFeature.geometry.coordinates[0];
+            targetLat = targetFeature.geometry.coordinates[1];
+          }
           console.log(`🎯 截获目标 [${layerId}]:`, props);
 
           // 🎯 统一绘制/更新雷达准星 (琥珀金锁定框)
@@ -295,9 +298,9 @@ export default function MapboxMapTactical({
 
         // 无论点到什么，都将坐标传给主控台（用于触发那个 37 秒的白色脉冲坐标方框）
         if (onMapClick) {
-          onMapClick({ 
-            longitude: targetFeature ? targetLng : lng, 
-            latitude: targetFeature ? targetLat : lat 
+          onMapClick({
+            longitude: targetLng,
+            latitude: targetLat
           });
         }
       });
@@ -312,6 +315,9 @@ export default function MapboxMapTactical({
         map.current = null;
       }
     };
+    // 地图实例只初始化一次；样式/中心点/缩放的变化由下方各专职 effect 处理，
+    // 此处刻意不依赖这些 props，避免销毁重建地图实例
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 🔄 动态切换地图样式（带限流保护）
@@ -378,7 +384,7 @@ export default function MapboxMapTactical({
         map.current.off('click', 'custom-points-circle', clickHandlerRef.current);
         map.current.off('mouseenter', 'custom-points-circle', mouseEnterHandlerRef.current);
         map.current.off('mouseleave', 'custom-points-circle', mouseLeaveHandlerRef.current);
-      } catch (e) {
+      } catch {
         // 图层可能不存在，忽略错误
       }
     }

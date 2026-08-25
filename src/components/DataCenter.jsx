@@ -260,8 +260,6 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
         setFileQueue(files);
         setIsProcessing(true);
 
-        let totalSuccess = 0;
-        let totalFailed = 0;
         const allNewPoints = [];
         const allFails = [];
 
@@ -322,11 +320,9 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
                         if (!place.hasCoords) fileSuccess++;
                     } else {
                         fileFails.push(place.name);
-                        totalFailed++;
                     }
                 }
 
-                totalSuccess += fileSuccess;
                 allFails.push(...fileFails);
 
                 console.log(`✅ 文件 ${file.name} 处理完成：成功 ${fileSuccess} 个，失败 ${fileFails.length} 个`);
@@ -379,7 +375,6 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
         setManualData({ name: '', lat: '', lon: '', type: 'spot' });
     }, [manualData, customPoints, onPointsUpdate]);
 
-    const handlePasteCoords = useCallback(async () => { /* 同原逻辑 */ }, []);
     const populateManual = useCallback((name) => setSearchData(prev => ({ ...prev, name })), []);
     const removeFailedPoint = useCallback((name) => setFailedPoints(prev => prev.filter(p => p !== name)), []);
 

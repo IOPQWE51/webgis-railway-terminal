@@ -120,7 +120,7 @@ function detectSubRegion(lat, lon, region) {
  * // }
  */
 export function detectRegion(lat, lon) {
-  for (const [key, region] of Object.entries(REGION_BOUNDARIES)) {
+  for (const [, region] of Object.entries(REGION_BOUNDARIES)) {
     // 检查是否在该区域的任一边界框内
     const inAnyBounds = region.bounds.some(bounds =>
       isPointInBounds(lat, lon, bounds)

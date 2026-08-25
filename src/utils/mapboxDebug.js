@@ -15,16 +15,17 @@ export const checkMapboxConfig = () => {
     console.log('🔑 Token 类型:', token.startsWith('pk.') ? '✅ Public Token' : '⚠️ 可能不是 Public Token');
   }
 
-  // 检查 mapbox-gl 是否加载
-  console.log('📦 mapbox-gl:', typeof mapboxgl !== 'undefined' ? '✅ 已加载' : '❌ 未加载');
-  if (typeof mapboxgl !== 'undefined') {
-    console.log('📦 mapboxgl.version:', mapboxgl.version);
+  // 检查 mapbox-gl 是否加载（打包环境下挂载在 window 上，显式走 window 避免裸全局引用）
+  const gl = typeof window !== 'undefined' ? window.mapboxgl : undefined;
+  console.log('📦 mapbox-gl:', typeof gl !== 'undefined' ? '✅ 已加载' : '❌ 未加载');
+  if (typeof gl !== 'undefined') {
+    console.log('📦 mapboxgl.version:', gl.version);
   }
 
   return {
     token: !!token,
     tokenValid: token && token.startsWith('pk.'),
-    mapboxgl: typeof mapboxgl !== 'undefined'
+    mapboxgl: typeof gl !== 'undefined'
   };
 };
 
