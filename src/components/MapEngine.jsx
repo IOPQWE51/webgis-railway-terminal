@@ -7,6 +7,7 @@ import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
 import { serializeViewHash } from '../utils/urlState';
+import ShootingBrief from './ShootingBrief';
 
 // 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
@@ -21,6 +22,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 💥 新增：地点详情的底部战术抽屉状态
     const [bottomSheetHtml, setBottomSheetHtml] = useState(null); 
 
+    const [mapView, setMapView] = useState(null); // 🌅 拍摄简报用的地图中心
     const [baseMapType, setBaseMapType] = useState('topo'); 
     const [weatherType, setWeatherType] = useState('none'); 
     const [filters, setFilters] = useState({ framework: true, station: true, airport: true, anime: true, hotel: true, spot: true });
@@ -127,6 +129,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         let timer = null;
         const sync = () => {
             const c = map.getCenter();
+            setMapView({ lat: c.lat, lng: c.lng });
             const next = serializeViewHash({ lat: c.lat, lon: c.lng, z: map.getZoom() });
             if (window.location.hash !== next) window.history.replaceState(null, '', next);
         };
@@ -201,6 +204,10 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                                 </button>
                             </div>
                         </div>
+                    )}
+
+                    {mapView && leafletReady && (
+                        <ShootingBrief lat={mapView.lat} lng={mapView.lng} />
                     )}
 
                     <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all animate-bounce">
