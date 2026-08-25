@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 // 1. 新增了 PlaneTakeoff 图标
 import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, CloudFog } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
-// 🆕 导入战术地图组件
-import MapTactical from './pages/MapTactical';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
+
+// 🛫 战术地图整棵子树（MapTactical → MapboxMapTactical → mapbox-gl ≈ 1.7MB）
+// 按需加载：不进首屏 bundle，首次切入战术模式时才拉取异步块
+const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
 import { storage } from './utils/performanceHelpers';
 
@@ -94,11 +96,24 @@ const App = () => {
         <>
             {/* 🎯 战术模式全屏覆盖 */}
             {isTacticalMode ? (
-                <MapTactical
-                    customPoints={customPoints}
-                    onPointsUpdate={handlePointsUpdate} // 👈 接入云端同步
-                    onExit={() => setIsTacticalMode(false)}
-                />
+                <Suspense
+                    fallback={
+                        <div
+                            className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-cyan-300 font-mono"
+                            role="status"
+                            aria-label="战术雷达启动中"
+                        >
+                            <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin"></div>
+                            <p className="text-sm tracking-[0.3em] animate-pulse">[ DARK_2D_RADAR 启动中... ]</p>
+                        </div>
+                    }
+                >
+                    <MapTactical
+                        customPoints={customPoints}
+                        onPointsUpdate={handlePointsUpdate} // 👈 接入云端同步
+                        onExit={() => setIsTacticalMode(false)}
+                    />
+                </Suspense>
             ) : (
                 <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans selection:bg-green-200 text-gray-800">
                     <div className="max-w-6xl mx-auto">
