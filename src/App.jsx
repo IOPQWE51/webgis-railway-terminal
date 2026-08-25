@@ -11,6 +11,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
 import { storage } from './utils/performanceHelpers';
+import { parseViewHash } from './utils/urlState';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
@@ -19,6 +20,24 @@ const App = () => {
 
     // ☁️ 云端同步状态指示器 (可选：你可以在界面上展示它)
     const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+    // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..
+    // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板
+    useEffect(() => {
+        const view = parseViewHash(window.location.hash);
+        if (!view) return;
+        if (view.tab) setActiveTab(view.tab);
+        if (view.lat !== null) {
+            setPendingMapTarget({
+                id: `share_${Date.now()}`,
+                name: '分享坐标',
+                lat: view.lat,
+                lon: view.lon,
+                category: 'spot',
+                source: '视角分享链接',
+            });
+        }
+    }, []);
 
     // 1. 🛡️ 初始状态：先用本地 localStorage 垫底，保证画面瞬间渲染
     const [customPoints, setCustomPoints] = useState(() => {

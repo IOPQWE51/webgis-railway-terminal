@@ -6,6 +6,7 @@ import TacticalBottomSheet from './TacticalBottomSheet'; // 引入战术抽屉
 import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
+import { serializeViewHash } from '../utils/urlState';
 
 // 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
@@ -117,6 +118,23 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
     // 处理窗口尺寸变化
     useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);
+
+    // 🔗 视角深链接：地图移动/缩放后把当前视角写进 URL 哈希
+    // 用 replaceState 不产生历史记录，直接复制地址栏即可分享当前视角
+    useEffect(() => {
+        if (!leafletReady || !mapRef.current) return;
+        const map = mapRef.current;
+        let timer = null;
+        const sync = () => {
+            const c = map.getCenter();
+            const next = serializeViewHash({ lat: c.lat, lon: c.lng, z: map.getZoom() });
+            if (window.location.hash !== next) window.history.replaceState(null, '', next);
+        };
+        const debouncedSync = () => { clearTimeout(timer); timer = setTimeout(sync, 600); };
+        map.on('moveend zoomend', debouncedSync);
+        sync();
+        return () => { clearTimeout(timer); map.off('moveend zoomend', debouncedSync); };
+    }, [leafletReady]);
 
     // 🌌 动态光标引擎
     useEffect(() => {

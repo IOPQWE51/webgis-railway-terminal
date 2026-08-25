@@ -59,7 +59,9 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         }
 
         const newCenter = map.unproject([targetPoint.x + offsetX, targetPoint.y + offsetY], map.getZoom());
-        map.panTo(newCenter, { animate: true, duration: 0.6, easeLinearity: 0.25 });
+        // ⚠️ animate:false —— 实测在页面初始化窗口期发动的动画式平移会被 Leaflet
+        //   静默吞掉（信标落了、镜头不动），瞬移稳定可靠；分享链接场景"秒到"体验也更佳
+        map.panTo(newCenter, { animate: false });
 
         // 🎯 2. 刷新准星信标
         if (targetBeaconRef.current) {
@@ -76,15 +78,33 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         targetBeaconRef.current = L.marker([lat, lng], { icon: beaconIcon, zIndexOffset: 600 }).addTo(map);
     }, [mapRef]);
 
+    // 1. 初始化底图
+    useEffect(() => {
+        if (!leafletReady || !document.getElementById('real-map-container')) return;
+        const L = window.L;
+        if (!mapRef.current) {
+            mapRef.current = L.map('real-map-container', {zoomControl: false,worldCopyJump: true,minZoom: 3,maxBounds: [[-85, -Infinity], [85, Infinity]],maxBoundsViscosity: 1.0}).setView([37.5, 137.5], 4.5);
+            L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
+        }
+        if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
+        baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19}).addTo(mapRef.current);
+    }, [leafletReady, baseMapType, mapRef]);
+
     // 🆕 外部触发定位：当收到 pendingMapTarget 时定位并弹出面板
+    // ⚠️ 必须声明在"初始化底图"效果之后：地图实例在本文件下方才创建，
+    //   若本效果先执行，mapRef.current 还是 null，守卫会静默跳过且永不重跑
+    //   （启动时带分享链接打开页面的场景曾因此完全失效）
+    // ⚠️ 另外必须等地图触发首次 'load' 后再起飞：初始化混沌期内发起的
+    //   panTo 动画会被 Leaflet 静默吞掉（实测信标落了、镜头没动）
     useEffect(() => {
         if (!pendingMapTarget || !leafletReady || !mapRef.current) return;
 
         const pt = pendingMapTarget;
         const style = getIconStyle(pt.category, pt.source);
+        const map = mapRef.current;
 
-        // 延迟执行以确保地图已经完全渲染
-        setTimeout(() => {
+        let timer = null;
+        const flyToTarget = () => {
             updateTargetBeacon(pt.lat, pt.lon);
             openCyberPanel(
                 generatePopupContent(
@@ -97,20 +117,20 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             );
             // 通知父组件已经处理完成
             if (onTargetHandled) onTargetHandled();
-        }, 300);
-    }, [pendingMapTarget, leafletReady, mapRef, onTargetHandled, updateTargetBeacon]);
+        };
+        const onLoad = () => { timer = setTimeout(flyToTarget, 300); };
 
-    // 1. 初始化底图
-    useEffect(() => {
-        if (!leafletReady || !document.getElementById('real-map-container')) return;
-        const L = window.L;
-        if (!mapRef.current) {
-            mapRef.current = L.map('real-map-container', {zoomControl: false,worldCopyJump: true,minZoom: 3,maxBounds: [[-85, -Infinity], [85, Infinity]],maxBoundsViscosity: 1.0}).setView([37.5, 137.5], 4.5);
-            L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
+        if (map._loaded) {
+            timer = setTimeout(flyToTarget, 300);
+        } else {
+            map.once('load', onLoad);
         }
-        if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
-        baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19}).addTo(mapRef.current);
-    }, [leafletReady, baseMapType, mapRef]);
+
+        return () => {
+            clearTimeout(timer);
+            map.off('load', onLoad);
+        };
+    }, [pendingMapTarget, leafletReady, mapRef, onTargetHandled, updateTargetBeacon]);
 
     // 1b. 点击地图任意空白处：战术锁定、绘制信标并打开分析面板
     useEffect(() => {
