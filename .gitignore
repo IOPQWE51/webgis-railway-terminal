@@ -4,7 +4,6 @@ dist
 dist-ssr
 *.local
 .vscode
-.env.claude/settings.json
 .env
 .env.local
 .claude/settings.json
@@ -16,6 +15,9 @@ coverage
 # 测试文件
 api/test-*.js
 .env*.local
+
+# 本地 npm 缓存（沙盒内安装依赖时生成）
+.npm-cache/
 
 # 交接运行结果（不应进入版本库）
 .handoff/
