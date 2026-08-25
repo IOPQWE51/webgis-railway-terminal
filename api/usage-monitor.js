@@ -1,6 +1,8 @@
 // api/usage-monitor.js
 // 📊 API用量监控 - 定期检查各API使用情况，发送警告
 
+import { isMonitorAuthorized } from './validation.js';
+
 /**
  * Mapbox用量监控
  * 免费额度：100,000次/月
@@ -12,10 +14,10 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
     // 验证密钥（防止滥用）
+    // 安全约定：服务端未配置 MONITOR_SECRET_KEY 时一律拒绝，
+    // 绝不回退到硬编码默认值（旧版的 'monitor_secret_change_me' 回退已移除）。
     const { key } = req.query;
-    const MONITOR_KEY = process.env.MONITOR_SECRET_KEY || 'monitor_secret_change_me';
-
-    if (key !== MONITOR_KEY) {
+    if (!isMonitorAuthorized(key, process.env.MONITOR_SECRET_KEY)) {
         return res.status(403).json({ error: 'Forbidden: Invalid monitor key' });
     }
 
@@ -83,10 +85,9 @@ export default async function handler(req, res) {
         res.status(200).json(usageReport);
 
     } catch (error) {
-        console.error('❌ 用量监控失败:', error);
+        console.error('❌ 用量监控失败:', error.message);
         res.status(500).json({
-            error: 'Usage monitoring failed',
-            message: error.message
+            error: 'Usage monitoring failed'
         });
     }
 }
@@ -141,62 +142,5 @@ async function sendUsageAlert(report) {
 
     console.log('📧 用量警告:', report.alerts);
 
-    // TODO: 实现邮件发送逻辑
-    // 示例：
-    // await fetch('https://api.resend.com/emails', {
-    //     method: 'POST',
-    //     headers: {
-    //         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-    //         'Content-Type': 'application/json'
-    //     },
-    //     body: JSON.stringify({
-    //         from: 'monitor@jprail.vercel.app',
-    //         to: 'your@email.com',
-    //         subject: `⚠️ API用量警告 - ${report.summary.alertsCount}个警告`,
-    //         html: generateEmailHTML(report)
-    //     })
-    // });
-}
-
-/**
- * 生成邮件HTML
- */
-function generateEmailHTML(report) {
-    return `
-        <h2>📊 API用量监控报告</h2>
-        <p><strong>时间：</strong>${report.timestamp}</p>
-
-        <h3>📈 API用量详情</h3>
-        <table border="1" cellpadding="10">
-            <tr>
-                <th>API</th>
-                <th>当前用量</th>
-                <th>限额</th>
-                <th>使用率</th>
-                <th>状态</th>
-            </tr>
-            ${Object.entries(report.apis).map(([name, data]) => `
-                <tr>
-                    <td>${name}</td>
-                    <td>${data.currentMonth?.toLocaleString()}</td>
-                    <td>${data.limit?.toLocaleString()}</td>
-                    <td>${data.percentage}</td>
-                    <td>${data.status}</td>
-                </tr>
-            `).join('')}
-        </table>
-
-        ${report.alerts.length > 0 ? `
-            <h3>⚠️ 警告 (${report.alerts.length})</h3>
-            <ul>
-                ${report.alerts.map(alert => `
-                    <li>
-                        <strong>${alert.level.toUpperCase()}:</strong>
-                        ${alert.message}<br>
-                        <em>建议：${alert.recommendation}</em>
-                    </li>
-                `).join('')}
-            </ul>
-        ` : '<p>✅ 所有API用量正常</p>'}
-    `;
+    // TODO: 实现邮件发送逻辑（届时再引入 generateEmailHTML）
 }
