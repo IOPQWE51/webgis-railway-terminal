@@ -4,6 +4,7 @@ import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, Cl
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // 🛫 战术地图整棵子树（MapTactical → MapboxMapTactical → mapbox-gl ≈ 1.7MB）
 // 按需加载：不进首屏 bundle，首次切入战术模式时才拉取异步块
@@ -96,6 +97,7 @@ const App = () => {
         <>
             {/* 🎯 战术模式全屏覆盖 */}
             {isTacticalMode ? (
+                <ErrorBoundary label="战术雷达" onReset={() => setIsTacticalMode(false)}>
                 <Suspense
                     fallback={
                         <div
@@ -114,6 +116,7 @@ const App = () => {
                         onExit={() => setIsTacticalMode(false)}
                     />
                 </Suspense>
+                </ErrorBoundary>
             ) : (
                 <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans selection:bg-green-200 text-gray-800">
                     <div className="max-w-6xl mx-auto">
@@ -219,6 +222,7 @@ const App = () => {
                 </nav>
 
                 <main>
+                  <ErrorBoundary label="主控台">
                     <MapEngine
                         isActive={activeTab === 'map'}
                         customPoints={customPoints}
@@ -253,7 +257,7 @@ const App = () => {
                 <HanabiRadar isActive={true} />
             </div>
         )}
-
+                  </ErrorBoundary>
                     </main>
                 </div>
             </div>
