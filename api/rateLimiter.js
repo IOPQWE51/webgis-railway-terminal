@@ -9,6 +9,7 @@
 //    本实现移除 setInterval，改为 Redis 分布式计数或在 check() 中惰性清理过期记录。
 
 import { Redis } from '@upstash/redis';
+import { getClientIp } from './validation.js';
 
 // ======== 限流器预设配置 ========
 // 三层预设：按 Redis key 命名空间区分，各自互不影响。
@@ -19,6 +20,8 @@ export const RATE_LIMITERS = {
   general: { maxRequests: 60, windowMs: 60_000 },
   // 严格速率限制器（用于昂贵的 API）：每小时最多 10 次请求
   strict: { maxRequests: 10, windowMs: 3_600_000 },
+  // 点位写入限流器（写库操作比读更敏感）：每分钟最多 30 次
+  pointsWrite: { maxRequests: 30, windowMs: 60_000 },
 };
 
 // ======== Upstash Redis 连接（进程内复用，缺失则降级） ========
@@ -137,11 +140,8 @@ export const withRateLimit = (limiterName) => {
   }
 
   return (handler) => async (req, res) => {
-    // 获取客户端 IP
-    const ip =
-      req.headers['x-forwarded-for']?.split(',')[0] ||
-      req.headers['x-real-ip'] ||
-      'unknown';
+    // 获取客户端 IP（validation.getClientIp 取 XFF 链最后一跳，首跳可被客户端伪造）
+    const ip = getClientIp(req.headers);
 
     // Redis 优先，缺失则内存降级
     const redis = getRedis();
