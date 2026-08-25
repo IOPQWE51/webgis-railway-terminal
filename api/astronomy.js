@@ -1,32 +1,55 @@
 // api/astronomy.js
-export default async function handler(req, res) {
+// 🔭 天体位置查询（AstronomyAPI，付费凭证）
+//
+// 2026-08 审查加固：
+// - 挂 strict 限流（10 次/小时/IP）：付费配额不能被脚本白嫖刷爆；
+// - 坐标走 parseCoords 数值校验；日期强制 YYYY-MM-DD 格式，
+//   防止把任意字符拼进上游 URL。
+
+import { withRateLimit } from './rateLimiter.js';
+import { parseCoords } from './validation.js';
+
+async function handleAstronomy(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-    const { lat, lon, date } = req.query;
-    if (!lat || !lon) return res.status(400).json({ error: "缺少坐标" });
+    const coords = parseCoords(req.query);
+    if (!coords) return res.status(400).json({ error: "缺少合法坐标" });
+    const { lat, lon } = coords;
 
-    // 提取极其敏感的 Astronomy API 账号密码
+    const date = req.query.date;
+    const targetDate =
+        typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)
+            ? date
+            : new Date().toISOString().split('T')[0];
+
+    // AstronomyAPI 凭证（仅服务端持有）
     const appId = process.env.ASTRO_APP_ID;
     const appSecret = process.env.ASTRO_APP_SECRET;
-    
-    // 银行级加密拼接 (Basic Auth)
-    const authString = Buffer.from(`${appId}:${appSecret}`).toString('base64');
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    if (!appId || !appSecret) {
+        return res.status(500).json({ error: '服务端未配置 ASTRO 凭证' });
+    }
 
     try {
-        // 请求真实天文台数据 (以太阳、月亮等天体位置为例)
+        const authString = Buffer.from(`${appId}:${appSecret}`).toString('base64');
         const apiUrl = `https://api.astronomyapi.com/api/v2/bodies/positions?latitude=${lat}&longitude=${lon}&elevation=0&from_date=${targetDate}&to_date=${targetDate}&time=12:00:00`;
 
         const astroRes = await fetch(apiUrl, {
-            headers: { 'Authorization': `Basic ${authString}` }
+            headers: { Authorization: `Basic ${authString}` },
         });
-        
+
+        if (!astroRes.ok) {
+            console.error(`AstronomyAPI 上游错误: ${astroRes.status}`);
+            return res.status(502).json({ error: '上游天文数据服务异常' });
+        }
+
         const astroData = await astroRes.json();
-        
         res.status(200).json(astroData);
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "云端天文台连接失败" });
+        console.error('天文台连接失败:', error.message);
+        res.status(500).json({ error: '云端天文台连接失败' });
     }
 }
+
+// 🛡️ 严格限流：付费 API 配额保护（10 次/小时/IP）
+export default withRateLimit('strict')(handleAstronomy);

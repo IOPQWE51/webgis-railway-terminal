@@ -1,16 +1,18 @@
 // api/phenology.js
 // 🌸 植物物候 API - 樱花积温 + 红叶冷刺激 + 残花判定
 
+import { parseCoords } from './validation.js';
+
 export default async function handler(req, res) {
     // 📌 修复 1：加上原生跨域头，彻底解决前端调不通的问题
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
     
-    const { lat, lon } = req.query;
-    
-    if (!lat || !lon) {
+    const coords = parseCoords(req.query);
+    if (!coords) {
         return res.status(400).json({ error: "缺少 lat/lon 参数" });
     }
+    const { lat, lon } = coords;
 
     // 📌 缓存配置 - 7 天边缘缓存
     res.setHeader('Cache-Control', 'public, s-maxage=604800, stale-while-revalidate=86400');
@@ -133,7 +135,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('❌ 物候数据获取失败:', error);
-        res.status(500).json({ error: "物候数据获取失败", message: error.message });
+        res.status(500).json({ error: "物候数据获取失败" });
     }
 }
 

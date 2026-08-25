@@ -4,7 +4,10 @@
 // - 7天缓存（地形数据几乎不变）
 // - 用于判断：山地、高原、平原等地形特征
 
-export default async function handler(req, res) {
+import { withRateLimit } from './rateLimiter.js';
+import { parseCoords } from './validation.js';
+
+async function handleElevation(req, res) {
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -17,8 +20,9 @@ export default async function handler(req, res) {
         res.setHeader('Cache-Control', 'no-cache');
     }
 
-    const { lat, lon } = req.query;
-    if (!lat || !lon) return res.status(400).json({ error: "缺少经纬度参数" });
+    const coords = parseCoords(req.query);
+    if (!coords) return res.status(400).json({ error: "缺少经纬度参数" });
+    const { lat, lon } = coords;
 
     try {
         // Open-Meteo Elevation API（无需API Key）
@@ -49,3 +53,6 @@ export default async function handler(req, res) {
         res.status(500).json({ error: "海拔数据获取失败", elevation: 0 });
     }
 }
+
+// 🛡️ 限流：上游免费但也不该被脚本白嫖刷量
+export default withRateLimit('general')(handleElevation);

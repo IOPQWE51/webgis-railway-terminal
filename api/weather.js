@@ -3,7 +3,10 @@
 // - realtime_weather: 5 分钟缓存（同一个地点，5 分钟内的查询命中缓存）
 // - flowerGDD: 24 小时缓存（一天内气温数据基本不变）
 
-export default async function handler(req, res) {
+import { withRateLimit } from './rateLimiter.js';
+import { parseCoords } from './validation.js';
+
+async function handleWeather(req, res) {
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
@@ -18,11 +21,13 @@ export default async function handler(req, res) {
         res.setHeader('Cache-Control', 'no-cache');
     }
 
-    const { lat, lon } = req.query;
-    if (!lat || !lon) return res.status(400).json({ error: "缺少经纬度参数" });
+    const coords = parseCoords(req.query);
+    if (!coords) return res.status(400).json({ error: "缺少经纬度参数" });
+    const { lat, lon } = coords;
 
-    // 从 Vercel 的环境变量中读取机密 Key
+    // 从 Vercel 的环境变量中读取机密 Key（缺失时明确报错而不是拼出 key=undefined）
     const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+    if (!WEATHER_API_KEY) return res.status(500).json({ error: "服务端未配置 WEATHER_API_KEY" });
 
     try {
         // 📌 策略一：并发请求两个 API（不要串行等待）
@@ -82,3 +87,6 @@ export default async function handler(req, res) {
         res.status(500).json({ error: "云端气象与生态推演失败" });
     }
 }
+
+// 🛡️ 限流：付费 WeatherAPI 配额保护（60 次/分钟/IP；生产环境的边缘缓存会先行吸收重复请求）
+export default withRateLimit('general')(handleWeather);
