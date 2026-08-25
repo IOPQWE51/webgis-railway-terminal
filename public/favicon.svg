@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="ocean" cx="35%" cy="30%" r="80%">
+      <stop offset="0%" stop-color="#67e8f9"/>
+      <stop offset="55%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#164e63"/>
+    </radialGradient>
+  </defs>
+  <!-- 战术网格地球 -->
+  <circle cx="32" cy="32" r="26" fill="url(#ocean)" stroke="#a5f3fc" stroke-width="2.5"/>
+  <ellipse cx="32" cy="32" rx="11" ry="26" fill="none" stroke="#cffafe" stroke-width="1.6" opacity="0.85"/>
+  <ellipse cx="32" cy="32" rx="22" ry="9" fill="none" stroke="#cffafe" stroke-width="1.6" opacity="0.85"/>
+  <line x1="6" y1="32" x2="58" y2="32" stroke="#cffafe" stroke-width="1.6" opacity="0.85"/>
+  <!-- 定位准星 -->
+  <circle cx="41" cy="24" r="5" fill="#facc15" stroke="#fff7cc" stroke-width="1.4"/>
+  <circle cx="41" cy="24" r="8.5" fill="none" stroke="#facc15" stroke-width="1.2" opacity="0.65"/>
+</svg>
