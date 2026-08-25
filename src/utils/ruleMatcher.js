@@ -178,10 +178,14 @@ export const checkConditions = (ruleConditions, envData) => {
             const minCondition = ruleConditions[minField];
             const maxCondition = ruleConditions[maxField];
             
-            // 在 envData 中查找对应字段（可能是小写或其他形式）
-            let inputValue = envData[baseFieldName] || 
-                            envData[normalizeFieldName(baseFieldName)] ||
-                            envData[baseFieldName.toLowerCase()];
+            // 在 envData 中查找对应字段：
+            // 原样 → 全小写 → 首字母小写(camelCase)，覆盖 'Temp'/'temp'/'WindSpeed'/'windSpeed'
+            // ⚠️ 必须用 ?? 而不是 ||：气温 0°C 是合法值，|| 会被 falsy 短路，
+            //   导致 0°C 静默跳过范围检查（曾使 maxTemp:-10 规则误命中 0°C 环境）
+            let inputValue = envData[baseFieldName] ??
+                            envData[normalizeFieldName(baseFieldName)] ??
+                            envData[baseFieldName.toLowerCase()] ??
+                            envData[baseFieldName.charAt(0).toLowerCase() + baseFieldName.slice(1)];
             
             if (inputValue !== undefined) {
                 const rangeMatched = matchRangeCondition(
@@ -332,10 +336,11 @@ const extractRarity = (output) => {
  * @param {Object} envData - 环境数据
  * @param {number} topN - 返回前 N 个建议
  * @param {Object} options - 选项
+ * @param {Array} [rules] - 自定义规则集（默认使用完整规则库，测试可注入夹具）
  * @returns {Array} 顶级建议列表（已按稀有度排序）
  */
-export const getTopSuggestions = (envData, topN = 5, options = {}) => {
-    const matches = matchRules(envData, decisiveMomentRules, options);
+export const getTopSuggestions = (envData, topN = 5, options = {}, rules = decisiveMomentRules) => {
+    const matches = matchRules(envData, rules, options);
 
     // 🎯 双重排序：先按稀有度降序，同稀有度内按分数降序
     matches.sort((a, b) => {
@@ -352,11 +357,12 @@ export const getTopSuggestions = (envData, topN = 5, options = {}) => {
  * 获取按稀有度分组的建议
  * 🎯 优化：每个组内按分数排序，添加友好标签
  * @param {Object} envData - 环境数据
+ * @param {Array} [rules] - 自定义规则集（默认使用完整规则库，测试可注入夹具）
  * @returns {Object} 按稀有度分组的建议（每组内部已按分数排序）
  */
-export const groupSuggestionsByRarity = (envData) => {
+export const groupSuggestionsByRarity = (envData, rules = decisiveMomentRules) => {
     const options = { sortByScore: true, minScore: 0, verbose: false };
-    const matches = matchRules(envData, decisiveMomentRules, options);
+    const matches = matchRules(envData, rules, options);
 
     const grouped = {
         legendary: [],  // 5星 - 极其罕见
