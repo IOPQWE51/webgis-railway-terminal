@@ -34,11 +34,16 @@ describe('buildPointId / truncateName / withPlan', () => {
     expect(buildPointId(10440, 'a4yyy6kt')).toBe('pilg-10440-a4yyy6kt');
   });
 
+  it('pointId 超长截断，ID 总长不超服务端 64 上限', () => {
+    expect(buildPointId(1, 'x'.repeat(60)).length).toBeLessThanOrEqual(64);
+  });
+
   it('名称 ≤120 原样返回，超长截断且不超上限', () => {
     const short = '旧秩父桥';
     expect(truncateName(short)).toBe(short);
     const long = '聖'.repeat(150);
     const cut = truncateName(long);
+    expect(cut).toBe('聖'.repeat(119) + '…');
     expect(cut.length).toBeLessThanOrEqual(120);
     expect(cut.endsWith('…')).toBe(true);
   });
@@ -80,6 +85,30 @@ describe('mapPointCommon · 巡礼点视图模型', () => {
     const vm = mapPointCommon({ id: 'p3', cn: '无名点' });
     expect(vm.lat).toBe(null);
     expect(vm.lon).toBe(null);
+  });
+
+  it('geo 为空数组时 lat/lon 归一为 null（不泄漏 undefined）', () => {
+    const vm = mapPointCommon({ id: 'p5', cn: '空 geo', geo: [] });
+    expect(vm.lat).toBe(null);
+    expect(vm.lon).toBe(null);
+  });
+
+  it('geo 只有纬度时 lon 归一为 null', () => {
+    const vm = mapPointCommon({ id: 'p6', cn: '缺经度', geo: [36.0] });
+    expect(vm.lat).toBe(36.0);
+    expect(vm.lon).toBe(null);
+  });
+
+  it('geo 含 Infinity 时 lat 归一为 null', () => {
+    const vm = mapPointCommon({ id: 'p7', cn: '无限坐标', geo: [Infinity, 139.0] });
+    expect(vm.lat).toBe(null);
+    expect(vm.lon).toBe(139.0);
+  });
+
+  it('cn 缺失时 nameOriginal 不与 name 重复', () => {
+    const vm = mapPointCommon({ id: 'p4', name: 'X' });
+    expect(vm.name).toBe('X');
+    expect(vm.nameOriginal).toBe('');
   });
 });
 
@@ -127,6 +156,17 @@ describe('compactSearchResults · Bangumi 搜索压缩', () => {
     expect(list[0].cover).toBe('');
     expect(compactSearchResults(null)).toEqual([]);
   });
+
+  it('data 非数组（畸形响应）返回空数组而不抛错', () => {
+    expect(compactSearchResults({ data: 'nope' })).toEqual([]);
+  });
+
+  it('data 内 null 项被过滤', () => {
+    const list = compactSearchResults({ data: [null, { id: 1, name: 'A' }] });
+    expect(list).toHaveLength(1);
+    expect(list[0].id).toBe(1);
+    expect(list[0].titleCn).toBe('A');
+  });
 });
 
 describe('toCustomPoint / mergePilgrimagePoints · 推送与去重', () => {
@@ -171,5 +211,23 @@ describe('toCustomPoint / mergePilgrimagePoints · 推送与去重', () => {
     const { added, skipped } = mergePilgrimagePoints([], [pt('p9', '坏点', null, 139.0), pt('p10', '坏点2', Number.NaN, 1)]);
     expect(added).toHaveLength(0);
     expect(skipped).toBe(2);
+  });
+
+  it('坐标非法（undefined/Infinity）同样直接跳过', () => {
+    const { added, skipped } = mergePilgrimagePoints([], [
+      pt('p11', '坏点3', undefined, 139.0),
+      pt('p12', '坏点4', Number.POSITIVE_INFINITY, 139.0),
+    ]);
+    expect(added).toHaveLength(0);
+    expect(skipped).toBe(2);
+  });
+
+  it('合并是纯操作：不修改传入的 existing 数组', () => {
+    const existing = [pt('e1', '旧点位', 1, 1)];
+    const snapshot = existing.map((p) => ({ ...p }));
+    const { merged } = mergePilgrimagePoints(existing, [pt('n1', '新点位', 2, 2)]);
+    expect(merged).not.toBe(existing);
+    expect(existing).toEqual(snapshot);
+    expect(existing).toHaveLength(1);
   });
 });

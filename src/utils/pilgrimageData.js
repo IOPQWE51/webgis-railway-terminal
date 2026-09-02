@@ -6,8 +6,8 @@ const DEFAULT_COLOR = '#ec4899'; // 项目粉色（次元情报中心主题色�
 const MAX_NAME_LEN = 120;        // 与 api/validation.js 的 MAX_NAME_LEN 对齐
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
-/** 推送点位 ID：pilg-{番剧ID}-{点位ID}（服务端上限 64 字符，实测最长约 30） */
-export const buildPointId = (bangumiId, pointId) => `pilg-${bangumiId}-${pointId}`;
+/** 推送点位 ID：pilg-{番剧ID}-{点位ID}（服务端上限 64 字符；pointId 超长截断兜底） */
+export const buildPointId = (bangumiId, pointId) => `pilg-${bangumiId}-${String(pointId).slice(0, 40)}`;
 
 /** 名称超长截断（服务端 400 硬校验是 name≤120，宁可截断也不让整批推送失败） */
 export const truncateName = (name, max = MAX_NAME_LEN) =>
@@ -29,12 +29,12 @@ export function mapPointCommon(p) {
   return {
     id: String(p?.id ?? ''),
     name: p?.cn || p?.name || '未命名圣地',
-    nameOriginal: p?.name && p.name !== p?.cn ? p.name : '',
+    nameOriginal: p?.cn && p?.name && p.name !== p.cn ? p.name : '',
     image: p?.image || '',
     ep: p?.ep ?? null,
     s: p?.s ?? null,
-    lat: geo ? geo[0] : null,
-    lon: geo ? geo[1] : null,
+    lat: Number.isFinite(geo?.[0]) ? geo[0] : null,
+    lon: Number.isFinite(geo?.[1]) ? geo[1] : null,
     origin: p?.origin || '',
     originURL: p?.originURL || '',
   };
@@ -59,7 +59,8 @@ export function mapLiteToViewModel(lite) {
 
 /** Bangumi 搜索原始响应 → 前端卡片所需的压缩列表（最多 12 条） */
 export function compactSearchResults(raw) {
-  return (raw?.data || []).slice(0, 12).map((s) => ({
+  const data = Array.isArray(raw?.data) ? raw.data.filter(Boolean) : [];
+  return data.slice(0, 12).map((s) => ({
     id: s.id,
     titleCn: s.name_cn || s.name || '未知作品',
     titleOriginal: s.name && s.name !== s.name_cn ? s.name : '',
@@ -90,8 +91,8 @@ export function mergePilgrimagePoints(existingPoints, incomingPoints) {
   let skipped = 0;
 
   for (const pt of incomingPoints) {
-    const badCoord =
-      pt.lat === null || pt.lon === null || Number.isNaN(pt.lat) || Number.isNaN(pt.lon);
+    // Number.isFinite(null/undefined/NaN/Infinity) 全为 false，单一谓词覆盖整类非法坐标
+    const badCoord = !Number.isFinite(pt.lat) || !Number.isFinite(pt.lon);
     if (badCoord || existingIds.has(pt.id)) {
       skipped += 1;
       continue;
