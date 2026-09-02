@@ -133,6 +133,10 @@ describe('mapLiteToViewModel · 番剧详情视图模型', () => {
     const noCn = mapLiteToViewModel({ ...LITE_FIXTURE, cn: '' });
     expect(noCn.titleCn).toBe(LITE_FIXTURE.title);
   });
+
+  it('cn 缺失时 titleOriginal 不与 titleCn 重复', () => {
+    expect(mapLiteToViewModel({ ...LITE_FIXTURE, cn: '' }).titleOriginal).toBe('');
+  });
 });
 
 describe('compactSearchResults · Bangumi 搜索压缩', () => {
@@ -166,6 +170,12 @@ describe('compactSearchResults · Bangumi 搜索压缩', () => {
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe(1);
     expect(list[0].titleCn).toBe('A');
+  });
+
+  it('name_cn 缺失时 titleOriginal 不与 titleCn 重复', () => {
+    const list = compactSearchResults({ data: [{ id: 2, name: 'B', date: null, images: {} }] });
+    expect(list[0].titleCn).toBe('B');
+    expect(list[0].titleOriginal).toBe('');
   });
 });
 

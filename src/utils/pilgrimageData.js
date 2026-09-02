@@ -46,7 +46,7 @@ export function mapLiteToViewModel(lite) {
   return {
     id,
     titleCn: lite?.cn || lite?.title || '未知作品',
-    titleOriginal: lite?.title && lite.title !== lite?.cn ? lite.title : '',
+    titleOriginal: lite?.cn && lite?.title && lite.title !== lite.cn ? lite.title : '',
     city: lite?.city || '',
     cover: withPlan(lite?.cover, 'h360'),
     color: COLOR_RE.test(lite?.color || '') ? lite.color : DEFAULT_COLOR,
@@ -63,7 +63,7 @@ export function compactSearchResults(raw) {
   return data.slice(0, 12).map((s) => ({
     id: s.id,
     titleCn: s.name_cn || s.name || '未知作品',
-    titleOriginal: s.name && s.name !== s.name_cn ? s.name : '',
+    titleOriginal: s.name_cn && s.name && s.name !== s.name_cn ? s.name : '',
     date: s.date ? String(s.date).slice(0, 4) : '',
     cover: s.images?.common || s.images?.medium || s.images?.small || '',
   }));
