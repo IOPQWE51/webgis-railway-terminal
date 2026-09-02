@@ -34,6 +34,7 @@ async function handleAnitabi(req, res) {
       return res.status(404).json({ error: '该作品暂无巡礼数据' });
     }
     if (!upstream.ok) {
+      console.error(`❌ anitabi 上游异常: HTTP ${upstream.status}`);
       return res.status(502).json({ error: 'anitabi 上游服务异常' });
     }
     return res.status(200).json(await upstream.json());

@@ -243,6 +243,14 @@ describe('toCustomPoint / mergePilgrimagePoints · 推送与去重', () => {
     expect(skipped).toBe(2);
   });
 
+  it('有限但越界的坐标（lat>90 / lon>180）同样跳过，防整批 400', () => {
+    const { added, skipped } = mergePilgrimagePoints([], [pt('p12', '越界纬', 350.99, 139.0), pt('p13', '越界经', 35.0, -180.5)]);
+    expect(added).toHaveLength(0);
+    expect(skipped).toBe(2);
+    const edge = mergePilgrimagePoints([], [pt('p14', '边界内', 90, 180), pt('p15', '边界内2', -90, -180)]);
+    expect(edge.added).toHaveLength(2);
+  });
+
   it('合并是纯操作：不修改传入的 existing 数组', () => {
     const existing = [pt('e1', '旧点位', 1, 1)];
     const snapshot = existing.map((p) => ({ ...p }));

@@ -95,8 +95,12 @@ export function mergePilgrimagePoints(existingPoints, incomingPoints) {
   let skipped = 0;
 
   for (const pt of incomingPoints) {
-    // Number.isFinite(null/undefined/NaN/Infinity) 全为 false，单一谓词覆盖整类非法坐标
-    const badCoord = !Number.isFinite(pt.lat) || !Number.isFinite(pt.lon);
+    // Number.isFinite(null/undefined/NaN/Infinity) 全为 false，单一谓词覆盖整类非法坐标；
+    // 有限但越界（lat∉[-90,90]/lon∉[-180,180]）同样拦截 —— 与 api/validation.js 的硬校验对齐，
+    // 防"掉位"众包坐标穿过客户端守卫 → 整批 POST 400 → 本地缓存被毒化
+    const badCoord =
+      !Number.isFinite(pt.lat) || !Number.isFinite(pt.lon) ||
+      Math.abs(pt.lat) > 90 || Math.abs(pt.lon) > 180;
     if (badCoord || existingIds.has(pt.id)) {
       skipped += 1;
       continue;

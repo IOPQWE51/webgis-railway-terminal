@@ -29,6 +29,7 @@ async function handleBangumiSearch(req, res) {
       body: JSON.stringify({ keyword: q, filter: { type: [2] } }), // 契约见 bangumi/server handle.go：keyword 单数、type 为整数数组；limit=12 与前端卡片上限对齐（服务端默认仅返回 10）
     });
     if (!upstream.ok) {
+      console.error(`❌ Bangumi 上游异常: HTTP ${upstream.status}`);
       return res.status(502).json({ error: 'Bangumi 上游服务异常' });
     }
     // 极限瘦身：原始响应数百 KB → 12 张卡片所需字段
