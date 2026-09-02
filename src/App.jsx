@@ -264,7 +264,7 @@ const App = () => {
 
                         {activeTab === 'sub-culture' && (
             <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
-                <PilgrimageRadar isActive={true} />
+                <PilgrimageRadar isActive={true} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} />
 
                 {/* 极简分割线，增加空间感 */}
                 <div className="flex items-center justify-center py-4">
