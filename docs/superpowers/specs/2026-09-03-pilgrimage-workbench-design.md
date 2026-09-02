@@ -80,7 +80,8 @@ anitabi API 能力（已确认）：
   `{ "keyword": q, "filter": { "type": [2] } }`（契约以生产源码 bangumi/server handle.go 为准：
   `keyword` 单数必填、`type` 为整数数组），请求头带规范 UA：
   `EarthTerminal/{version} (https://github.com/IOPQWE51/webgis-railway-terminal)`。
-- 响应压缩为 `{ list: [{ id, nameCn, name, date, coverSmall }] }`（最多取前 12 条），
+- 响应压缩为 `{ list: [{ id, titleCn, titleOriginal, date, cover }] }`（最多取前 12 条，
+  与 `src/utils/pilgrimageData.js` 的 `compactSearchResults` 输出一致），
   避免把 bgm.tv 原始大载荷透传给前端。
 - 缓存：`s-maxage=3600`；限流：复用 `withRateLimit` 读预设（搜索成本略高，可独立预设）。
 
