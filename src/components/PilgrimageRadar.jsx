@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Camera, ExternalLink, HeartHandshake, MapPin, Search,
   ArrowLeft, Send, Layers, Loader2, AlertTriangle,
@@ -49,6 +49,9 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [pushFeedback, setPushFeedback] = useState(null); // { added, skipped, capped }
 
+    const openSeqRef = useRef(0);      // 请求序号：丢弃过期响应，防慢请求覆盖新视图
+    const [lastOpenedId, setLastOpenedId] = useState(null); // 供错误态"重试"使用
+
     // 精选墙封面预热（各自独立失败不互相拖垮；生产命中边缘缓存）
     useEffect(() => {
         PILGRIMAGE_PICKS.forEach((p) => {
@@ -59,25 +62,31 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
     }, []);
 
     const openDetail = async (id) => {
+        const seq = ++openSeqRef.current;
+        setLastOpenedId(id);
         setView('detail');
         setDetailLoading(true);
         setDetailError(null);
         setAllPoints(null);
         setPushFeedback(null);
         setSearchResults(null);
+        setLoadingMore(false);
         try {
-            setSelected(await fetchLite(id));
+            const vm = await fetchLite(id);
+            if (seq !== openSeqRef.current) return; // 已被更新的点击取代
+            setSelected(vm);
         } catch (e) {
+            if (seq !== openSeqRef.current) return;
             setSelected(null);
             setDetailError(e.message === 'NO_DATA' ? 'NO_DATA' : 'UPSTREAM');
         } finally {
-            setDetailLoading(false);
+            if (seq === openSeqRef.current) setDetailLoading(false);
         }
     };
 
     const handleSearch = async () => {
         const q = searchQuery.trim();
-        if (!q) return;
+        if (!q || searching) return;
         setSearching(true);
         setSearchError(false);
         try {
@@ -92,13 +101,16 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
 
     const loadAllPoints = async () => {
         if (!selected || loadingMore) return;
+        const seq = openSeqRef.current;
         setLoadingMore(true);
         try {
-            setAllPoints(await fetchAllPoints(selected.id));
+            const pts = await fetchAllPoints(selected.id);
+            if (seq !== openSeqRef.current) return; // 期间切换了番剧，丢弃
+            setAllPoints(pts);
         } catch {
             // 全量加载失败保持前 10 展示，不打断
         } finally {
-            setLoadingMore(false);
+            if (seq === openSeqRef.current) setLoadingMore(false);
         }
     };
 
@@ -265,7 +277,7 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
                                 <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
                                 <p className="font-bold text-gray-700 mb-4">巡礼数据加载失败</p>
                                 <button
-                                    onClick={() => selected?.id ? openDetail(selected.id) : null}
+                                    onClick={() => lastOpenedId && openDetail(lastOpenedId)}
                                     className="bg-pink-500 hover:bg-pink-600 text-white text-sm font-bold py-2 px-5 rounded-xl transition-all active:scale-95"
                                 >
                                     重试
