@@ -700,14 +700,24 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
         }
     };
 
+    // 执行变更注：Task 1 质量审查发现精选总量 2763 > 服务端 MAX_POINTS=2000
+    //（api/validation.js 整库硬上限），故推送层增加容量守卫，超限部分计入反馈。
+    const MAX_POINTS = 2000; // 与 api/validation.js 的 MAX_POINTS 对齐（整库硬上限）
+
     const pushPoints = (vmPoints) => {
         if (!selected || !onPointsUpdate) return;
         const incoming = vmPoints
             .filter((p) => p.lat !== null && p.lon !== null)
             .map((p) => toCustomPoint(selected.id, p));
-        const { merged, added, skipped } = mergePilgrimagePoints(customPoints, incoming);
+        const capacity = Math.max(0, MAX_POINTS - customPoints.length);
+        const capped = incoming.slice(0, capacity);
+        const { merged, added, skipped } = mergePilgrimagePoints(customPoints, capped);
         if (added.length > 0) onPointsUpdate(merged);
-        setPushFeedback({ added: added.length, skipped });
+        setPushFeedback({
+            added: added.length,
+            skipped,
+            capped: incoming.length - capped.length,
+        });
     };
 
     const displayedPoints = allPoints || selected?.points || [];
@@ -914,7 +924,7 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
 
                                 {pushFeedback && (
                                     <div className="mb-4 text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-                                        ✅ 已推送 {pushFeedback.added} 个圣地到点位库{pushFeedback.skipped > 0 ? `，跳过 ${pushFeedback.skipped} 个重复` : ''}。切换到「战术地图」页即可查看。
+                                        ✅ 已推送 {pushFeedback.added} 个圣地到点位库{pushFeedback.skipped > 0 ? `，跳过 ${pushFeedback.skipped} 个重复` : ''}{pushFeedback.capped > 0 ? `；点位库已达 2000 上限，${pushFeedback.capped} 个未推送` : ''}。切换到「战术地图」页即可查看。
                                     </div>
                                 )}
 
