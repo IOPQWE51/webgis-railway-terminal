@@ -593,6 +593,13 @@ git commit -m "feat(config): 精选巡礼番剧名单 —— 8 部实测有效�
 
 - [ ] **Step 1: 全量替换组件**
 
+> **⚠️ 执行修订注记**（规格审查发现计划参考代码的缺陷，以修订为准，已落盘于实现）：
+> 1. UPSTREAM 错误卡的"重试"按钮引用 `selected?.id`，但进入错误态时 `selected` 已被置 null → 死按钮。已改为 `lastOpenedId` state 记录最近请求 id。
+> 2. `openDetail`/`loadAllPoints` 增加请求序号守卫（`openSeqRef`），丢弃过期响应，防慢请求覆盖新视图；`openDetail` 重置时补 `setLoadingMore(false)`。
+> 3. `handleSearch` 增加 `searching` 守卫，Enter 键不再绕过防重复。
+> 4. 计划文本原稿中圣地行的 `S{s}` 为笔误（变量是 `p`），实现为 `S{p.s}`。
+> 组件顶部的 state 区相应新增 `openSeqRef` 与 `lastOpenedId`，import 增加 `useRef`。
+
 用以下内容**整体替换** `src/components/PilgrimageRadar.jsx`：
 
 ```jsx
