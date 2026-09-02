@@ -37,7 +37,8 @@ async function handleAnitabi(req, res) {
       return res.status(502).json({ error: 'anitabi 上游服务异常' });
     }
     return res.status(200).json(await upstream.json());
-  } catch {
+  } catch (err) {
+    console.error('❌ anitabi 上游连接失败:', err);
     return res.status(502).json({ error: 'anitabi 上游连接失败' });
   }
 }
