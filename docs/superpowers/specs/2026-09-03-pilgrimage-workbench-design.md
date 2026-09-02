@@ -76,8 +76,9 @@ anitabi API 能力（已确认）：
 ### `api/bangumi.js`（新增）
 
 - 路由：`GET ?q=<关键词>`，`q` 长度 1~60，去除首尾空白。
-- 转发：`POST https://api.bgm.tv/v0/search/subjects`，body
-  `{ "keywords": q, "filter": { "type": 2 } }`，请求头带规范 UA：
+- 转发：`POST https://api.bgm.tv/v0/search/subjects?limit=12`，body
+  `{ "keyword": q, "filter": { "type": [2] } }`（契约以生产源码 bangumi/server handle.go 为准：
+  `keyword` 单数必填、`type` 为整数数组），请求头带规范 UA：
   `EarthTerminal/{version} (https://github.com/IOPQWE51/webgis-railway-terminal)`。
 - 响应压缩为 `{ list: [{ id, nameCn, name, date, coverSmall }] }`（最多取前 12 条），
   避免把 bgm.tv 原始大载荷透传给前端。

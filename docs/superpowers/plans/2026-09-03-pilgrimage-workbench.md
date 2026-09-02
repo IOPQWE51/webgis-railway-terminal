@@ -56,7 +56,7 @@
 
 要点：图片是**绝对 URL 且已带 `?plan=h160`**（换清晰度就替换 plan 参数值，`h360` 用于详情封面）；无数据的 ID 返回 HTTP 404；点位 `id` 是短字符串（`a4yyy6kt`），根级番剧 `id` 是数字。
 
-**`POST https://api.bgm.tv/v0/search/subjects`** body `{"keywords": q, "filter": {"type": 2}}` → `{ data: [{ id, name, name_cn, date, images: { common, medium, small } }] }`。
+**`POST https://api.bgm.tv/v0/search/subjects`** body `{"keyword": q, "filter": {"type": [2]}}`（⚠️ `keyword` 单数、`type` 为整数数组 —— 生产源码 bangumi/server handle.go 实证；早期文本误写为 `keywords`+`type:2`，会让每次搜索 400）→ `{ data: [{ id, name, name_cn, date, images: { common, medium, small } }] }`（`?limit=12` 可调单页数量，默认 10、最大 20）。
 
 ### 精选名单（8 部，全部实测有效，直接烤进配置）
 
@@ -516,10 +516,10 @@ async function handleBangumiSearch(req, res) {
   }
 
   try {
-    const upstream = await fetch('https://api.bgm.tv/v0/search/subjects', {
+    const upstream = await fetch('https://api.bgm.tv/v0/search/subjects?limit=12', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body: JSON.stringify({ keywords: q, filter: { type: 2 } }), // type=2 动画
+      body: JSON.stringify({ keyword: q, filter: { type: [2] } }), // 契约：keyword 单数 + type 整数数组（生产源码实证）；limit=12 对齐前端卡片上限
     });
     if (!upstream.ok) {
       return res.status(502).json({ error: 'Bangumi 上游服务异常' });

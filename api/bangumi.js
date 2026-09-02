@@ -23,10 +23,10 @@ async function handleBangumiSearch(req, res) {
   }
 
   try {
-    const upstream = await fetch('https://api.bgm.tv/v0/search/subjects', {
+    const upstream = await fetch('https://api.bgm.tv/v0/search/subjects?limit=12', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body: JSON.stringify({ keywords: q, filter: { type: 2 } }), // type=2 动画
+      body: JSON.stringify({ keyword: q, filter: { type: [2] } }), // 契约见 bangumi/server handle.go：keyword 单数、type 为整数数组；limit=12 与前端卡片上限对齐（服务端默认仅返回 10）
     });
     if (!upstream.ok) {
       return res.status(502).json({ error: 'Bangumi 上游服务异常' });
@@ -36,7 +36,7 @@ async function handleBangumiSearch(req, res) {
     return res.status(200).json({ list: compactSearchResults(raw) });
   } catch (err) {
     console.error('❌ Bangumi 上游连接失败:', err);
-    return res.status(502).json({ error: 'Bangumi 上游连接失败（本地网络可能无法访问 bgm.tv，生产环境正常）' });
+    return res.status(502).json({ error: 'Bangumi 上游不可达或响应异常（本地网络可能无法访问 bgm.tv，生产环境正常）' });
   }
 }
 
