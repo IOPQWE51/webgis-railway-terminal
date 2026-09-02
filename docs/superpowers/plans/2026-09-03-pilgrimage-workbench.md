@@ -598,7 +598,14 @@ git commit -m "feat(config): 精选巡礼番剧名单 —— 8 部实测有效�
 > 2. `openDetail`/`loadAllPoints` 增加请求序号守卫（`openSeqRef`），丢弃过期响应，防慢请求覆盖新视图；`openDetail` 重置时补 `setLoadingMore(false)`。
 > 3. `handleSearch` 增加 `searching` 守卫，Enter 键不再绕过防重复。
 > 4. 计划文本原稿中圣地行的 `S{s}` 为笔误（变量是 `p`），实现为 `S{p.s}`。
+> 5. 质量审查追加（84328e1）：`originURL`/`image` 走 http(s) 协议白名单（`safeExternalUrl`）；IME 组合态 Enter 守卫；推送改为**先去重后限量**；`MAX_POINTS` 提升到模块作用域并插值进文案。
 > 组件顶部的 state 区相应新增 `openSeqRef` 与 `lastOpenedId`，import 增加 `useRef`。
+
+> **⚠️ Task 1 代码块的后续强化**（实现为准，计划原稿保留历史）：去重阈值含 IEEE-754
+> 边界容差（`< 1e-4 - 1e-12`，00f5764）；badCoord 谓词最终形态为
+> `!Number.isFinite(lat/lon) || |lat|>90 || |lon|>180`（141e81d，与
+> `api/validation.js` 的坐标范围硬校验完全对齐）；`originURL`/`image` 经
+> `safeExternalUrl` 白名单（84328e1）。
 
 用以下内容**整体替换** `src/components/PilgrimageRadar.jsx`：
 
@@ -707,8 +714,9 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
         }
     };
 
-    // 执行变更注：Task 1 质量审查发现精选总量 2763 > 服务端 MAX_POINTS=2000
-    //（api/validation.js 整库硬上限），故推送层增加容量守卫，超限部分计入反馈。
+    // 执行变更注（终版，随 84328e1/141e81d 更新）：精选总量 2763 > 服务端
+    // MAX_POINTS=2000（api/validation.js 整库硬上限）→ 推送层容量守卫；
+    // 且**先去重后限量**（重复点位不占容量名额，反馈计数构成精确划分）。
     const MAX_POINTS = 2000; // 与 api/validation.js 的 MAX_POINTS 对齐（整库硬上限）
 
     const pushPoints = (vmPoints) => {
@@ -716,15 +724,14 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
         const incoming = vmPoints
             .filter((p) => p.lat !== null && p.lon !== null)
             .map((p) => toCustomPoint(selected.id, p));
+        const { added, skipped } = mergePilgrimagePoints(customPoints, incoming);
         const capacity = Math.max(0, MAX_POINTS - customPoints.length);
-        const capped = incoming.slice(0, capacity);
-        const { merged, added, skipped } = mergePilgrimagePoints(customPoints, capped);
-        if (added.length > 0) onPointsUpdate(merged);
-        setPushFeedback({
-            added: added.length,
-            skipped,
-            capped: incoming.length - capped.length,
-        });
+        const accepted = added.slice(0, capacity);
+        const cappedCount = added.length - accepted.length;
+        if (accepted.length > 0) {
+            onPointsUpdate([...customPoints, ...accepted]);
+        }
+        setPushFeedback({ added: accepted.length, skipped, capped: cappedCount });
     };
 
     const displayedPoints = allPoints || selected?.points || [];
