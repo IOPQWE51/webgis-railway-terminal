@@ -72,6 +72,17 @@ describe('mapPointCommon · 巡礼点视图模型', () => {
     });
   });
 
+  it('originURL/image 仅放行 http(s) 协议，其余回退空串', () => {
+    const vm = mapPointCommon({
+      id: 'p5', cn: '神社', geo: [1, 2],
+      origin: 'A', originURL: 'javascript:alert(1)', image: 'data:text/html,x',
+    });
+    expect(vm.originURL).toBe('');
+    expect(vm.image).toBe('');
+    const ok = mapPointCommon({ id: 'p6', cn: 'x', geo: [1, 2], originURL: 'https://anitabi.cn/u/1' });
+    expect(ok.originURL).toBe('https://anitabi.cn/u/1');
+  });
+
   it('缺图、缺 ep/s、缺 origin 时给安全兜底值', () => {
     const vm = mapPointCommon({ id: 'p2', cn: '某神社', geo: [1.23, 4.56] });
     expect(vm.image).toBe('');

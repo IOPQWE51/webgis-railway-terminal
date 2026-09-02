@@ -23,6 +23,10 @@ export function withPlan(url, plan = 'h160') {
   return url.includes('?') ? `${url}&plan=${plan}` : `${url}?plan=${plan}`;
 }
 
+/** 仅放行 http(s) 外链（originURL/图片 URL 来自上游社区贡献，防 javascript: 伪协议注入） */
+const safeExternalUrl = (url, fallback = '') =>
+  /^https?:\/\//i.test(url || '') ? url : fallback;
+
 /** lite 与 points/detail 的点位通用映射（两者字段一致：id/cn/name/image/ep/s/geo/origin） */
 export function mapPointCommon(p) {
   const geo = Array.isArray(p?.geo) ? p.geo : null;
@@ -30,13 +34,13 @@ export function mapPointCommon(p) {
     id: String(p?.id ?? ''),
     name: p?.cn || p?.name || '未命名圣地',
     nameOriginal: p?.cn && p?.name && p.name !== p.cn ? p.name : '',
-    image: p?.image || '',
+    image: safeExternalUrl(p?.image, ''),
     ep: p?.ep ?? null,
     s: p?.s ?? null,
     lat: Number.isFinite(geo?.[0]) ? geo[0] : null,
     lon: Number.isFinite(geo?.[1]) ? geo[1] : null,
     origin: p?.origin || '',
-    originURL: p?.originURL || '',
+    originURL: safeExternalUrl(p?.originURL, ''),
   };
 }
 
