@@ -39,10 +39,15 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
     // 🔧 根据环境自动选择 Token
     // 开发环境使用 DEV Token（允许 localhost）
     // 生产环境使用 PROD Token（仅允许 Vercel 域名）
+    // 兜底链：环境值可能残留粘贴时的空白字符（trim 兜底），
+    // 均缺失时退回前端公开 token（VITE_ 变量同样注入 serverless 运行时）
     const isDevelopment = process.env.NODE_ENV === 'development' || !process.env.VERCEL_ENV;
-    const MAPBOX_TOKEN = isDevelopment
-        ? process.env.MAPBOX_ACCESS_TOKEN_DEV
-        : process.env.MAPBOX_ACCESS_TOKEN_PROD;
+    const MAPBOX_TOKEN = [
+        isDevelopment ? process.env.MAPBOX_ACCESS_TOKEN_DEV : process.env.MAPBOX_ACCESS_TOKEN_PROD,
+        process.env.MAPBOX_ACCESS_TOKEN_DEV,
+        process.env.MAPBOX_ACCESS_TOKEN_PROD,
+        process.env.VITE_MAPBOX_ACCESS_TOKEN,
+    ].map(v => (typeof v === 'string' ? v.trim() : '')).find(Boolean);
 
     if (!MAPBOX_TOKEN) {
         return res.status(500).json({ error: `未配置 Mapbox Access Token (环境: ${isDevelopment ? 'development' : 'production'})` });
@@ -58,7 +63,9 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
             `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${MAPBOX_TOKEN}&limit=5&language=zh`
         );
         if (!geoRes.ok) {
-            console.error(`❌ Mapbox 顺向地理编码上游异常: HTTP ${geoRes.status}`);
+            // 只记录指纹（前缀/长度/尾4位），绝不输出完整 token
+            const fp = `${MAPBOX_TOKEN.slice(0, 3)}…len=${MAPBOX_TOKEN.length}…${MAPBOX_TOKEN.slice(-4)}`;
+            console.error(`❌ Mapbox 顺向地理编码上游异常: HTTP ${geoRes.status} token指纹[${fp}] 环境[${isDevelopment ? 'dev' : 'prod'}]`);
             return res.status(502).json({ error: '地理编码服务暂不可用' });
         }
         const raw = await geoRes.json();
