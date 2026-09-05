@@ -8,16 +8,19 @@
 //   多余字段一律剥离，防止脏数据/注入载荷进入云端库；
 // - 读写分别限流：读走 general（60/min），写走 pointsWrite（30/min），
 //   IP 取 XFF 链最后一跳（首跳可伪造）；
-// - Redis 客户端进程内单例复用，避免每次请求重建连接。
+// - Redis 客户端进程内单例复用，避免每次请求重建连接；
+// - 2026-09 起按用户隔离：读写在 et_session 会话之下进行（points:<username>），
+//   匿名请求一律 401；旧全局池由 api/auth.js 注册认领机制一次性迁移。
 
 import { Redis } from '@upstash/redis';
 import { withRateLimit } from './rateLimiter.js';
 import { validatePointsPayload, MAX_POINTS } from './validation.js';
+import { getSessionUsername } from './auth.js';
 
-const DB_KEYS = {
-  global: 'earth_terminal_global_points',
-  dark2d: 'earth_terminal_dark2d_points',
-};
+// 点位键按用户名隔离：主库 points:<u>，战术库 points:<u>:dark2d
+export function pointsKeyFor(username, scope) {
+  return scope === 'dark2d' ? `points:${username}:dark2d` : `points:${username}`;
+}
 
 const MAX_BODY_BYTES = 1_000_000; // 2000 条点位远小于此值；超出即视为滥用
 
@@ -35,18 +38,17 @@ function getRedis() {
   return _redis;
 }
 
-function resolveDbKey(req) {
-  const scope = req.query?.scope === 'dark2d' ? 'dark2d' : 'global';
-  return { scope, dbKey: DB_KEYS[scope] };
-}
-
 async function readPoints(req, res) {
   const redis = getRedis();
   if (!redis) {
     return res.status(500).json({ error: 'KV 数据库未配置，请在 Vercel 控制台连接 KV 实例' });
   }
-  const { scope, dbKey } = resolveDbKey(req);
-  const points = (await redis.get(dbKey)) || [];
+  const username = await getSessionUsername(req);
+  if (!username) {
+    return res.status(401).json({ error: '需要登录' });
+  }
+  const scope = req.query?.scope === 'dark2d' ? 'dark2d' : 'main';
+  const points = (await redis.get(pointsKeyFor(username, scope))) || [];
   return res.status(200).json({ source: 'cloud', scope, data: points });
 }
 
@@ -67,7 +69,12 @@ async function writePoints(req, res) {
     return res.status(500).json({ error: 'KV 数据库未配置，请在 Vercel 控制台连接 KV 实例' });
   }
 
-  const { scope, dbKey } = resolveDbKey(req);
+  const username = await getSessionUsername(req);
+  if (!username) {
+    return res.status(401).json({ error: '需要登录' });
+  }
+  const scope = req.query?.scope === 'dark2d' ? 'dark2d' : 'main';
+  const dbKey = pointsKeyFor(username, scope);
   await redis.set(dbKey, result.points);
   return res.status(200).json({
     success: true,
