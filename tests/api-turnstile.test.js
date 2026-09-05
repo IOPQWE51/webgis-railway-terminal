@@ -48,4 +48,24 @@ describe('Turnstile 人机验证门控', () => {
         globalThis.fetch = vi.fn(async () => { throw new Error('net down'); });
         expect(await verifyTurnstile('tok')).toBe(false);
     });
+
+    it('🧪 测试后门：TEST_BYPASS=1 且 DUMMY 形态令牌直接放行，不打 siteverify', async () => {
+        process.env.TURNSTILE_TEST_BYPASS = '1';
+        expect(await verifyTurnstile('XXXX.DUMMY.TOKEN.XXXX')).toBe(true);
+        expect(globalThis.fetch).not.toHaveBeenCalled();
+    });
+
+    it('未开后门时 DUMMY 令牌照常走真校验（不放行）', async () => {
+        delete process.env.TURNSTILE_TEST_BYPASS;
+        globalThis.fetch = vi.fn(async () => ({ json: async () => ({ success: false }) }));
+        expect(await verifyTurnstile('XXXX.DUMMY.TOKEN.XXXX')).toBe(false);
+        expect(globalThis.fetch).toHaveBeenCalled();
+    });
+
+    it('开了后门但普通令牌仍走真校验（后门只认 DUMMY 形态）', async () => {
+        process.env.TURNSTILE_TEST_BYPASS = '1';
+        globalThis.fetch = vi.fn(async () => ({ json: async () => ({ success: true }) }));
+        expect(await verifyTurnstile('real-token', '1.2.3.4')).toBe(true);
+        expect(globalThis.fetch).toHaveBeenCalled();
+    });
 });

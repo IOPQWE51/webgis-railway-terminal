@@ -263,6 +263,10 @@ export function turnstileEnforced() {
 export async function verifyTurnstile(token, remoteip) {
     if (!turnstileEnforced()) return true;
     if (typeof token !== 'string' || token === '') return false;
+    // 🧪 测试后门（与前端 ?test=1 配套）：官方测试站点密钥 1x00...AA 签发的令牌
+    //    以 "XXXX.DUMMY.TOKEN.XXXX" 为固定形态——生产 widget 绝无可能签出这种值，
+    //    故无需触碰真 secret 即可让自动化回归放行，且显式开启 TEST_BYPASS 才生效
+    if (process.env.TURNSTILE_TEST_BYPASS === '1' && token.includes('DUMMY.TOKEN')) return true;
     try {
         const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
             method: 'POST',
