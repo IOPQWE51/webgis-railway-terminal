@@ -99,27 +99,27 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
         <div
             ref={overlayRef}
             onKeyDown={handleOverlayKeyDown}
-            className="fixed inset-0 z-[4000] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[4000] flex items-center justify-center bg-gradient-to-br from-sky-100/85 via-white/80 to-pink-50/85 backdrop-blur-xl p-4"
             role="dialog"
             aria-modal="true"
             aria-label="身份认证"
         >
-            <div className="relative w-full max-w-md bg-zinc-900 border border-amber-400/40 rounded-3xl shadow-2xl p-8 font-mono">
-                <button onClick={onClose} aria-label="关闭" className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-zinc-700 text-zinc-400 hover:text-amber-300 hover:border-amber-400/50 transition-colors">
+            <div className="relative w-full max-w-md bg-white/95 border border-slate-200/80 rounded-3xl shadow-xl shadow-sky-900/5 p-8 font-mono">
+                <button onClick={onClose} aria-label="关闭" className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-sky-500 hover:border-sky-300 transition-colors">
                     <X className="w-4 h-4 mx-auto" />
                 </button>
 
-                <p className="text-amber-400 text-[10px] tracking-[0.35em] uppercase mb-1">UPLINK TERMINAL</p>
-                <h2 className="text-amber-300 text-xl font-black tracking-widest mb-1">
+                <p className="text-cyan-500 text-[10px] tracking-[0.35em] uppercase mb-1">UPLINK TERMINAL</p>
+                <h2 className="text-slate-800 text-xl font-black tracking-widest mb-1">
                     {mode === 'login' ? '建立上行链路' : '注册新终端节点'}
                 </h2>
-                <p className="text-zinc-500 text-xs mb-4">STATION MASTER ON DUTY · 猫站长值机中</p>
+                <p className="text-slate-400 text-xs mb-4">STATION MASTER ON DUTY · 猫站长值机中</p>
 
                 <StationMasterCat state={cat.name} inputLength={cat.inputLength} />
 
                 <form onSubmit={submit} className="space-y-3 mt-2">
                     <label className="block">
-                        <span className="text-zinc-400 text-[10px] tracking-[0.25em] uppercase">节点代号 NODE ID</span>
+                        <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">节点代号 NODE ID</span>
                         <input
                             ref={usernameRef}
                             type="text"
@@ -130,11 +130,11 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             onChange={(e) => { setUsername(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
                             onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: username.length })}
                             onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
-                            className="mt-1 w-full bg-black/60 border border-zinc-700 focus:border-amber-400/60 rounded-xl px-4 py-2.5 text-amber-200 text-sm outline-none transition-colors"
+                            className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors"
                         />
                     </label>
                     <label className="block">
-                        <span className="text-zinc-400 text-[10px] tracking-[0.25em] uppercase">访问密钥 ACCESS KEY</span>
+                        <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">访问密钥 ACCESS KEY</span>
                         <input
                             type="password"
                             value={password}
@@ -143,14 +143,14 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             onChange={(e) => setPassword(e.target.value)}
                             onFocus={() => dispatchCat({ type: 'PASSWORD_FOCUS' })}
                             onBlur={() => dispatchCat({ type: 'PASSWORD_BLUR' })}
-                            className="mt-1 w-full bg-black/60 border border-zinc-700 focus:border-amber-400/60 rounded-xl px-4 py-2.5 text-amber-200 text-sm outline-none transition-colors"
+                            className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors"
                         />
                     </label>
 
                     {/* Fix 6：aria-live 容器常驻（空态输出不换行空格占位），读屏才能可靠播报动态插入的消息 */}
                     <p
                         aria-live="polite"
-                        className={`text-xs font-bold ${message?.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}
+                        className={`text-xs font-bold ${message?.type === 'error' ? 'text-red-500' : 'text-emerald-600'}`}
                     >
                         {message ? `${message.type === 'error' ? '> SIGNAL LOST: ' : '> '}${message.text}` : '\u00A0'}
                     </p>
@@ -158,17 +158,17 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                     <button
                         type="submit"
                         disabled={locked || !username || !password}
-                        className="w-full py-3 rounded-xl bg-amber-400 text-zinc-900 font-black tracking-[0.3em] text-sm hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="w-full py-3 rounded-xl bg-cyan-500 text-white font-black tracking-[0.3em] text-sm shadow-sm hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                         {mode === 'login' ? '▶ 建立上行链路' : '▸ 注册新节点'}
                     </button>
                 </form>
 
                 <div className="flex justify-center gap-2 mt-4">
-                    <button onClick={() => switchMode('login')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'login' ? 'border-amber-400/60 text-amber-300' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}>登录</button>
-                    <button onClick={() => switchMode('register')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'register' ? 'border-amber-400/60 text-amber-300' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'}`}>注册</button>
+                    <button onClick={() => switchMode('login')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'login' ? 'border-cyan-400 text-cyan-600 bg-cyan-50' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>登录</button>
+                    <button onClick={() => switchMode('register')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'register' ? 'border-cyan-400 text-cyan-600 bg-cyan-50' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>注册</button>
                 </div>
-                <p className="text-zinc-600 text-[10px] text-center mt-4 tracking-wider">匿名模式下数据仅保存在本机 · 建立链路后跨设备漫游</p>
+                <p className="text-slate-400 text-[10px] text-center mt-4 tracking-wider">匿名模式下数据仅保存在本机 · 建立链路后跨设备漫游</p>
             </div>
         </div>
     );

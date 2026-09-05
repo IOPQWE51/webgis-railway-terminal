@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>作战指挥部 · Admin</title>
+<style>
+    /* 🛡️ 独立管理页：浅色简洁风，与主站清新化方向一致；零外部依赖 */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+        font-family: ui-monospace, "Courier New", Consolas, monospace;
+        min-height: 100vh;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 45%, #fdf2f8 100%);
+        color: #1e293b; padding: 24px;
+    }
+    .card {
+        width: 100%; max-width: 640px;
+        background: rgba(255,255,255,.95); border: 1px solid #e2e8f0;
+        border-radius: 24px; padding: 32px;
+        box-shadow: 0 10px 40px rgba(15,23,42,.08);
+    }
+    .eyebrow { color: #0891b2; font-size: 10px; letter-spacing: .35em; text-transform: uppercase; margin-bottom: 4px; }
+    h1 { font-size: 20px; letter-spacing: .1em; margin-bottom: 4px; }
+    .sub { color: #94a3b8; font-size: 12px; margin-bottom: 24px; }
+    label { display: block; margin-bottom: 12px; }
+    label span { display: block; color: #64748b; font-size: 10px; letter-spacing: .25em; text-transform: uppercase; margin-bottom: 4px; }
+    input {
+        width: 100%; padding: 10px 14px; font: inherit; font-size: 14px;
+        background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+        color: #1e293b; outline: none; transition: border-color .2s;
+    }
+    input:focus { border-color: #22d3ee; }
+    button {
+        font: inherit; cursor: pointer; border-radius: 12px; transition: all .2s;
+        border: 1px solid transparent;
+    }
+    .primary { width: 100%; padding: 12px; margin-top: 8px; background: #06b6d4; color: #fff; font-weight: 900; letter-spacing: .3em; font-size: 13px; }
+    .primary:hover { background: #22d3ee; }
+    .primary:disabled { opacity: .4; cursor: not-allowed; }
+    .ghost { padding: 6px 14px; background: transparent; border-color: #e2e8f0; color: #64748b; font-size: 12px; font-weight: 700; }
+    .ghost:hover { background: #f1f5f9; }
+    .danger { padding: 4px 10px; background: transparent; border-color: #fecaca; color: #dc2626; font-size: 11px; font-weight: 700; }
+    .danger:hover { background: #fef2f2; }
+    .msg { min-height: 18px; font-size: 12px; font-weight: 700; margin-top: 10px; }
+    .msg.err { color: #dc2626; }
+    .msg.ok { color: #059669; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    th { text-align: left; color: #94a3b8; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; padding: 8px 6px; border-bottom: 1px solid #e2e8f0; }
+    td { padding: 10px 6px; border-bottom: 1px solid #f1f5f9; }
+    tr:hover td { background: #f8fafc; }
+    .toolbar { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; }
+    .empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 24px 0; }
+    .hidden { display: none; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; font-size: 11px; font-weight: 700; }
+</style>
+</head>
+<body>
+    <div class="card">
+        <!-- 登录视图 -->
+        <div id="loginView">
+            <p class="eyebrow">Command Center</p>
+            <h1>作战指挥部</h1>
+            <p class="sub">ADMIN CONSOLE · 仅限站长进入</p>
+            <form id="loginForm">
+                <label><span>管理员账号</span><input type="text" id="username" autocomplete="username" spellCheck="false" /></label>
+                <label><span>管理密码</span><input type="password" id="password" autocomplete="current-password" /></label>
+                <p id="loginMsg" class="msg"></p>
+                <button type="submit" class="primary" id="loginBtn">▶ 进入指挥部</button>
+            </form>
+        </div>
+
+        <!-- 管理视图 -->
+        <div id="panelView" class="hidden">
+            <p class="eyebrow">Command Center</p>
+            <h1>用户账号管理</h1>
+            <p class="sub">USER REGISTRY · 删除会同时清理该用户的云端点位库，不可恢复</p>
+            <p id="panelMsg" class="msg"></p>
+            <div id="tableWrap"><p class="empty">加载中...</p></div>
+            <div class="toolbar">
+                <button class="ghost" id="refreshBtn">↻ 刷新名单</button>
+                <button class="ghost" id="logoutBtn">断开管理员链路</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const showLogin = () => { $('loginView').classList.remove('hidden'); $('panelView').classList.add('hidden'); };
+    const showPanel = () => { $('panelView').classList.remove('hidden'); $('loginView').classList.add('hidden'); };
+    const setMsg = (id, text, isErr) => { const el = $(id); el.textContent = text || '\u00A0'; el.className = 'msg' + (isErr ? ' err' : ' ok'); };
+
+    async function loadUsers() {
+        $('tableWrap').innerHTML = '<p class="empty">加载中...</p>';
+        try {
+            const res = await fetch('/api/admin?action=list');
+            if (res.status === 401) { showLogin(); return; }
+            const json = await res.json();
+            if (!res.ok) { setMsg('panelMsg', json.error || '加载失败', true); return; }
+            const users = json.users || [];
+            if (users.length === 0) { $('tableWrap').innerHTML = '<p class="empty">还没有注册用户</p>'; return; }
+            const rows = users.map(u => `
+                <tr>
+                    <td><span class="badge">NODE: ${escapeHtml(u.username)}</span></td>
+                    <td>${u.createdAt ? new Date(u.createdAt).toLocaleString('zh-CN') : '—'}</td>
+                    <td>${u.pointsCount ?? '—'}</td>
+                    <td><button class="danger" data-user="${escapeHtml(u.username)}">删除</button></td>
+                </tr>`).join('');
+            $('tableWrap').innerHTML = `
+                <table>
+                    <thead><tr><th>节点代号</th><th>注册时间</th><th>点位数</th><th>操作</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>`;
+            $('tableWrap').querySelectorAll('button.danger').forEach(btn => {
+                btn.addEventListener('click', () => deleteUser(btn.dataset.user));
+            });
+        } catch {
+            setMsg('panelMsg', '网络异常，请检查连接', true);
+        }
+    }
+
+    async function deleteUser(username) {
+        if (!confirm(`确定删除用户 ${username} 吗？\n该用户的云端点位库（含战术库）将被一并清理，不可恢复。`)) return;
+        try {
+            const res = await fetch('/api/admin?action=delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) { setMsg('panelMsg', json.error || '删除失败', true); return; }
+            setMsg('panelMsg', `已删除 ${username}`, false);
+            loadUsers();
+        } catch {
+            setMsg('panelMsg', '网络异常，请检查连接', true);
+        }
+    }
+
+    // 页面内容转义，防 store-XSS（用户名等 KV 数据渲染前一律过这里）
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    $('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        $('loginBtn').disabled = true;
+        setMsg('loginMsg', '');
+        try {
+            const res = await fetch('/api/admin?action=login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: $('username').value, password: $('password').value })
+            });
+            const json = await res.json().catch(() => ({}));
+            if (res.ok) {
+                $('password').value = '';
+                showPanel();
+                loadUsers();
+            } else {
+                setMsg('loginMsg', json.message || json.error || '登录失败', true);
+            }
+        } catch {
+            setMsg('loginMsg', '网络异常，请检查连接', true);
+        } finally {
+            $('loginBtn').disabled = false;
+        }
+    });
+
+    $('refreshBtn').addEventListener('click', loadUsers);
+    $('logoutBtn').addEventListener('click', async () => {
+        try { await fetch('/api/admin?action=logout', { method: 'POST' }); } catch { /* 忽略网络错误 */ }
+        showLogin();
+    });
+
+    // 进入页面先试会话恢复：有效管理 Cookie 直接进面板
+    (async () => {
+        try {
+            const res = await fetch('/api/admin?action=list');
+            if (res.ok) { showPanel(); loadUsers(); } else { showLogin(); }
+        } catch { showLogin(); }
+    })();
+</script>
+</body>
+</html>
