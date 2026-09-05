@@ -4,7 +4,7 @@
 //     user:<username>   → { hash, createdAt }
 //     points:<username> → 点位数组（写入前经 validatePointsPayload 硬校验）
 // - 会话 Cookie：et_session（HttpOnly / SameSite=Lax，生产追加 Secure）
-// - 端点：POST ?action=register|login|logout、GET ?action=me（register/login 走 strict 限流防爆破）
+// - 端点：POST ?action=register|login|logout、GET ?action=me（register/login 走 auth 限流防爆破）
 // - 遗留迁移：首个注册用户自动认领旧全局池 earth_terminal_global_points，旧键改名归档
 
 import { Redis } from '@upstash/redis';
@@ -109,17 +109,28 @@ export async function buildUserRecord(password) {
 
 // 一次性迁移：旧全局池搬进新注册用户名下，旧键改名归档（先到先得）
 export async function claimLegacyPool(kv, username) {
+    // 全局认领锁：跨用户并发注册时保证"先到先得"——仅靠 nx 占坑只能防同名并发，
+    // 两个不同用户会在对方写入前都 get 到遗留池并各自 set 到自己的 points:<user> 键，
+    // 遗留池被复制进两个账户；ex TTL 兜底持锁方崩溃后锁可自动恢复
+    const lockKey = 'lock:legacy_pool_claim';
+    const locked = await kv.set(lockKey, username, { nx: true, ex: 60 });
+    if (locked !== 'OK') return 0;
     const legacy = await kv.get(LEGACY_GLOBAL_KEY);
     if (!Array.isArray(legacy)) return 0;
     const result = validatePointsPayload(legacy);
     // 🚧 整包校验失败：不搬不删，保留现场待人工处理——一条脏数据绝不清空整个遗留池
-    if (!result.ok) return -1;
+    if (!result.ok) {
+        // 尽力释放锁（失败由 ex TTL 兜底）：运营清完脏数据后其他用户仍有机会认领
+        try { await kv.delete(lockKey); } catch { /* 释放失败 60s 后锁自动过期 */ }
+        return -1;
+    }
     const points = result.points;
-    // 🏁 nx 占坑防认领竞态：多实例同时迁移时只有一方写入成功
+    // 🏁 nx 占坑防同名竞态：全局锁已保证跨用户先到先得，这里占坑失败说明该用户名下
+    // 已有自己的点位库：归档遗留池后放弃写入，绝不覆盖既有数据
+    // 成功路径保留锁作为永久认领标记，防止锁过期后被重复迁移
     const claimed = await kv.set(`points:${username}`, points, { nx: true }) === 'OK';
     await kv.set(`earth_terminal_global_points_claimed_${Date.now()}`, points);
     await kv.delete(LEGACY_GLOBAL_KEY);
-    // 占坑失败说明该用户名下已有自己的点位库：归档遗留池后放弃写入，绝不覆盖既有数据
     return claimed ? points.length : 0;
 }
 
@@ -158,9 +169,9 @@ function requireSecret(res) {
     return true;
 }
 
-// ---------- 端点（register/login 走 strict 档防爆破） ----------
+// ---------- 端点（register/login 走 auth 档防爆破） ----------
 
-const registerHandler = withRateLimit('strict')(async (req, res) => {
+const registerHandler = withRateLimit('auth')(async (req, res) => {
     if (!requireSecret(res)) return;
     if (process.env.ALLOW_REGISTRATION === 'false') {
         return res.status(403).json({ error: '注册通道已关闭' });
@@ -178,14 +189,21 @@ const registerHandler = withRateLimit('strict')(async (req, res) => {
     const created = await redis.set(`user:${creds.username}`, JSON.stringify(record), { nx: true });
     if (created !== 'OK') return res.status(409).json({ error: '该节点代号已被注册' });
 
-    await claimLegacyPool(redis, creds.username);
+    // 迁移是机会性收益（3 次 KV 往返）：任一网络抖动抛错若冒泡到顶层 catch 会 500，
+    // 而用户行已写入——用户重试只会撞 409，留下"已注册但收到 500"的半成品；
+    // 故认领失败只记日志，不影响注册结果
+    try {
+        await claimLegacyPool(redis, creds.username);
+    } catch (e) {
+        console.error('遗留池认领失败（不影响注册）:', e.message);
+    }
 
     const token = await signSession(creds.username, process.env.JWT_SECRET);
     res.setHeader('Set-Cookie', serializeSessionCookie(token, isProduction()));
     return res.status(201).json({ ok: true, username: creds.username });
 });
 
-const loginHandler = withRateLimit('strict')(async (req, res) => {
+const loginHandler = withRateLimit('auth')(async (req, res) => {
     if (!requireSecret(res)) return;
     const body = await readJsonBody(req);
     if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });

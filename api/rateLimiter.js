@@ -20,6 +20,9 @@ export const RATE_LIMITERS = {
   general: { maxRequests: 60, windowMs: 60_000 },
   // 严格速率限制器（用于昂贵的 API）：每小时最多 10 次请求
   strict: { maxRequests: 10, windowMs: 3_600_000 },
+  // 认证防爆破限流器（register/login）：每小时最多 10 次请求；独立于 strict 档，
+  // 避免与 astronomy 共享同一 IP 预算互相挤兑
+  auth: { maxRequests: 10, windowMs: 3_600_000 },
   // 点位写入限流器（写库操作比读更敏感）：每分钟最多 30 次
   pointsWrite: { maxRequests: 30, windowMs: 60_000 },
 };
