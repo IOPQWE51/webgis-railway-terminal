@@ -6,6 +6,20 @@
 
 import { withRateLimit } from './rateLimiter.js';
 
+// 🔎 将 Mapbox geocoding 特征列表压平为前端友好的候选数组（最多 5 条）
+// 注意：Mapbox center 顺序为 [lon, lat]，此处翻转为前端惯用的 lat/lon
+export function compactGeocodeResults(raw) {
+    if (!raw || !Array.isArray(raw.features)) return [];
+    return raw.features.slice(0, 5)
+        .map(f => ({
+            name: f?.text || '',
+            address: f?.place_name || '',
+            lat: Number.isFinite(f?.center?.[1]) ? f.center[1] : null,
+            lon: Number.isFinite(f?.center?.[0]) ? f.center[0] : null
+        }))
+        .filter(r => r.name && r.lat !== null && r.lon !== null);
+}
+
 // 🛡️ 应用速率限制：每个IP每分钟最多10次请求（rateLimiter.js 已改为 Redis 分布式限流）
 export default withRateLimit('mapbox')(async function handler(req, res) {
     // 允许跨域请求
@@ -21,7 +35,6 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
     }
 
     const { lat, lon, type } = req.query;
-    if (!lat || !lon) return res.status(400).json({ error: "缺少经纬度参数" });
 
     // 🔧 根据环境自动选择 Token
     // 开发环境使用 DEV Token（允许 localhost）
@@ -34,6 +47,25 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
     if (!MAPBOX_TOKEN) {
         return res.status(500).json({ error: `未配置 Mapbox Access Token (环境: ${isDevelopment ? 'development' : 'production'})` });
     }
+
+    // 🔎 顺向地理编码：地点关键词 → 坐标候选（供空间跃迁引擎使用）
+    if (type === 'search') {
+        const q = (req.query.q || '').trim();
+        if (!q) return res.status(400).json({ error: '缺少搜索关键词' });
+        if (q.length > 80) return res.status(400).json({ error: '搜索关键词过长' });
+
+        const geoRes = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${MAPBOX_TOKEN}&limit=5&language=zh`
+        );
+        if (!geoRes.ok) {
+            console.error(`❌ Mapbox 顺向地理编码上游异常: HTTP ${geoRes.status}`);
+            return res.status(502).json({ error: '地理编码服务暂不可用' });
+        }
+        const raw = await geoRes.json();
+        return res.status(200).json({ results: compactGeocodeResults(raw) });
+    }
+
+    if (!lat || !lon) return res.status(400).json({ error: "缺少经纬度参数" });
 
     try {
         let result = {};

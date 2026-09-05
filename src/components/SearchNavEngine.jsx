@@ -9,19 +9,43 @@ const SearchNavEngine = ({ onLocationFound }) => {
         // 允许回车或点击放大镜搜索
         if ((e.key === 'Enter' || e.type === 'click') && query.trim() !== '') {
             setIsSearching(true);
+            const q = query.trim();
             try {
-                // Nominatim API 需要明确的 User-Agent 描述（这里用 App 名称）
-                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
-                    headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
-                });
-                const data = await res.json();
-                
-                if (data && data.length > 0) {
-                    const { lat, lon, display_name } = data[0];
-                    // 提取地名简称
-                    const shortName = display_name.split(',')[0];
-                    onLocationFound(parseFloat(lat), parseFloat(lon), display_name, shortName);
-                    setQuery(''); 
+                let located = null;
+                // 主链路：自有 Serverless 代理（服务端持 Mapbox Token，不暴露密钥且不受本地网络限制）
+                try {
+                    const res = await fetch(`/api/mapbox?type=search&q=${encodeURIComponent(q)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const first = Array.isArray(data.results) ? data.results[0] : null;
+                        if (first) {
+                            located = { lat: first.lat, lon: first.lon, displayName: first.address, shortName: first.name };
+                        }
+                    }
+                } catch (_ignored) {
+                    // 主链路失联时走兜底
+                }
+
+                // 兜底链路：Nominatim（本地开发等自有代理不可用的场景）
+                if (!located) {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`, {
+                        headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
+                    });
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        const { lat, lon, display_name } = data[0];
+                        located = {
+                            lat: parseFloat(lat),
+                            lon: parseFloat(lon),
+                            displayName: display_name,
+                            shortName: display_name.split(',')[0]
+                        };
+                    }
+                }
+
+                if (located) {
+                    onLocationFound(located.lat, located.lon, located.displayName, located.shortName);
+                    setQuery('');
                 } else {
                     alert('🛰️ 空间卫星未能定位该区域，请尝试更精确的名称（如：Tokyo Station）');
                 }
