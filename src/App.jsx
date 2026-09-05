@@ -24,6 +24,7 @@ const App = () => {
 
     // 🔐 会话状态：null = 匿名（纯本地模式）
     const [session, setSession] = useState(null);
+    const [nodeMenuOpen, setNodeMenuOpen] = useState(false); // 顶栏 NODE 徽章快捷菜单
     // 🛡️ 会话快照：CSV 批量解析是数分钟级长任务，完成时回调里的旧闭包 session 可能
     // 早已换人（登出/换号）。推送前用快照比对当前闭包值即可识别（见 handlePointsUpdate 守卫）
     const sessionRef = useRef(session);
@@ -221,7 +222,34 @@ const App = () => {
                                 {/* 选配：你可以加个云端状态小图标 */}
                                 {isCloudSyncing && <CloudFog className="w-4 h-4 ml-3 text-cyan-500 animate-pulse" title="云端同步中..." />}
                                 {session
-                                    ? <span className="ml-3 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold font-mono" title="已建立上行链路">NODE: {session}</span>
+                                    ? (
+                                        // 🚪 顶栏 NODE 徽章 = 快捷菜单：退出不再藏在数据解析页深处
+                                        <span className="relative ml-3">
+                                            <button
+                                                onClick={() => setNodeMenuOpen(v => !v)}
+                                                aria-haspopup="menu"
+                                                aria-expanded={nodeMenuOpen}
+                                                title="节点菜单"
+                                                className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold font-mono hover:border-amber-400 transition-colors"
+                                            >
+                                                NODE: {session} ▾
+                                            </button>
+                                            {nodeMenuOpen && (
+                                                <>
+                                                    <div className="fixed inset-0 z-40" onClick={() => setNodeMenuOpen(false)} />
+                                                    <span role="menu" className="absolute right-0 top-8 z-50 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 px-1">
+                                                        <button
+                                                            onClick={() => { setNodeMenuOpen(false); handleLogout(); }}
+                                                            role="menuitem"
+                                                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                        >
+                                                            ⏏ 断开上行链路（退出）
+                                                        </button>
+                                                    </span>
+                                                </>
+                                            )}
+                                        </span>
+                                    )
                                     : <button onClick={() => setAuthOverlayOpen(true)} className="ml-3 text-xs font-bold text-cyan-600 hover:text-cyan-500 underline underline-offset-4">建立上行链路</button>}
                             </p>
                         </header>
