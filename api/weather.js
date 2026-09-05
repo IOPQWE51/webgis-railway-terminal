@@ -3,8 +3,8 @@
 // - realtime_weather: 5 分钟缓存（同一个地点，5 分钟内的查询命中缓存）
 // - flowerGDD: 24 小时缓存（一天内气温数据基本不变）
 
-import { withRateLimit } from './rateLimiter.js';
-import { parseCoords } from './validation.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
+import { parseCoords } from './_lib/validation.js';
 
 async function handleWeather(req, res) {
     // 允许跨域请求

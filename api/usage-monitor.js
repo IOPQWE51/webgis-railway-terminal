@@ -1,7 +1,7 @@
 // api/usage-monitor.js
 // 📊 API用量监控 - 定期检查各API使用情况，发送警告
 
-import { isMonitorAuthorized } from './validation.js';
+import { isMonitorAuthorized } from './_lib/validation.js';
 
 /**
  * Mapbox用量监控

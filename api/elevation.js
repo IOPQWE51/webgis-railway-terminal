@@ -4,8 +4,8 @@
 // - 7天缓存（地形数据几乎不变）
 // - 用于判断：山地、高原、平原等地形特征
 
-import { withRateLimit } from './rateLimiter.js';
-import { parseCoords } from './validation.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
+import { parseCoords } from './_lib/validation.js';
 
 async function handleElevation(req, res) {
     // 允许跨域请求

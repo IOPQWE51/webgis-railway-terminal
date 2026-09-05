@@ -2,7 +2,7 @@
 // anitabi 圣地巡礼数据代理（免钥上游，CC BY-NC-SA 4.0 —— 署名条在前端 PilgrimageRadar 页尾）
 // 为什么走代理：不赌上游 CORS 策略；边缘缓存 24h 吸收重复请求；限流防刷。
 
-import { withRateLimit } from './rateLimiter.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
 
 const UPSTREAM = 'https://api.anitabi.cn';
 const UA = 'EarthTerminal/5.3.1 (https://github.com/IOPQWE51/webgis-railway-terminal)';

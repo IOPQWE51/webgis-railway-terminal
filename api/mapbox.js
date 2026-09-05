@@ -4,7 +4,7 @@
 // - 15分钟缓存（交通流量实时变化）
 // - 用于判断：地点特征、交通流量、涂鸦墙等
 
-import { withRateLimit } from './rateLimiter.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
 
 // 🔎 将 Mapbox geocoding 特征列表压平为前端友好的候选数组（最多 5 条）
 // 注意：Mapbox center 顺序为 [lon, lat]，此处翻转为前端惯用的 lat/lon

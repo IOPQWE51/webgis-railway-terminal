@@ -1,7 +1,7 @@
 // api/phenology.js
 // 🌸 植物物候 API - 樱花积温 + 红叶冷刺激 + 残花判定
 
-import { parseCoords } from './validation.js';
+import { parseCoords } from './_lib/validation.js';
 
 export default async function handler(req, res) {
     // 📌 修复 1：加上原生跨域头，彻底解决前端调不通的问题

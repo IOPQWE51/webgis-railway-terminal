@@ -14,8 +14,8 @@
 // - Redis 客户端进程内单例复用，避免每次请求重建连接。
 
 import { Redis } from '@upstash/redis';
-import { withRateLimit } from './rateLimiter.js';
-import { validatePointsPayload, MAX_POINTS } from './validation.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
+import { validatePointsPayload, MAX_POINTS } from './_lib/validation.js';
 import { getSessionUsername } from './auth.js';
 
 // 点位键按用户名隔离：主库 points:<u>，战术库 points:<u>:dark2d

@@ -2,7 +2,7 @@
 // Bangumi 番剧搜索代理（免钥上游；规范 User-Agent 是 bgm.tv API 的礼仪硬要求）
 // 注意：api.bgm.tv 在部分国内网络不可达，本地 dev 报"上游连接失败"属预期，生产 Vercel 正常。
 
-import { withRateLimit } from './rateLimiter.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
 import { compactSearchResults } from '../src/utils/pilgrimageData.js';
 
 const UA = 'EarthTerminal/5.3.1 (https://github.com/IOPQWE51/webgis-railway-terminal)';

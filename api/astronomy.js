@@ -6,8 +6,8 @@
 // - 坐标走 parseCoords 数值校验；日期强制 YYYY-MM-DD 格式，
 //   防止把任意字符拼进上游 URL。
 
-import { withRateLimit } from './rateLimiter.js';
-import { parseCoords } from './validation.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
+import { parseCoords } from './_lib/validation.js';
 
 async function handleAstronomy(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');

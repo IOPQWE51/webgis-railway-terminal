@@ -11,8 +11,8 @@
 import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
-import { withRateLimit } from './rateLimiter.js';
-import { validatePointsPayload } from './validation.js';
+import { withRateLimit } from './_lib/rateLimiter.js';
+import { validatePointsPayload } from './_lib/validation.js';
 
 export const COOKIE_NAME = 'et_session';
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 天
