@@ -1,16 +1,17 @@
 // api/points.js
 // ☁️ 点位云端同步端点（Upstash Redis / Vercel KV）
 //
-// 安全模型（2026-08 审查加固）：
-// - GET 保持公开读取；
+// 安全模型（2026-08 审查加固；2026-09 鉴权改造更新）：
+// - 鉴权前置：读写在 et_session 会话之下进行（键按用户隔离，points:<username>），
+//   鉴权是 handler 内第一道检查，匿名请求一律 401——即使 KV 未配置也如此，
+//   不向匿名探测者泄露基础设施配置状态（2026-08 版"GET 保持公开读取"已废止）；
+//   旧全局池与旧战术库由 api/auth.js 注册认领机制一次性迁移；
 // - POST 开放写入，但必须通过 validatePointsPayload 硬校验：
 //   字段白名单、类型与长度上限、坐标范围、总量上限（MAX_POINTS），
 //   多余字段一律剥离，防止脏数据/注入载荷进入云端库；
 // - 读写分别限流：读走 general（60/min），写走 pointsWrite（30/min），
 //   IP 取 XFF 链最后一跳（首跳可伪造）；
-// - Redis 客户端进程内单例复用，避免每次请求重建连接；
-// - 2026-09 起按用户隔离：读写在 et_session 会话之下进行（points:<username>），
-//   匿名请求一律 401；旧全局池由 api/auth.js 注册认领机制一次性迁移。
+// - Redis 客户端进程内单例复用，避免每次请求重建连接。
 
 import { Redis } from '@upstash/redis';
 import { withRateLimit } from './rateLimiter.js';
@@ -39,13 +40,15 @@ function getRedis() {
 }
 
 async function readPoints(req, res) {
-  const redis = getRedis();
-  if (!redis) {
-    return res.status(500).json({ error: 'KV 数据库未配置，请在 Vercel 控制台连接 KV 实例' });
-  }
+  // 🔐 鉴权前置：鉴权是最便宜、无副作用的检查，必须最先做——匿名请求无条件 401，
+  // 即使 KV 未配置也不能以 500 向匿名探测者泄露"基础设施未就绪"的配置状态
   const username = await getSessionUsername(req);
   if (!username) {
     return res.status(401).json({ error: '需要登录' });
+  }
+  const redis = getRedis();
+  if (!redis) {
+    return res.status(500).json({ error: 'KV 数据库未配置，请在 Vercel 控制台连接 KV 实例' });
   }
   const scope = req.query?.scope === 'dark2d' ? 'dark2d' : 'main';
   const points = (await redis.get(pointsKeyFor(username, scope))) || [];
@@ -53,6 +56,12 @@ async function readPoints(req, res) {
 }
 
 async function writePoints(req, res) {
+  // 🔐 鉴权前置（原因同 readPoints）：匿名探测在进入体长检查/校验/KV 逻辑前即被拒绝
+  const username = await getSessionUsername(req);
+  if (!username) {
+    return res.status(401).json({ error: '需要登录' });
+  }
+
   // 防御纵深：请求体大小硬上限（Vercel 本身也有 4.5MB 上限）
   const contentLength = Number(req.headers['content-length'] || 0);
   if (contentLength > MAX_BODY_BYTES) {
@@ -69,10 +78,6 @@ async function writePoints(req, res) {
     return res.status(500).json({ error: 'KV 数据库未配置，请在 Vercel 控制台连接 KV 实例' });
   }
 
-  const username = await getSessionUsername(req);
-  if (!username) {
-    return res.status(401).json({ error: '需要登录' });
-  }
   const scope = req.query?.scope === 'dark2d' ? 'dark2d' : 'main';
   const dbKey = pointsKeyFor(username, scope);
   await redis.set(dbKey, result.points);

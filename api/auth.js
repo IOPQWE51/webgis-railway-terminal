@@ -5,7 +5,8 @@
 //     points:<username> → 点位数组（写入前经 validatePointsPayload 硬校验）
 // - 会话 Cookie：et_session（HttpOnly / SameSite=Lax，生产追加 Secure）
 // - 端点：POST ?action=register|login|logout、GET ?action=me（register/login 走 auth 限流防爆破）
-// - 遗留迁移：首个注册用户自动认领旧全局池 earth_terminal_global_points，旧键改名归档
+// - 遗留迁移：首个注册用户自动认领旧全局池 earth_terminal_global_points 与
+//   旧战术库 earth_terminal_dark2d_points（对称迁移，防孤儿键），旧键改名归档
 
 import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
@@ -16,6 +17,7 @@ import { validatePointsPayload } from './validation.js';
 export const COOKIE_NAME = 'et_session';
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 天
 const LEGACY_GLOBAL_KEY = 'earth_terminal_global_points';
+const LEGACY_DARK2D_KEY = 'earth_terminal_dark2d_points';
 
 // ---------- 纯函数层（tests/api-auth.test.js 覆盖） ----------
 
@@ -131,6 +133,28 @@ export async function claimLegacyPool(kv, username) {
     const claimed = await kv.set(`points:${username}`, points, { nx: true }) === 'OK';
     await kv.set(`earth_terminal_global_points_claimed_${Date.now()}`, points);
     await kv.delete(LEGACY_GLOBAL_KEY);
+
+    // 🕳️ dark2d 战术库对称认领：旧战术库与主池是同一批遗留数据，只认领主池会把
+    //    战术库云副本永久变成孤儿键。两个池共用同一把全局锁——一次注册一次锁，
+    //    一起处理，避免主池认领后锁被标记占用导致战术库永远轮不到认领。
+    //    （键名与 pointsKeyFor 的 dark2d 规则保持一致；此处不 import points.js，
+    //    因为 points.js 依赖本模块，反向引用会造成循环依赖）
+    const legacyDark2d = await kv.get(LEGACY_DARK2D_KEY);
+    if (Array.isArray(legacyDark2d)) {
+        const darkResult = validatePointsPayload(legacyDark2d);
+        // 🚧 与主池脏数据同语义：不搬不删保留现场待人工处理，尽力释放锁（失败由
+        //    ex TTL 兜底）让后续用户仍有机会处理；主池刚完成的认领是已落库的事实，
+        //    不受战术库脏数据影响
+        if (!darkResult.ok) {
+            try { await kv.delete(lockKey); } catch { /* 释放失败 60s 后锁自动过期 */ }
+            return -1;
+        }
+        // 🏁 nx 占坑：该用户名下已有战术库则放弃写入但照常归档旧键（数据不丢）
+        await kv.set(`points:${username}:dark2d`, darkResult.points, { nx: true });
+        await kv.set(`earth_terminal_dark2d_points_claimed_${Date.now()}`, darkResult.points);
+        await kv.delete(LEGACY_DARK2D_KEY);
+    }
+
     return claimed ? points.length : 0;
 }
 
