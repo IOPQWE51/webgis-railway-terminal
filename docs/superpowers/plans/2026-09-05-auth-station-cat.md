@@ -475,7 +475,7 @@ git commit -m "feat(auth): register/login/logout/me 四端点 —— nx 原子�
 - Modify: `api/points.js`
 - Test: `tests/api-points-scope.test.js`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/api-points-scope.test.js`：
 
@@ -517,12 +517,12 @@ async function verifyForTest(req, secret) {
 }
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run tests/api-points-scope.test.js`
 预期：FAIL（`pointsKeyFor` 不存在）。
 
-- [ ] **Step 3: 改造 api/points.js**
+- [x] **Step 3: 改造 api/points.js**
 
 修改点（保持文件其余部分不动）：
 
@@ -577,12 +577,12 @@ async function readPoints(req, res) {
 //   匿名请求一律 401；旧全局池由 api/auth.js 注册认领机制一次性迁移。
 ```
 
-- [ ] **Step 4: 跑全量测试**
+- [x] **Step 4: 跑全量测试**
 
 Run: `npm test`
 预期：全部 PASS（含既有 106 用例——无测试引用旧的全局读行为）。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add api/points.js tests/api-points-scope.test.js
