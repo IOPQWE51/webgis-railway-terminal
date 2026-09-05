@@ -105,7 +105,12 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
 
         let timer = null;
         const flyToTarget = () => {
+            // 🏠 silent = 本机收藏视角恢复：只挪镜头画准星，不弹战术面板（自家视角无需仪式感）
             updateTargetBeacon(pt.lat, pt.lon);
+            if (pt.silent) {
+                if (onTargetHandled) onTargetHandled();
+                return;
+            }
             openCyberPanel(
                 generatePopupContent(
                     pt,

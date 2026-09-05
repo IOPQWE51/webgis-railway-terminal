@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { parseViewHash, serializeViewHash, shouldRestoreSharedView, VISITED_MARKER } from '../src/utils/urlState.js';
+import {
+  parseViewHash,
+  serializeViewHash,
+  shouldRestoreSharedView,
+  VISITED_MARKER,
+  isOwnDeviceView,
+  OWN_VIEW_FINGERPRINT,
+} from '../src/utils/urlState.js';
 
 describe('parseViewHash', () => {
   it('解析完整的视角哈希', () => {
@@ -91,5 +98,38 @@ describe('shouldRestoreSharedView（区分刷新 vs 分享打开）', () => {
 
   it('标记值非 "1" 视为首次到访', () => {
     expect(shouldRestoreSharedView(fakeStore({ [VISITED_MARKER]: 'weird' }))).toBe(true);
+  });
+});
+
+describe('isOwnDeviceView（本机指纹守卫：收藏夹 vs 真分享）', () => {
+  const fakeStore = (initial = {}) => {
+    const m = new Map(Object.entries(initial));
+    return {
+      getItem: (k) => (m.has(k) ? m.get(k) : null),
+      setItem: (k, v) => m.set(k, String(v)),
+      _m: m,
+    };
+  };
+  const throwing = {
+    getItem() { throw new Error('blocked'); },
+    setItem() { throw new Error('blocked'); },
+  };
+
+  it('URL 哈希 == 本机上次写的哈希 → 是自己收藏的视角（安静恢复，不算分享）', () => {
+    const store = fakeStore({ [OWN_VIEW_FINGERPRINT]: '#lat=35.68&lon=139.76&z=12' });
+    expect(isOwnDeviceView('#lat=35.68&lon=139.76&z=12', store)).toBe(true);
+  });
+
+  it('URL 哈希 ≠ 本机记录（别人发来的链接）→ 不是本机视角', () => {
+    const store = fakeStore({ [OWN_VIEW_FINGERPRINT]: '#lat=35.68&lon=139.76&z=12' });
+    expect(isOwnDeviceView('#lat=41.5&lon=141.3&z=5', store)).toBe(false);
+  });
+
+  it('本机从没写过（首次/新设备/清缓存）→ 不是本机视角', () => {
+    expect(isOwnDeviceView('#lat=1&lon=2&z=3', fakeStore())).toBe(false);
+  });
+
+  it('存储异常时保守返回 false（宁可当分享处理，不影响启动）', () => {
+    expect(isOwnDeviceView('#lat=1&lon=2&z=3', throwing)).toBe(false);
   });
 });

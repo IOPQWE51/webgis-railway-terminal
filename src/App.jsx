@@ -12,7 +12,7 @@ import LoginOverlay from './components/auth/LoginOverlay.jsx';
 const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
 import { storage } from './utils/performanceHelpers';
-import { parseViewHash, shouldRestoreSharedView } from './utils/urlState';
+import { parseViewHash, shouldRestoreSharedView, isOwnDeviceView } from './utils/urlState';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
@@ -35,20 +35,35 @@ const App = () => {
     // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板。
     // 🧭 仅"首次到访"恢复（shouldRestoreSharedView 用 sessionStorage 区分）：
     // 同标签页刷新时哈希只是被动跟随，不再绑架视角跳回旧位置
+    // 🏠 本机指纹（isOwnDeviceView 用 localStorage 区分）：从自己收藏夹打开的链接
+    //    静默摆到目标视角（不弹分享面板），朋友打开的真分享才走完整仪式感
     useEffect(() => {
         if (!shouldRestoreSharedView(window.sessionStorage)) return;
         const view = parseViewHash(window.location.hash);
         if (!view) return;
         if (view.tab) setActiveTab(view.tab);
         if (view.lat !== null) {
-            setPendingMapTarget({
-                id: `share_${Date.now()}`,
-                name: '分享坐标',
-                lat: view.lat,
-                lon: view.lon,
-                category: 'spot',
-                source: '视角分享链接',
-            });
+            if (isOwnDeviceView(window.location.hash, window.localStorage)) {
+                // 自家收藏视角：静默定位（仍走 pendingMapTarget 拿到坐标，但换"安静"来源标记）
+                setPendingMapTarget({
+                    id: `own_${Date.now()}`,
+                    name: '上次视角',
+                    lat: view.lat,
+                    lon: view.lon,
+                    category: 'spot',
+                    source: '本机视角恢复',
+                    silent: true,
+                });
+            } else {
+                setPendingMapTarget({
+                    id: `share_${Date.now()}`,
+                    name: '分享坐标',
+                    lat: view.lat,
+                    lon: view.lon,
+                    category: 'spot',
+                    source: '视角分享链接',
+                });
+            }
         }
     }, []);
 

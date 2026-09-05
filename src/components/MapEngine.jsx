@@ -6,7 +6,7 @@ import TacticalBottomSheet from './TacticalBottomSheet'; // 引入战术抽屉
 import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
-import { serializeViewHash } from '../utils/urlState';
+import { serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
 import ShootingBrief from './ShootingBrief';
 
 // 导入核心 Hooks
@@ -132,6 +132,8 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
             setMapView({ lat: c.lat, lng: c.lng });
             const next = serializeViewHash({ lat: c.lat, lon: c.lng, z: map.getZoom() });
             if (window.location.hash !== next) window.history.replaceState(null, '', next);
+            // 🏠 同步记本机指纹：下次从收藏夹打开同哈希 = 自家视角，静默恢复不弹分享面板
+            try { window.localStorage.setItem(OWN_VIEW_FINGERPRINT, next); } catch { /* 隐私模式忽略 */ }
         };
         const debouncedSync = () => { clearTimeout(timer); timer = setTimeout(sync, 600); };
         map.on('moveend zoomend', debouncedSync);

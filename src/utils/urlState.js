@@ -77,3 +77,19 @@ export function shouldRestoreSharedView(storage) {
     return true;
   }
 }
+
+// 🏠 本机指纹守卫：收藏夹打开自己的链接 vs 朋友打开分享链接，输入完全相同
+// （同 URL、新标签页、无 session 标记）——唯一能区分的信息是"这个哈希是不是
+// 本机自己写下的"。MapEngine 每次更新地址栏时同步把哈希记进 localStorage（按
+// 设备持久），启动时比对：一致 = 自家收藏，静默摆放视角、不弹分享面板；
+// 不一致/没记录 = 真分享，保留完整仪式感（飞行 + 分享坐标面板）。
+export const OWN_VIEW_FINGERPRINT = 'et_own_view_fingerprint';
+
+export function isOwnDeviceView(hash, storage) {
+  try {
+    const mine = storage.getItem(OWN_VIEW_FINGERPRINT);
+    return typeof hash === 'string' && typeof mine === 'string' && mine !== '' && hash === mine;
+  } catch {
+    return false; // 存储异常保守当分享处理（不影响启动，只是多点一次面板）
+  }
+}
