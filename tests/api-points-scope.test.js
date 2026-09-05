@@ -18,7 +18,7 @@ vi.mock('@upstash/redis', () => {
             kv.m.set(k, v);
             return 'OK';
         }
-        async delete(k) { kv.m.delete(k); }
+        async delete(k) { kv.m.delete(k); } async del(k) { kv.m.delete(k); }
         // rateLimiter 分布式档使用的最小 INCR/EXPIRE，保持限流路径可用而非走异常降级
         async incr(k) { const n = Number(kv.m.get(k) || 0) + 1; kv.m.set(k, n); return n; }
         async expire() { return 1; }
@@ -165,6 +165,7 @@ class ClaimFakeKV {
         return 'OK';
     }
     async delete(k) { this.m.delete(k); }
+    async del(k) { this.m.delete(k); }
 }
 
 describe('claimLegacyPool 纳入 dark2d 战术库（对称认领防孤儿键）', () => {

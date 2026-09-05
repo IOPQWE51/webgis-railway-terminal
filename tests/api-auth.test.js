@@ -26,7 +26,7 @@ class FakeKV {
         this.m.set(k, v);
         return 'OK';
     }
-    async delete(k) { this.m.delete(k); }
+    async delete(k) { this.m.delete(k); } async del(k) { this.m.delete(k); }
 }
 
 describe('normalizeUsername', () => {

@@ -22,7 +22,7 @@ vi.mock('@upstash/redis', () => {
             kv.m.set(k, v);
             return 'OK';
         }
-        async delete(k) { kv.m.delete(k); }
+        async delete(k) { kv.m.delete(k); } async del(k) { kv.m.delete(k); }
         async incr(k) { const n = Number(kv.m.get(k) || 0) + 1; kv.m.set(k, n); return n; }
         async expire() { return 1; }
         // keys('user:*') 是 glob 模式语义：* 匹配任意后缀（handler 的反查扫描依赖此行为）

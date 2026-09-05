@@ -207,7 +207,7 @@ export async function claimLegacyPool(kv, username) {
     // 🚧 整包校验失败：不搬不删，保留现场待人工处理——一条脏数据绝不清空整个遗留池
     if (!result.ok) {
         // 尽力释放锁（失败由 ex TTL 兜底）：运营清完脏数据后其他用户仍有机会认领
-        try { await kv.delete(lockKey); } catch { /* 释放失败 60s 后锁自动过期 */ }
+        try { await kv.del(lockKey); } catch { /* 释放失败 60s 后锁自动过期 */ }
         return -1;
     }
     const points = result.points;
@@ -216,7 +216,7 @@ export async function claimLegacyPool(kv, username) {
     // 成功路径保留锁作为永久认领标记，防止锁过期后被重复迁移
     const claimed = await kv.set(`points:${username}`, points, { nx: true }) === 'OK';
     await kv.set(`earth_terminal_global_points_claimed_${Date.now()}`, points);
-    await kv.delete(LEGACY_GLOBAL_KEY);
+    await kv.del(LEGACY_GLOBAL_KEY);
 
     // 🕳️ dark2d 战术库对称认领：旧战术库与主池是同一批遗留数据，只认领主池会把
     //    战术库云副本永久变成孤儿键。两个池共用同一把全局锁——一次注册一次锁，
@@ -230,13 +230,13 @@ export async function claimLegacyPool(kv, username) {
         //    ex TTL 兜底）让后续用户仍有机会处理；主池刚完成的认领是已落库的事实，
         //    不受战术库脏数据影响
         if (!darkResult.ok) {
-            try { await kv.delete(lockKey); } catch { /* 释放失败 60s 后锁自动过期 */ }
+            try { await kv.del(lockKey); } catch { /* 释放失败 60s 后锁自动过期 */ }
             return -1;
         }
         // 🏁 nx 占坑：该用户名下已有战术库则放弃写入但照常归档旧键（数据不丢）
         await kv.set(`points:${username}:dark2d`, darkResult.points, { nx: true });
         await kv.set(`earth_terminal_dark2d_points_claimed_${Date.now()}`, darkResult.points);
-        await kv.delete(LEGACY_DARK2D_KEY);
+        await kv.del(LEGACY_DARK2D_KEY);
     }
 
     return claimed ? points.length : 0;
@@ -347,7 +347,7 @@ const registerHandler = withRateLimit('auth')(async (req, res) => {
             const code = generateEmailCode();
             await redis.set(`emailcode:${creds.username}`, code, { ex: 600 });
             const sent = await sendVerifyEmail(mail.email, creds.username, code);
-            if (!sent) await redis.delete(`emailcode:${creds.username}`);
+            if (!sent) await redis.del(`emailcode:${creds.username}`);
         } catch (e) {
             console.error('验证码邮件发送失败（不影响注册）:', e.message);
         }
@@ -506,7 +506,7 @@ const verifyEmailHandler = withRateLimit('auth')(async (req, res) => {
     if (!stored || String(stored) !== code) {
         return res.status(400).json({ error: '验证码不正确或已过期' });
     }
-    await redis.delete(`emailcode:${username}`);
+    await redis.del(`emailcode:${username}`);
     const updated = { ...record, emailVerified: true };
     await redis.set(`user:${username}`, JSON.stringify(updated));
     return res.status(200).json({ ok: true, message: '邮箱绑定完成，从此可自助找回密钥' });
