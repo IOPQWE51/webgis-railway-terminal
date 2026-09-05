@@ -24,3 +24,6 @@ api/test-*.js
 
 # CodeGraph 本地索引（不进仓库）
 .codegraph/
+
+# ZCode 工作区配置（本机 MCP 注册，进仓库对他人无意义）
+.zcode/
