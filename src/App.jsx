@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 // 1. 新增了 PlaneTakeoff 图标
 import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, CloudFog } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
@@ -24,6 +24,11 @@ const App = () => {
 
     // 🔐 会话状态：null = 匿名（纯本地模式）
     const [session, setSession] = useState(null);
+    // 🛡️ 会话快照：CSV 批量解析是数分钟级长任务，完成时回调里的旧闭包 session 可能
+    // 早已换人（登出/换号）。推送前用快照比对当前闭包值即可识别（见 handlePointsUpdate 守卫）
+    const sessionRef = useRef(session);
+    // 渲染期直接同步而非 useEffect：避免会话变更后到 effect 执行之间留出一帧守卫盲窗
+    sessionRef.current = session;
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
 
     // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..
@@ -81,7 +86,11 @@ const App = () => {
                 const res = await fetch('/api/points');
                 if (res.ok) {
                     const json = await res.json();
-                    if (json.data && Array.isArray(json.data)) {
+                    // 🈳 空云库守卫：空数组视为"云端还没有数据"而非"清空指令"，
+                    // 否则新注册用户登录到空库会清掉本地积累的全部点位。
+                    // 取舍：在 A 设备清空云库不会传播删除到 B 设备，远轻于误清空本地
+                    // （对齐同仓先例 MapTactical.jsx 的同款 length > 0 守卫）。
+                    if (json.data && Array.isArray(json.data) && json.data.length > 0) {
                         setCustomPoints(json.data);
                         storage.save('earth_terminal_custom_points', json.data);
                     }
@@ -107,6 +116,13 @@ const App = () => {
             return;
         }
 
+        // 🛡️ 长任务闭包守卫：批次开始时的会话与当前会话不一致（登出/换号）则放弃上行，
+        // 防止旧闭包把前用户点位写进新用户的云库
+        if (sessionRef.current !== session) {
+            console.warn('🛡️ 会话已变更，本次点位变更仅保留在本地');
+            return;
+        }
+
         // ☁️ 异步推送到云端
         try {
             const res = await fetch('/api/points', {
@@ -114,6 +130,13 @@ const App = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newPointsArray)
             });
+            // 🔑 会话过期自愈：JWT 失效（401）时主动翻回匿名，
+            // header 徽章随即变回"建立上行链路"，后续点位变更自然走匿名本地分支，
+            // 避免之后每次更新都带着失效 Cookie 白跑一趟
+            if (res.status === 401) {
+                console.warn('🔑 上行链路会话已过期，已自动降级为本地模式');
+                setSession(null);
+            }
             if (!res.ok) throw new Error('云端写入失败');
         } catch (error) {
             // 如果报错（比如目前没建数据库），只打印不弹窗，不打断用户体验

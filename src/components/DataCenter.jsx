@@ -408,6 +408,10 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
     return (
         <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500`}>
             {/* 🔐 作战身份卡：上行链路状态 */}
+            {/* 条件渲染：onOpenAuth 缺省（战术模式内嵌 DataCenter 未接会话 props）时整卡隐藏，
+                避免恒渲染匿名分支造成"建立上行链路"死按钮与错误文案；
+                App 主入口照常传入 onOpenAuth，身份卡不受影响 */}
+            {onOpenAuth && (
             <div className="bg-white rounded-2xl p-4 border border-gray-200 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center text-gray-500 font-bold text-xs uppercase tracking-wider">
@@ -426,6 +430,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                     {session ? '云端同步已就绪：点位库按用户隔离，跨设备保持一致。' : '匿名模式：数据仅保存在本机浏览器。建立上行链路后可云端同步与跨设备漫游。'}
                 </p>
             </div>
+            )}
 
             <div className="grid md:grid-cols-5 gap-6">
                 

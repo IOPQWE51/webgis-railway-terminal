@@ -94,10 +94,12 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
     return (
         // Fix 3：keydown 挂在 role=dialog 容器上，Esc 关闭 + Tab 焦点陷阱
+        // 纵深防御：z-[4000] 高于战术层 z-[3000]/z-[3001]（TacticalBottomSheet），
+        // 未来即使战术模式内重新开放认证入口，弹层也不会被战术 UI 盖住
         <div
             ref={overlayRef}
             onKeyDown={handleOverlayKeyDown}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
+            className="fixed inset-0 z-[4000] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
             role="dialog"
             aria-modal="true"
             aria-label="身份认证"
