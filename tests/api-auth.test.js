@@ -4,7 +4,6 @@ import {
     normalizeUsername,
     validatePassword,
     validateCredentials,
-    sessionCookieOptions,
     serializeSessionCookie,
     serializeClearedCookie,
     parseSessionCookie,
@@ -20,7 +19,12 @@ const SECRET = 'test-secret-32-chars-long-xxxxxxxx';
 class FakeKV {
     constructor() { this.m = new Map(); }
     async get(k) { return this.m.has(k) ? this.m.get(k) : null; }
-    async set(k, v) { this.m.set(k, v); return 'OK'; }
+    async set(k, v, opts) {
+        // 🔒 nx 占坑语义：键已存在时不写入并返回 null（对齐 Upstash Redis SET NX）
+        if (opts?.nx && this.m.has(k)) return null;
+        this.m.set(k, v);
+        return 'OK';
+    }
     async delete(k) { this.m.delete(k); }
 }
 
@@ -80,13 +84,12 @@ describe('会话 Cookie', () => {
     it('清除 Cookie 的 Max-Age=0', () => {
         expect(serializeClearedCookie(true)).toContain('Max-Age=0');
     });
-    it('sessionCookieOptions 返回安全属性', () => {
-        const o = sessionCookieOptions(true);
-        expect(o).toEqual({ httpOnly: true, secure: true, sameSite: 'lax', path: '/', maxAge: 604800 });
-    });
     it('parseSessionCookie 解出 et_session 值，无 Cookie 得 null', () => {
         expect(parseSessionCookie({ headers: { cookie: 'a=1; et_session=tok%20x' } })).toBe('tok x');
         expect(parseSessionCookie({ headers: {} })).toBe(null);
+    });
+    it('畸形百分号编码安全返回 null 而非抛 URIError（客户端可控）', () => {
+        expect(parseSessionCookie({ headers: { cookie: 'et_session=%' } })).toBe(null);
     });
 });
 
@@ -112,6 +115,12 @@ describe('JWT 签发与校验', () => {
     it('空入参安全返回 null', async () => {
         expect(await verifySessionToken(null, SECRET)).toBe(null);
         expect(await verifySessionToken('tok', '')).toBe(null);
+    });
+    it('弱密钥拒绝签发', async () => {
+        await expect(signSession('zhang', 'short')).rejects.toThrow('JWT_SECRET');
+    });
+    it('弱密钥校验 fail-closed 返回 null', async () => {
+        expect(await verifySessionToken('tok', 'short')).toBe(null);
     });
 });
 
@@ -142,5 +151,26 @@ describe('claimLegacyPool（遗留全局池一次性认领）', () => {
         const kv = new FakeKV();
         expect(await claimLegacyPool(kv, 'x')).toBe(0);
         expect(await kv.get('points:x')).toBe(null);
+    });
+    it('整包校验失败返回 -1，不搬不删保留现场', async () => {
+        const kv = new FakeKV();
+        await kv.set('earth_terminal_global_points', [
+            { id: 'bad', name: '脏数据', lat: 999, lon: 0, category: 'station', source: '手动捕获' }
+        ]);
+        expect(await claimLegacyPool(kv, 'zhang')).toBe(-1);
+        expect(await kv.get('points:zhang')).toBe(null);
+        expect(await kv.get('earth_terminal_global_points')).toHaveLength(1);
+        const archivedKey = [...kv.m.keys()].find(k => k.startsWith('earth_terminal_global_points_claimed_'));
+        expect(archivedKey).toBeUndefined();
+    });
+    it('用户键已存在时 nx 占坑失败，返回 0 且不覆盖既有数据', async () => {
+        const kv = new FakeKV();
+        const existing = [{ id: 'mine', name: '我的点位', lat: 1, lon: 1, category: 'station', source: '手动捕获' }];
+        await kv.set('points:zhang', existing);
+        await kv.set('earth_terminal_global_points', [
+            { id: 'a', name: '东京站', lat: 35.68, lon: 139.76, category: 'station', source: '手动捕获' }
+        ]);
+        expect(await claimLegacyPool(kv, 'zhang')).toBe(0);
+        expect(await kv.get('points:zhang')).toEqual(existing);
     });
 });
