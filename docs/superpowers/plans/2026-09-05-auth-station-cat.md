@@ -597,7 +597,7 @@ git commit -m "feat(points): 云端点位按用户隔离 —— 会话驱动键�
 - Create: `src/components/auth/catStateMachine.js`
 - Test: `tests/cat-state-machine.test.js`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/cat-state-machine.test.js`：
 
@@ -646,12 +646,12 @@ describe('猫站长状态机', () => {
 });
 ```
 
-- [ ] **Step 2: 跑测试确认失败**
+- [x] **Step 2: 跑测试确认失败**
 
 Run: `npx vitest run tests/cat-state-machine.test.js`
 预期：FAIL（模块不存在）。
 
-- [ ] **Step 3: 实现 reducer**
+- [x] **Step 3: 实现 reducer**
 
 `src/components/auth/catStateMachine.js`：
 
@@ -689,12 +689,12 @@ export function nextCatState(event, state) {
 }
 ```
 
-- [ ] **Step 4: 跑测试确认通过**
+- [x] **Step 4: 跑测试确认通过**
 
 Run: `npx vitest run tests/cat-state-machine.test.js`
 预期：全部 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/components/auth/catStateMachine.js tests/cat-state-machine.test.js
@@ -712,7 +712,7 @@ git commit -m "feat(auth): 猫站长六态状态机纯 reducer（TDD）"
 
 视觉件（无单测，Task 7 用浏览器截图验收六态）。三个文件完整代码如下。
 
-- [ ] **Step 1: 创建 StationMasterCat.css**
+- [x] **Step 1: 创建 StationMasterCat.css**
 
 ```css
 /* 🐱 猫站长样式：所有循环动画可被 prefers-reduced-motion 关停 */
@@ -764,7 +764,7 @@ git commit -m "feat(auth): 猫站长六态状态机纯 reducer（TDD）"
 }
 ```
 
-- [ ] **Step 2: 创建 StationMasterCat.jsx**
+- [x] **Step 2: 创建 StationMasterCat.jsx**
 
 ```jsx
 import './StationMasterCat.css';
@@ -851,7 +851,7 @@ const StationMasterCat = ({ state = 'idle', inputLength = 0 }) => {
 export default StationMasterCat;
 ```
 
-- [ ] **Step 3: 创建 LoginOverlay.jsx**
+- [x] **Step 3: 创建 LoginOverlay.jsx**
 
 ```jsx
 import { useReducer, useState } from 'react';
@@ -976,12 +976,12 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 }
 ```
 
-- [ ] **Step 4: lint + 全量测试**
+- [x] **Step 4: lint + 全量测试**
 
 Run: `npm run lint && npm test`
 预期：无错误、全部 PASS。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/components/auth/StationMasterCat.jsx src/components/auth/StationMasterCat.css src/components/auth/LoginOverlay.jsx
