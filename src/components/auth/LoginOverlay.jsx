@@ -40,7 +40,12 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                     sitekey: TURNSTILE_SITE_KEY,
                     theme: 'light',
                     callback: (token) => setTurnstileToken(token),
-                    'expired-callback': () => setTurnstileToken('')
+                    'expired-callback': () => setTurnstileToken(''),
+                    // 🔍 组件加载/校验失败时把错误码亮到界面上（如 110200=域名未加入白名单），不再只露出神秘的 Troubleshoot 链接
+                    'error-callback': (code) => {
+                        setTurnstileToken('');
+                        setMessage({ type: 'error', text: `人机验证组件异常（代码 ${code}）——请把该代码告知站长修复` });
+                    }
                 });
             }
         };
