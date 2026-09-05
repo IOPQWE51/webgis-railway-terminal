@@ -996,7 +996,7 @@ git commit -m "feat(auth): 猫站长 SVG 角色与全屏认证覆盖层（六态
 - Modify: `src/App.jsx`
 - Modify: `src/components/DataCenter.jsx`
 
-- [ ] **Step 1: App.jsx —— 引入与状态**
+- [x] **Step 1: App.jsx —— 引入与状态**
 
 (a) import 区（L7 ErrorBoundary 之后）追加：
 
@@ -1012,7 +1012,7 @@ import LoginOverlay from './components/auth/LoginOverlay.jsx';
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
 ```
 
-- [ ] **Step 2: App.jsx —— 替换挂载云同步 effect 为会话驱动**
+- [x] **Step 2: App.jsx —— 替换挂载云同步 effect 为会话驱动**
 
 将 L55-77 的 `useEffect`（匿名拉取 `/api/points`）整体替换为：
 
@@ -1056,7 +1056,7 @@ import LoginOverlay from './components/auth/LoginOverlay.jsx';
     }, [session]);
 ```
 
-- [ ] **Step 3: App.jsx —— handlePointsUpdate 匿名短路 + 登出**
+- [x] **Step 3: App.jsx —— handlePointsUpdate 匿名短路 + 登出**
 
 (a) `handlePointsUpdate` 中 `storage.save(...)`（L83）之后、`try` 云端推送之前插入：
 
@@ -1078,7 +1078,7 @@ import LoginOverlay from './components/auth/LoginOverlay.jsx';
     };
 ```
 
-- [ ] **Step 4: App.jsx —— header 身份徽章**
+- [x] **Step 4: App.jsx —— header 身份徽章**
 
 L150 `{isCloudSyncing && ...}` 之后追加：
 
@@ -1088,7 +1088,7 @@ L150 `{isCloudSyncing && ...}` 之后追加：
                                     : <button onClick={() => setAuthOverlayOpen(true)} className="ml-3 text-xs font-bold text-cyan-600 hover:text-cyan-500 underline underline-offset-4">建立上行链路</button>}
 ```
 
-- [ ] **Step 5: App.jsx —— DataCenter 传参与覆盖层**
+- [x] **Step 5: App.jsx —— DataCenter 传参与覆盖层**
 
 (a) L258 DataCenter 追加 props：
 
@@ -1107,7 +1107,7 @@ L150 `{isCloudSyncing && ...}` 之后追加：
             )}
 ```
 
-- [ ] **Step 6: DataCenter 作战身份卡**
+- [x] **Step 6: DataCenter 作战身份卡**
 
 (a) L2 lucide import 追加 `ShieldCheck`：
 
@@ -1145,12 +1145,12 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
             </div>
 ```
 
-- [ ] **Step 7: lint + 全量测试**
+- [x] **Step 7: lint + 全量测试**
 
 Run: `npm run lint && npm test`
 预期：无错误、全部 PASS。
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add src/App.jsx src/components/DataCenter.jsx
