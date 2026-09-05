@@ -1,0 +1,47 @@
+/* 🐱 猫站长样式：所有循环动画可被 prefers-reduced-motion 关停 */
+
+.smc { width: 210px; margin: 0 auto; position: relative; }
+.smc__svg { width: 100%; display: block; }
+
+.smc__happy { opacity: 0; }
+.smc__radar { opacity: 0; transform-origin: 166px 52px; }
+.smc__alert-ring { opacity: 0; transform-origin: 110px 110px; }
+.smc__pupil { transition: transform 0.25s ease-out; }
+.smc__paw { transition: transform 0.28s ease-out; }
+
+/* 尾巴慢摆 */
+.smc__tail { transform-origin: 158px 168px; animation: smc-tail-sway 3.2s ease-in-out infinite; }
+@keyframes smc-tail-sway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(8deg); } }
+
+/* 每 4s 眨一次眼（眼睑平时上收） */
+.smc__lid { transform: translateY(-20px); animation: smc-blink 4s ease-in-out infinite; }
+@keyframes smc-blink { 0%, 92%, 100% { transform: translateY(-20px); } 95% { transform: translateY(0px); } }
+
+/* covering：双爪上移捂眼 + 闭眼 */
+.smc--covering .smc__paw--l { transform: translate(7px, -52px); }
+.smc--covering .smc__paw--r { transform: translate(-7px, -52px); }
+.smc--covering .smc__lid { transform: translateY(0); animation: none; }
+
+/* loading：头顶雷达旋转 + 视线飘向侧上 */
+.smc--loading .smc__radar { opacity: 1; animation: smc-radar-spin 1.2s linear infinite; }
+@keyframes smc-radar-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.smc--loading .smc__pupil { transform: translate(3px, -3px) !important; }
+
+/* error：摇头 + 胡须抖 + 红环脉冲 */
+.smc--error .smc__head { animation: smc-head-shake 0.5s ease-in-out 2; transform-origin: 110px 130px; }
+@keyframes smc-head-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
+.smc--error .smc__whiskers { animation: smc-whisker-jitter 0.12s linear 8; }
+@keyframes smc-whisker-jitter { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
+.smc--error .smc__alert-ring { opacity: 1; animation: smc-ring-pulse 0.9s ease-out 2; }
+@keyframes smc-ring-pulse { 0% { opacity: 0.9; transform: scale(0.98); } 100% { opacity: 0; transform: scale(1.06); } }
+.smc--error .smc__lid { transform: translateY(-6px); animation: none; }
+
+/* success：弯月眼 + 尾巴快摆 */
+.smc--success .smc__happy { opacity: 1; }
+.smc--success .smc__pupil, .smc--success .smc__lid { opacity: 0; }
+.smc--success .smc__tail { animation: smc-tail-wag 0.35s ease-in-out 6; }
+@keyframes smc-tail-wag { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(16deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .smc__tail, .smc__lid, .smc__radar, .smc__alert-ring, .smc__head, .smc__whiskers { animation: none !important; }
+}
