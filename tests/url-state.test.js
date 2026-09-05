@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseViewHash, serializeViewHash } from '../src/utils/urlState.js';
+import { parseViewHash, serializeViewHash, shouldRestoreSharedView, VISITED_MARKER } from '../src/utils/urlState.js';
 
 describe('parseViewHash', () => {
   it('解析完整的视角哈希', () => {
@@ -56,5 +56,40 @@ describe('serializeViewHash', () => {
     const view = { lat: 35.68123, lon: 139.76712, z: 12 };
     const back = parseViewHash(serializeViewHash(view));
     expect(back).toEqual({ ...view, tab: null });
+  });
+});
+
+describe('shouldRestoreSharedView（区分刷新 vs 分享打开）', () => {
+  // sessionStorage 桩：只用到 getItem/setItem
+  const fakeStore = (initial = {}) => {
+    const m = new Map(Object.entries(initial));
+    return {
+      getItem: (k) => (m.has(k) ? m.get(k) : null),
+      setItem: (k, v) => m.set(k, String(v)),
+      _m: m,
+    };
+  };
+
+  it('首次到访（无标记）= 分享/深链接打开，恢复视角并落标记', () => {
+    const store = fakeStore();
+    expect(shouldRestoreSharedView(store)).toBe(true);
+    expect(store.getItem(VISITED_MARKER)).toBe('1');
+  });
+
+  it('同标签页刷新（已有标记）不恢复，被动哈希只当地址栏跟随', () => {
+    const store = fakeStore({ [VISITED_MARKER]: '1' });
+    expect(shouldRestoreSharedView(store)).toBe(false);
+  });
+
+  it('存储异常（隐私模式抛错）时保守放行恢复，不崩启动流程', () => {
+    const throwing = {
+      getItem() { throw new Error('blocked'); },
+      setItem() { throw new Error('blocked'); },
+    };
+    expect(shouldRestoreSharedView(throwing)).toBe(true);
+  });
+
+  it('标记值非 "1" 视为首次到访', () => {
+    expect(shouldRestoreSharedView(fakeStore({ [VISITED_MARKER]: 'weird' }))).toBe(true);
   });
 });

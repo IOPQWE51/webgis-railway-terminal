@@ -12,7 +12,7 @@ import LoginOverlay from './components/auth/LoginOverlay.jsx';
 const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
 import { storage } from './utils/performanceHelpers';
-import { parseViewHash } from './utils/urlState';
+import { parseViewHash, shouldRestoreSharedView } from './utils/urlState';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
@@ -32,8 +32,11 @@ const App = () => {
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
 
     // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..
-    // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板
+    // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板。
+    // 🧭 仅"首次到访"恢复（shouldRestoreSharedView 用 sessionStorage 区分）：
+    // 同标签页刷新时哈希只是被动跟随，不再绑架视角跳回旧位置
     useEffect(() => {
+        if (!shouldRestoreSharedView(window.sessionStorage)) return;
         const view = parseViewHash(window.location.hash);
         if (!view) return;
         if (view.tab) setActiveTab(view.tab);

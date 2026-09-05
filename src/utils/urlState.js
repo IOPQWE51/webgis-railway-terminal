@@ -60,3 +60,20 @@ export function serializeViewHash({ lat, lon, z }) {
   const clampZoom = Math.max(0, Math.min(MAX_ZOOM, Math.round(z ?? 0)));
   return `#lat=${fmt(lat)}&lon=${fmt(lon)}&z=${clampZoom}`;
 }
+
+// 🧭 视角恢复守卫：URL 哈希既是"分享载体"也是"被动跟随"（地图一动就写入），
+// 单看 URL 无法区分"别人发我的分享链接"和"我自己刷新页面"。
+// 用 sessionStorage 标记化解歧：本标签页到访过（有标记）= 刷新，不恢复旧视角；
+// 无标记 = 新标签页/新设备打开的分享链接，恢复视角并落标记。
+// 隐私模式等存储异常时保守放行（宁可多恢复一次，不可崩启动）。
+export const VISITED_MARKER = 'et_view_visited';
+
+export function shouldRestoreSharedView(storage) {
+  try {
+    const visited = storage.getItem(VISITED_MARKER);
+    storage.setItem(VISITED_MARKER, '1');
+    return visited !== '1';
+  } catch {
+    return true;
+  }
+}
