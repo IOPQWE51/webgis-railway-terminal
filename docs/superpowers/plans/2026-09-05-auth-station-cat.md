@@ -336,7 +336,7 @@ git commit -m "feat(auth): 轻登录纯函数层 —— 凭据校验/JWT 会话/
 **Files:**
 - Modify: `api/auth.js`（追加 KV 单例与端点）
 
-- [ ] **Step 1: 在 api/auth.js 追加 KV 单例与四个端点**
+- [x] **Step 1: 在 api/auth.js 追加 KV 单例与四个端点**
 
 在文件末尾追加（import 区补充 `import { Redis } from '@upstash/redis';` 与 `import { withRateLimit } from './rateLimiter.js';`）：
 
@@ -450,17 +450,17 @@ export default async function handler(req, res) {
 
 注意：`getSessionUsername` 在本文件上方已导出（Task 1），此处直接使用；import 区需确认包含 `Redis`、`withRateLimit`。
 
-- [ ] **Step 2: 跑全量测试确认无回归**
+- [x] **Step 2: 跑全量测试确认无回归**
 
 Run: `npm test`
 预期：全部 PASS（Task 1 的测试仍绿，无导入破坏）。
 
-- [ ] **Step 3: lint**
+- [x] **Step 3: lint**
 
 Run: `npm run lint`
 预期：无错误。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add api/auth.js
@@ -1170,8 +1170,9 @@ git commit -m "feat(app): 会话接线与作战身份卡 —— 匿名纯本地/
   4. 推送巡礼点 → 云端 `points:zhang` 增长；登出→再登录 → 数据一致（跨设备）
   5. 错误密码 → 猫摇头 + SIGNAL LOST
   6. 匿名 POST `/api/points` → 401
-  7. 截图存档六态
-- [ ] **Step 8: 验收报告 + spec 勾选**
+  7. curl 探针（质量审查补充）：重复注册同一用户名 → 409；畸形/非 JSON body → 4xx
+  8. 截图存档六态
+- [ ] **Step 4: 验收报告 + spec 勾选**
 
 ---
 
