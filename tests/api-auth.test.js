@@ -63,6 +63,7 @@ describe('validateCredentials', () => {
     });
     it('非法入参带中文错误文案', () => {
         expect(validateCredentials(null).ok).toBe(false);
+        expect(validateCredentials(null).error).toContain('请求体格式错误');
         expect(validateCredentials({ username: 'x', password: 'password1' }).error).toContain('用户名');
         expect(validateCredentials({ username: 'zhang', password: 'short' }).error).toContain('密码');
     });
