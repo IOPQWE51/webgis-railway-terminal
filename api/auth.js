@@ -62,17 +62,15 @@ export function generateRandomPassword() {
     return randomBytes(9).toString('base64url');
 }
 
+// 🔢 邮箱验证码：6 位纯数字（邮件里口头念，输入框好打），10 分钟有效由调用方 TTL 控制
+export function generateEmailCode() {
+    return String(100000 + randomBytes(4).readUInt32BE(0) % 900000);
+}
+
 // 📨 Resend 发信：密钥缺失或发信失败一律返回 false（交由调用方决定 UX，绝不静默吞）
-export async function sendResetEmail(to, username, newPassword) {
+export async function sendEmailViaResend(to, subject, html) {
     const key = process.env.RESEND_API_KEY;
     if (!key) return false;
-    const html = [
-        `<p>你好，站长「${username}」：</p>`,
-        `<p>你的 EarthTerminal 节点密钥已被重置，新的临时密钥是：</p>`,
-        `<p style="font-size:20px;font-family:monospace;background:#f1f5f9;padding:12px 16px;border-radius:8px;display:inline-block"><strong>${newPassword}</strong></p>`,
-        `<p>登录后可以在「数据解析与管理 → 作战身份卡」右上角断开旧链路。此密钥随机生成，请登录后尽快修改为你自己的密码……哦不对，这个系统还没做改密功能，那先记好它吧 😼</p>`,
-        `<p style="color:#94a3b8;font-size:12px">如果这不是你的操作，说明有人在尝试重置你的账号——原旧密钥已失效，请立即使用新密钥登录。</p>`,
-    ].join('');
     try {
         const res = await fetch('https://api.resend.com/emails', {
             method: 'POST',
@@ -80,7 +78,7 @@ export async function sendResetEmail(to, username, newPassword) {
             body: JSON.stringify({
                 from: 'EarthTerminal 站长台 <onboarding@resend.dev>',
                 to: [to],
-                subject: '【EarthTerminal】节点密钥重置',
+                subject,
                 html,
             }),
         });
@@ -88,6 +86,29 @@ export async function sendResetEmail(to, username, newPassword) {
     } catch {
         return false;
     }
+}
+
+export async function sendResetEmail(to, username, newPassword) {
+    const html = [
+        `<p>你好，站长「${username}」：</p>`,
+        `<p>你的 EarthTerminal 节点密钥已被重置，新的临时密钥是：</p>`,
+        `<p style="font-size:20px;font-family:monospace;background:#f1f5f9;padding:12px 16px;border-radius:8px;display:inline-block"><strong>${newPassword}</strong></p>`,
+        `<p>登录后可以在「数据解析与管理 → 作战身份卡」右上角断开旧链路。此密钥随机生成，请登录后尽快修改为你自己的密码……哦不对，这个系统还没做改密功能，那先记好它吧 😼</p>`,
+        `<p style="color:#94a3b8;font-size:12px">如果这不是你的操作，说明有人在尝试重置你的账号——原旧密钥已失效，请立即使用新密钥登录。</p>`,
+    ].join('');
+    return sendEmailViaResend(to, '【EarthTerminal】节点密钥重置', html);
+}
+
+// ✉ 注册绑定确认邮件（防拿别人邮箱注册骚扰：收件人只有点开验证码才算数）
+export async function sendVerifyEmail(to, username, code) {
+    const html = [
+        `<p>你好：</p>`,
+        `<p>代号「${username}」正在 EarthTerminal（eterm.vercel.app）注册账号，并填了这个邮箱作为找回通道。</p>`,
+        `<p>如果这就是你：回到注册弹窗，输入下面的验证码完成绑定（10 分钟内有效）：</p>`,
+        `<p style="font-size:24px;letter-spacing:6px;font-family:monospace;background:#f1f5f9;padding:12px 20px;border-radius:8px;display:inline-block"><strong>${code}</strong></p>`,
+        `<p style="color:#94a3b8;font-size:12px">如果这不是你的操作，直接忽略本邮件即可——不输入验证码，这个邮箱不会收到任何后续邮件（包括密钥重置）。</p>`,
+    ].join('');
+    return sendEmailViaResend(to, '【EarthTerminal】邮箱绑定验证码', html);
 }
 
 // 🚧 注册总量保险丝：防人肉/脚本灌库撑爆 KV。env REGISTRATION_CAP 可调；
@@ -163,7 +184,12 @@ export async function getSessionUsername(req) {
 
 export async function buildUserRecord(password, email = null) {
     const record = { hash: await bcrypt.hash(password, 12), createdAt: new Date().toISOString() };
-    if (email) record.email = email; // 📧 可选找回邮箱（注册时 null = 未绑定）
+    if (email) {
+        // 📧 可选找回邮箱：注册即绑定但未验证（emailVerified=false）——完成 verify-email 前不触发重置邮件，
+        //    防止拿别人邮箱注册骚扰：邮箱主人只会收到一封"确认验证码"，忽略它就永远安静
+        record.email = email;
+        record.emailVerified = false;
+    }
     return record;
 }
 
@@ -314,6 +340,19 @@ const registerHandler = withRateLimit('auth')(async (req, res) => {
     const created = await redis.set(`user:${creds.username}`, JSON.stringify(record), { nx: true });
     if (created !== 'OK') return res.status(409).json({ error: '该节点代号已被注册' });
 
+    // ✉ 邮箱绑定验证：注册成功后立刻发验证码（emailVerified 默认 false）。
+    // 发信失败不影响注册本身——用户可在登录弹层重发（verify-email?resend=1）
+    if (mail.email && process.env.RESEND_API_KEY) {
+        try {
+            const code = generateEmailCode();
+            await redis.set(`emailcode:${creds.username}`, code, { ex: 600 });
+            const sent = await sendVerifyEmail(mail.email, creds.username, code);
+            if (!sent) await redis.delete(`emailcode:${creds.username}`);
+        } catch (e) {
+            console.error('验证码邮件发送失败（不影响注册）:', e.message);
+        }
+    }
+
     // 迁移是机会性收益（3 次 KV 往返）：任一网络抖动抛错若冒泡到顶层 catch 会 500，
     // 而用户行已写入——用户重试只会撞 409，留下"已注册但收到 500"的半成品；
     // 故认领失败只记日志，不影响注册结果
@@ -354,11 +393,75 @@ const loginHandler = withRateLimit('auth')(async (req, res) => {
     return res.status(200).json({ ok: true, username: creds.username });
 });
 
-// 📧 密钥找回：填用户名 → 若账号绑过邮箱，生成随机新密钥并邮件送达
+// 📧 密钥找回：填用户名 → 若账号绑过已验证邮箱，生成随机新密钥并邮件送达
+//    也支持只填邮箱（username 留空）→ 反查代号并把"代号+新密钥"一起邮件送达（用户名遗忘自救）
 const resetHandler = withRateLimit('auth')(async (req, res) => {
     const body = await readJsonBody(req);
     if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
     // 人机验证：找回端点是"邮件轰炸机"最恶心的入口，无一例外
+    if (!(await verifyTurnstile(body.turnstileToken, getClientIp(req)))) {
+        return res.status(400).json({ error: '人机验证未通过，请刷新后重试' });
+    }
+    const email = resolveOptionalEmail(body.email);
+    const username = normalizeUsername(body.username);
+    // 代号与邮箱至少给一个：都给以代号为准（精确），只给邮箱则反查（模糊）
+    if (!username && !(email.ok && email.email)) {
+        return res.status(400).json({ error: '请输入节点代号，或注册时绑定的邮箱' });
+    }
+
+    const redis = getRedis();
+    if (!redis) return res.status(503).json({ error: '存储服务暂不可用' });
+
+    let targetUser = null;
+    let record = null;
+    if (username) {
+        const raw = await redis.get(`user:${username}`);
+        try { record = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { record = null; }
+        if (record && typeof record === 'object') targetUser = username;
+    } else {
+        // 🧭 邮箱反查：扫 user:* 找 email 匹配的记录（用户库 ≤500，keys 扫描成本可接受）
+        const users = await redis.keys('user:*');
+        for (const key of users) {
+            const raw = await redis.get(key);
+            let r = null;
+            try { r = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { r = null; }
+            if (r && typeof r === 'object' && r.email === email.email) {
+                targetUser = key.slice('user:'.length);
+                record = r;
+                break;
+            }
+        }
+    }
+
+    // 🎭 枚举面说明：账号存在性已由注册端 409 天然公开，此处 404 不新增泄露
+    if (!targetUser) {
+        return res.status(404).json({ error: '没有找到匹配的账号——请核对代号或注册邮箱' });
+    }
+    if (typeof record.email !== 'string' || record.email === '') {
+        return res.status(400).json({ error: '该账号注册时未绑定邮箱，无法邮件找回——请联系站长手动处理' });
+    }
+    if (record.emailVerified !== true) {
+        return res.status(400).json({ error: '该邮箱尚未完成绑定验证（注册后收到的验证码邮件未输入），无法邮件找回' });
+    }
+    if (!process.env.RESEND_API_KEY) {
+        return res.status(503).json({ error: '邮件服务暂不可用' });
+    }
+
+    const newPassword = generateRandomPassword();
+    // 📤 先发信后落库：若先落库后发信失败，旧密码已失效新密码又收不到 = 用户被锁死
+    // 邮箱反查场景下把代号一并写进邮件——用户忘了代号的正是这封信要解决的
+    const sent = await sendResetEmail(record.email, targetUser, newPassword);
+    if (!sent) return res.status(502).json({ error: '发信失败，旧密钥仍然有效，请稍后重试' });
+    // 旧记录整体保留（email / createdAt / 未来字段），仅替换 hash
+    const updated = { ...record, hash: await bcrypt.hash(newPassword, 12) };
+    await redis.set(`user:${targetUser}`, JSON.stringify(updated));
+    return res.status(200).json({ ok: true, message: '重置邮件已发送，请查收' });
+});
+
+// ✉ 邮箱验证：注册后输入邮件里的 6 位验证码完成绑定（body.code）；resend=1 重发验证码
+const verifyEmailHandler = withRateLimit('auth')(async (req, res) => {
+    const body = await readJsonBody(req);
+    if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
     if (!(await verifyTurnstile(body.turnstileToken, getClientIp(req)))) {
         return res.status(400).json({ error: '人机验证未通过，请刷新后重试' });
     }
@@ -371,26 +474,42 @@ const resetHandler = withRateLimit('auth')(async (req, res) => {
     const raw = await redis.get(`user:${username}`);
     let record = null;
     try { record = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { record = null; }
-    // 🎭 不区分"账号不存在"？——此处必须区分：找回 UX 需要"未绑定邮箱"的明确提示，
-    //    枚举侧信道已由注册端 409 天然开放（尝试注册同名即可知是否存在），此处不新增泄露面
     if (!record || typeof record !== 'object') {
         return res.status(404).json({ error: '节点代号不存在' });
     }
     if (typeof record.email !== 'string' || record.email === '') {
-        return res.status(400).json({ error: '该账号注册时未绑定邮箱，无法邮件找回——请联系站长手动处理' });
+        return res.status(400).json({ error: '该账号未绑定邮箱，无需验证' });
+    }
+    if (record.emailVerified === true) {
+        return res.status(200).json({ ok: true, message: '该邮箱已验证通过' });
     }
     if (!process.env.RESEND_API_KEY) {
         return res.status(503).json({ error: '邮件服务暂不可用' });
     }
 
-    const newPassword = generateRandomPassword();
-    // 📤 先发信后落库：若先落库后发信失败，旧密码已失效新密码又收不到 = 用户被锁死
-    const sent = await sendResetEmail(record.email, username, newPassword);
-    if (!sent) return res.status(502).json({ error: '发信失败，旧密钥仍然有效，请稍后重试' });
-    // 旧记录整体保留（email / createdAt / 未来字段），仅替换 hash
-    const updated = { ...record, hash: await bcrypt.hash(newPassword, 12) };
+    // 🔁 重发验证码（code 留空 + resend=1）：同账号 60s 冷却，防轰炸
+    if (body.resend === true || body.resend === '1') {
+        const cooldownKey = `emailresend:${username}`;
+        const locked = await redis.set(cooldownKey, '1', { nx: true, ex: 60 });
+        if (locked !== 'OK') return res.status(429).json({ error: '验证码发送过于频繁，请 1 分钟后再试' });
+        const code = generateEmailCode();
+        const sent = await sendVerifyEmail(record.email, username, code);
+        if (!sent) return res.status(502).json({ error: '发信失败，请稍后重试' });
+        await redis.set(`emailcode:${username}`, code, { ex: 600 });
+        return res.status(200).json({ ok: true, message: '验证码已重新发送，请查收邮箱' });
+    }
+
+    // ✅ 收码验证：6 位数字，与 KV 里存的码比对（取到即焚，防重放）
+    const code = String(body.code ?? '').trim();
+    if (!/^\d{6}$/.test(code)) return res.status(400).json({ error: '请输入邮件中的 6 位验证码' });
+    const stored = await redis.get(`emailcode:${username}`);
+    if (!stored || String(stored) !== code) {
+        return res.status(400).json({ error: '验证码不正确或已过期' });
+    }
+    await redis.delete(`emailcode:${username}`);
+    const updated = { ...record, emailVerified: true };
     await redis.set(`user:${username}`, JSON.stringify(updated));
-    return res.status(200).json({ ok: true, message: '重置邮件已发送，请查收' });
+    return res.status(200).json({ ok: true, message: '邮箱绑定完成，从此可自助找回密钥' });
 });
 
 const logoutHandler = withRateLimit('general')(async (req, res) => {
@@ -410,6 +529,7 @@ export default async function handler(req, res) {
         if (req.method === 'POST' && action === 'register') return await registerHandler(req, res);
         if (req.method === 'POST' && action === 'login') return await loginHandler(req, res);
         if (req.method === 'POST' && action === 'reset') return await resetHandler(req, res);
+        if (req.method === 'POST' && action === 'verify-email') return await verifyEmailHandler(req, res);
         if (req.method === 'POST' && action === 'logout') return await logoutHandler(req, res);
         if (req.method === 'GET' && action === 'me') return await meHandler(req, res);
         return res.status(405).json({ error: 'Method Not Allowed' });

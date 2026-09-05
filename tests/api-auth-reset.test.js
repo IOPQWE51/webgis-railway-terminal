@@ -5,6 +5,8 @@ import bcrypt from 'bcryptjs';
 import handler, {
     resolveOptionalEmail,
     generateRandomPassword,
+    generateEmailCode,
+    sendVerifyEmail,
     signSession,
 } from '../api/auth.js';
 
@@ -23,7 +25,11 @@ vi.mock('@upstash/redis', () => {
         async delete(k) { kv.m.delete(k); }
         async incr(k) { const n = Number(kv.m.get(k) || 0) + 1; kv.m.set(k, n); return n; }
         async expire() { return 1; }
-        async keys(prefix) { return [...kv.m.keys()].filter(k => k.startsWith(prefix)); }
+        // keys('user:*') 是 glob 模式语义：* 匹配任意后缀（handler 的反查扫描依赖此行为）
+        async keys(pattern) {
+            const prefix = pattern.replace(/\*/g, '');
+            return [...kv.m.keys()].filter(k => k.startsWith(prefix));
+        }
     }
     return { Redis: FakeRedis };
 });
@@ -39,11 +45,12 @@ function mockRes() {
     };
 }
 
-async function plantUser(username, password, email = null) {
+async function plantUser(username, password, email = null, { verified = true } = {}) {
+    // verified 默认 true 模拟"完成 verify-email 的用户"；验证闭环分支用例显式传 false
     const record = {
         hash: await bcrypt.hash(password, 12),
         createdAt: new Date().toISOString(),
-        ...(email ? { email } : {}),
+        ...(email ? { email, emailVerified: verified } : {}),
     };
     kv.m.set(`user:${username}`, JSON.stringify(record));
 }
@@ -170,5 +177,108 @@ describe('POST /api/auth?action=reset（密钥找回）', () => {
         const res = mockRes();
         await handler({ method: 'GET', query: { action: 'reset' }, headers: {} }, res);
         expect(res.statusCode).toBe(405);
+    });
+
+    // ---- 邮箱验证闭环（防拿别人邮箱注册骚扰）----
+    const verifyReq = (username, extra = {}) => ({
+        method: 'POST',
+        query: { action: 'verify-email' },
+        headers: { 'x-forwarded-for': '10.0.0.1' },
+        body: { username, ...extra },
+    });
+
+    it('未验证邮箱的账号 reset → 400 提示先完成验证（骚扰链路被掐断）', async () => {
+        await plantUser('newbie', 'password-123', 'new@example.com', { verified: false });
+        const res = mockRes();
+        await handler(resetReq('newbie'), res);
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('尚未完成绑定验证');
+    });
+
+    it('verify-email 收码正确 → emailVerified=true，随后 reset 放行', async () => {
+        await plantUser('newbie', 'password-123', 'new@example.com', { verified: false });
+        kv.m.set('emailcode:newbie', '654321');
+        const res = mockRes();
+        await handler(verifyReq('newbie', { code: '654321' }), res);
+        expect(res.statusCode).toBe(200);
+        expect(JSON.parse(kv.m.get('user:newbie')).emailVerified).toBe(true);
+        // 验证码取到即焚
+        expect(kv.m.has('emailcode:newbie')).toBe(false);
+
+        // 随后 reset 真放行（真实发信）
+        globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'm2' }) }));
+        const r2 = mockRes();
+        await handler(resetReq('newbie'), r2);
+        expect(r2.statusCode).toBe(200);
+        delete globalThis.fetch;
+    });
+
+    it('verify-email 码错误 → 400 且 emailVerified 不变', async () => {
+        await plantUser('newbie', 'password-123', 'new@example.com', { verified: false });
+        kv.m.set('emailcode:newbie', '654321');
+        const res = mockRes();
+        await handler(verifyReq('newbie', { code: '111111' }), res);
+        expect(res.statusCode).toBe(400);
+        expect(JSON.parse(kv.m.get('user:newbie')).emailVerified).toBe(false);
+    });
+
+    it('verify-email 重发 → 60s 冷却键占坑，二连发 429', async () => {
+        await plantUser('newbie', 'password-123', 'new@example.com', { verified: false });
+        globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'm3' }) }));
+        const r1 = mockRes();
+        await handler(verifyReq('newbie', { resend: '1' }), r1);
+        expect(r1.statusCode).toBe(200);
+        expect(kv.m.get('emailcode:newbie')).toBeTruthy(); // 新码已落 KV
+        const r2 = mockRes();
+        await handler(verifyReq('newbie', { resend: '1' }), r2);
+        expect(r2.statusCode).toBe(429);
+        delete globalThis.fetch;
+    });
+
+    it('verify-email 已验证账号 → 幂等 200；未绑邮箱账号 → 400 无需验证', async () => {
+        await plantUser('done', 'password-123', 'ok@example.com');
+        kv.m.set('user:done', JSON.stringify({ ...JSON.parse(kv.m.get('user:done')), emailVerified: true }));
+        const r1 = mockRes();
+        await handler(verifyReq('done', { code: '000000' }), r1);
+        expect(r1.statusCode).toBe(200);
+
+        await plantUser('noemail', 'password-123', null);
+        const r2 = mockRes();
+        await handler(verifyReq('noemail'), r2);
+        expect(r2.statusCode).toBe(400);
+    });
+
+    // ---- 邮箱反查代号（用户名遗忘自救）----
+    it('reset 只填邮箱（代号留空）→ 反查到账号并发信，邮件里含代号', async () => {
+        await plantUser('forgetful', 'password-123', 'me@example.com');
+        kv.m.set('user:forgetful', JSON.stringify({ ...JSON.parse(kv.m.get('user:forgetful')), emailVerified: true }));
+        globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'm4' }) }));
+        const res = mockRes();
+        await handler({ method: 'POST', query: { action: 'reset' }, headers: {}, body: { email: 'me@example.com' } }, res);
+        expect(res.statusCode).toBe(200);
+        const [, init] = globalThis.fetch.mock.calls[0];
+        expect(JSON.parse(init.body).html).toContain('forgetful');
+        delete globalThis.fetch;
+    });
+
+    it('reset 代号与邮箱都空 → 400；邮箱匹配不到任何账号 → 404', async () => {
+        const r1 = mockRes();
+        await handler({ method: 'POST', query: { action: 'reset' }, headers: {}, body: {} }, r1);
+        expect(r1.statusCode).toBe(400);
+        const r2 = mockRes();
+        await handler({ method: 'POST', query: { action: 'reset' }, headers: {}, body: { email: 'ghost@example.com' } }, r2);
+        expect(r2.statusCode).toBe(404);
+    });
+
+    it('generateEmailCode 6 位数字 + sendVerifyEmail 载荷含验证码', async () => {
+        const c = generateEmailCode();
+        expect(c).toMatch(/^\d{6}$/);
+        globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'm5' }) }));
+        expect(await sendVerifyEmail('a@b.co', 'cat', '123456')).toBe(true);
+        const [, init] = globalThis.fetch.mock.calls[0];
+        const payload = JSON.parse(init.body);
+        expect(payload.subject).toContain('验证码');
+        expect(payload.html).toContain('123456');
+        delete globalThis.fetch;
     });
 });
