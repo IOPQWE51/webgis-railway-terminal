@@ -270,6 +270,31 @@ describe('POST /api/auth?action=reset（密钥找回）', () => {
         expect(r2.statusCode).toBe(404);
     });
 
+    it('同邮箱多账号（未验证占位 + 已验证正主）→ 反查优先命中已验证者', async () => {
+        // 真实生产踩到的场景：qq_test（未验证占坑）与 qq_test2（正主）绑了同一邮箱
+        await plantUser('squatter', 'password-123', 'shared@example.com', { verified: false });
+        await plantUser('owner', 'password-123', 'shared@example.com', { verified: true });
+        globalThis.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ id: 'm6' }) }));
+        const res = mockRes();
+        await handler({ method: 'POST', query: { action: 'reset' }, headers: {}, body: { email: 'shared@example.com' } }, res);
+        expect(res.statusCode).toBe(200);
+        const [, init] = globalThis.fetch.mock.calls[0];
+        expect(JSON.parse(init.body).html).toContain('owner');
+        expect(JSON.parse(init.body).html).not.toContain('squatter');
+        // 正主的密码被换，占位者的密码不动
+        expect(await bcrypt.compare('password-123', JSON.parse(kv.m.get('user:squatter')).hash)).toBe(true);
+        expect(await bcrypt.compare('password-123', JSON.parse(kv.m.get('user:owner')).hash)).toBe(false);
+        delete globalThis.fetch;
+    });
+
+    it('同邮箱全部未验证 → 反查落到占位账号并返回"未完成验证"提示', async () => {
+        await plantUser('squatter', 'password-123', 'shared@example.com', { verified: false });
+        const res = mockRes();
+        await handler({ method: 'POST', query: { action: 'reset' }, headers: {}, body: { email: 'shared@example.com' } }, res);
+        expect(res.statusCode).toBe(400);
+        expect(res.body.error).toContain('尚未完成绑定验证');
+    });
+
     it('generateEmailCode 6 位数字 + sendVerifyEmail 载荷含验证码', async () => {
         const c = generateEmailCode();
         expect(c).toMatch(/^\d{6}$/);

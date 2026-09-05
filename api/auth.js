@@ -419,17 +419,26 @@ const resetHandler = withRateLimit('auth')(async (req, res) => {
         try { record = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { record = null; }
         if (record && typeof record === 'object') targetUser = username;
     } else {
-        // 🧭 邮箱反查：扫 user:* 找 email 匹配的记录（用户库 ≤500，keys 扫描成本可接受）
+        // 🧭 邮箱反查：扫 user:* 找 email 匹配的记录（用户库 ≤500，keys 扫描成本可接受）。
+        // 同一邮箱可能被多个账号填过（未验证的占位 + 已验证的正主）：优先取已验证者，
+        // 只有未验证匹配时才落到它——否则拿别人邮箱占坑注册会挡住正主的重置入口
         const users = await redis.keys('user:*');
+        let fallback = null; // { username, record }：仅未验证的匹配
         for (const key of users) {
             const raw = await redis.get(key);
             let r = null;
             try { r = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { r = null; }
-            if (r && typeof r === 'object' && r.email === email.email) {
+            if (!r || typeof r !== 'object' || r.email !== email.email) continue;
+            if (r.emailVerified === true) {
                 targetUser = key.slice('user:'.length);
                 record = r;
                 break;
             }
+            if (!fallback) fallback = { username: key.slice('user:'.length), record: r };
+        }
+        if (!targetUser && fallback) {
+            targetUser = fallback.username;
+            record = fallback.record;
         }
     }
 
