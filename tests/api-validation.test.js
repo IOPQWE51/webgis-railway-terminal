@@ -5,7 +5,7 @@ import {
   getClientIp,
   parseCoords,
   isMonitorAuthorized,
-} from '../api/validation.js';
+} from '../api/_lib/validation.js';
 
 const validPoint = {
   id: 'custom_123',
