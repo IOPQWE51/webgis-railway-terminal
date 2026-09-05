@@ -10,7 +10,8 @@ import {
     signSession,
     verifySessionToken,
     buildUserRecord,
-    claimLegacyPool
+    claimLegacyPool,
+    parseRegistrationCap
 } from '../api/auth.js';
 
 const SECRET = 'test-secret-32-chars-long-xxxxxxxx';
@@ -130,6 +131,23 @@ describe('buildUserRecord（bcrypt 往返）', () => {
         expect(rec.createdAt).toBeTruthy();
         expect(await bcrypt.compare('password1', rec.hash)).toBe(true);
         expect(await bcrypt.compare('wrongpass', rec.hash)).toBe(false);
+    });
+});
+
+describe('parseRegistrationCap（注册总量保险丝）', () => {
+    it('未配置/非法值回退默认 500', () => {
+        expect(parseRegistrationCap(undefined)).toBe(500);
+        expect(parseRegistrationCap('')).toBe(500);
+        expect(parseRegistrationCap('abc')).toBe(500);
+        expect(parseRegistrationCap('0')).toBe(500);
+        expect(parseRegistrationCap('-5')).toBe(500);
+    });
+    it('小数配置向下取整（3.7 → 3）', () => {
+        expect(parseRegistrationCap('3.7')).toBe(3);
+    });
+    it('合法正整数配置生效', () => {
+        expect(parseRegistrationCap('50')).toBe(50);
+        expect(parseRegistrationCap('1')).toBe(1);
     });
 });
 

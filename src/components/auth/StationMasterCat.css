@@ -1,6 +1,10 @@
 /* 🐱 猫站长样式：所有循环动画可被 prefers-reduced-motion 关停 */
 
 .smc { width: 210px; margin: 0 auto; position: relative; }
+/* 📐 矮视口（笔记本 100% 缩放）压缩猫咪，保认证卡片完整可见不溢出 */
+@media (max-height: 780px) {
+    .smc { width: 140px; }
+}
 .smc__svg { width: 100%; display: block; }
 
 .smc__happy { opacity: 0; }

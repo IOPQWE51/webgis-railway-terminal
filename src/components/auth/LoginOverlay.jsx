@@ -1,5 +1,5 @@
 import { useEffect, useRef, useReducer, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 import StationMasterCat from './StationMasterCat.jsx';
 import { nextCatState } from './catStateMachine.js';
 
@@ -11,6 +11,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
     const [mode, setMode] = useState('login'); // 'login' | 'register'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState(null); // { type: 'error' | 'ok', text }
     const [busy, setBusy] = useState(false);
     const [cat, dispatchCat] = useReducer(nextCatState, { name: 'idle', inputLength: 0 });
@@ -37,6 +38,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
             if (window.turnstile && turnstileContainerRef.current && !turnstileWidgetRef.current) {
                 turnstileWidgetRef.current = window.turnstile.render(turnstileContainerRef.current, {
                     sitekey: TURNSTILE_SITE_KEY,
+                    theme: 'light',
                     callback: (token) => setTurnstileToken(token),
                     'expired-callback': () => setTurnstileToken('')
                 });
@@ -146,7 +148,8 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
             aria-modal="true"
             aria-label="身份认证"
         >
-            <div className="relative w-full max-w-md bg-white/95 border border-slate-200/80 rounded-3xl shadow-xl shadow-sky-900/5 p-8 font-mono">
+            {/* 📐 卡片限高内部滚动：100% 缩放的 1080p 笔记本也要完整可见 */}
+            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white/95 border border-slate-200/80 rounded-3xl shadow-xl shadow-sky-900/5 p-6 sm:p-8 font-mono">
                 <button onClick={onClose} aria-label="关闭" className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:text-sky-500 hover:border-sky-300 transition-colors">
                     <X className="w-4 h-4 mx-auto" />
                 </button>
@@ -155,13 +158,13 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                 <h2 className="text-slate-800 text-xl font-black tracking-widest mb-1">
                     {mode === 'login' ? '建立上行链路' : '注册新终端节点'}
                 </h2>
-                <p className="text-slate-400 text-xs mb-4">STATION MASTER ON DUTY · 猫站长值机中</p>
+                <p className="text-slate-400 text-xs mb-3">STATION MASTER ON DUTY · 猫站长值机中</p>
 
                 <StationMasterCat state={cat.name} inputLength={cat.inputLength} />
 
                 <form onSubmit={submit} className="space-y-3 mt-2">
                     <label className="block">
-                        <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">节点代号 NODE ID</span>
+                        <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">用户名 · 节点代号</span>
                         <input
                             ref={usernameRef}
                             type="text"
@@ -169,28 +172,40 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             autoComplete="username"
                             spellCheck="false"
                             disabled={locked}
+                            placeholder="取个代号，如 tokyo_cat（3-24 位小写字母/数字/-/_）"
                             onChange={(e) => { setUsername(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
                             onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: username.length })}
                             onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
-                            className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors"
+                            className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors placeholder:text-slate-300"
                         />
                     </label>
                     <label className="block">
-                        <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">访问密钥 ACCESS KEY</span>
-                        <input
-                            type="password"
-                            value={password}
-                            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                            disabled={locked}
-                            onChange={(e) => setPassword(e.target.value)}
-                            onFocus={() => dispatchCat({ type: 'PASSWORD_FOCUS' })}
-                            onBlur={() => dispatchCat({ type: 'PASSWORD_BLUR' })}
-                            className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors"
-                        />
+                        <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">密码 · 访问密钥</span>
+                        <div className="relative mt-1">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                                disabled={locked}
+                                placeholder="至少 8 位"
+                                onChange={(e) => setPassword(e.target.value)}
+                                onFocus={() => dispatchCat({ type: 'PASSWORD_FOCUS' })}
+                                onBlur={() => dispatchCat({ type: 'PASSWORD_BLUR' })}
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 pr-11 text-slate-800 text-sm outline-none transition-colors placeholder:text-slate-300"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(v => !v)}
+                                aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-500 transition-colors"
+                            >
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
                     </label>
 
-                    {/* 🤖 Turnstile 人机验证（未配置站点密钥时不渲染，后端同步跳过校验） */}
-                    {TURNSTILE_SITE_KEY && <div ref={turnstileContainerRef} className="flex justify-center" />}
+                    {/* 🤖 Turnstile 人机验证（未配置站点密钥时不渲染，后端同步跳过校验）；min-h 保组件不被压扁只露出 Troubleshoot 链接 */}
+                    {TURNSTILE_SITE_KEY && <div ref={turnstileContainerRef} className="flex justify-center items-center min-h-[65px]" />}
 
                     {/* Fix 6：aria-live 容器常驻（空态输出不换行空格占位），读屏才能可靠播报动态插入的消息 */}
                     <p

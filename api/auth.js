@@ -42,6 +42,14 @@ export function validateCredentials(body) {
     return { ok: true, username, password };
 }
 
+// 🚧 注册总量保险丝：防人肉/脚本灌库撑爆 KV。env REGISTRATION_CAP 可调；
+// 极端并发下可能略超 1-2 个（keys 扫描非原子），作为滥用熔断足够
+export const DEFAULT_REGISTRATION_CAP = 500;
+export function parseRegistrationCap(raw) {
+    const n = Number.parseInt(String(raw ?? ''), 10);
+    return Number.isInteger(n) && n > 0 ? n : DEFAULT_REGISTRATION_CAP;
+}
+
 export function serializeSessionCookie(token, isProduction) {
     const parts = [`${COOKIE_NAME}=${encodeURIComponent(token)}`, 'HttpOnly', 'Path=/', `Max-Age=${SESSION_MAX_AGE}`, 'SameSite=Lax'];
     if (isProduction) parts.push('Secure');
@@ -238,6 +246,12 @@ const registerHandler = withRateLimit('auth')(async (req, res) => {
 
     const redis = getRedis();
     if (!redis) return res.status(503).json({ error: '存储服务暂不可用' });
+
+    const cap = parseRegistrationCap(process.env.REGISTRATION_CAP);
+    const existingCount = (await redis.keys('user:*')).length;
+    if (existingCount >= cap) {
+        return res.status(403).json({ error: `节点注册已达总量上限（${cap}），新节点暂停接入` });
+    }
 
     const record = await buildUserRecord(creds.password);
     // ⚛️ nx = 不存在才写入，规避"检查-写入"竞态（多实例并发注册同一代号）
