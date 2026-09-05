@@ -32,7 +32,9 @@
 @keyframes smc-head-shake { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
 .smc--error .smc__whiskers { animation: smc-whisker-jitter 0.12s linear 8; }
 @keyframes smc-whisker-jitter { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1.5px); } }
-.smc--error .smc__alert-ring { opacity: 1; animation: smc-ring-pulse 0.9s ease-out 2; }
+/* error 态红环脉冲：forwards 让动画结束后停留在末帧 opacity:0（Fix 7），
+   否则回落到本规则的 opacity:1 会出现红环常亮回弹 */
+.smc--error .smc__alert-ring { opacity: 1; animation: smc-ring-pulse 0.9s ease-out 2 forwards; }
 @keyframes smc-ring-pulse { 0% { opacity: 0.9; transform: scale(0.98); } 100% { opacity: 0; transform: scale(1.06); } }
 .smc--error .smc__lid { transform: translateY(-6px); animation: none; }
 

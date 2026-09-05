@@ -7,6 +7,11 @@ const StationMasterCat = ({ state = 'idle', inputLength = 0 }) => {
     return (
         <div className={`smc smc--${state}`} aria-hidden="true">
             <svg viewBox="0 0 220 210" className="smc__svg">
+                {/* 眼睑裁剪区（Fix 2）：以眼白椭圆为界裁掉眼睑矩形，避免其静止位上收时咬掉头部花斑上缘；本组件页面内单实例，静态 id 安全 */}
+                <defs>
+                    <clipPath id="smc-eye-clip-l"><ellipse cx="93" cy="92" rx="9" ry="10" /></clipPath>
+                    <clipPath id="smc-eye-clip-r"><ellipse cx="127" cy="92" rx="9" ry="10" /></clipPath>
+                </defs>
                 {/* 尾巴 */}
                 <g className="smc__tail">
                     <path d="M158 168 Q 196 160 190 122" fill="none" stroke="#e8a13d" strokeWidth="14" strokeLinecap="round" />
@@ -19,9 +24,6 @@ const StationMasterCat = ({ state = 'idle', inputLength = 0 }) => {
                 {/* 站长领巾 + 铃铛 */}
                 <path d="M84 138 Q 110 152 136 138 L 136 150 Q 110 164 84 150 Z" fill="#c2452d" />
                 <circle cx="110" cy="152" r="5" fill="#fbbf24" />
-                {/* 双爪（covering 时上移捂眼） */}
-                <g className="smc__paw smc__paw--l"><ellipse cx="86" cy="150" rx="13" ry="10" fill="#f5e9d7" stroke="#d9c6a8" /></g>
-                <g className="smc__paw smc__paw--r"><ellipse cx="134" cy="150" rx="13" ry="10" fill="#f5e9d7" stroke="#d9c6a8" /></g>
                 {/* 头 */}
                 <g className="smc__head">
                     <path d="M76 66 L84 30 L108 56 Z" fill="#f5e9d7" />
@@ -38,7 +40,8 @@ const StationMasterCat = ({ state = 'idle', inputLength = 0 }) => {
                             <circle cx="93" cy="93" r="4.5" fill="#2b2620" />
                             <circle cx="94.5" cy="91.5" r="1.4" fill="#fff" />
                         </g>
-                        <rect className="smc__lid" x="83" y="82" width="20" height="20" fill="#f5e9d7" />
+                        {/* 眼睑矩形套 clip（Fix 2）：只在眼白范围内显示，静止位上收不再裁切花斑；眨眼/闭眼/眯眼各态仍正确 */}
+                        <rect className="smc__lid" x="83" y="82" width="20" height="20" fill="#f5e9d7" clipPath="url(#smc-eye-clip-l)" />
                     </g>
                     {/* 右眼 */}
                     <g className="smc__eye">
@@ -47,7 +50,7 @@ const StationMasterCat = ({ state = 'idle', inputLength = 0 }) => {
                             <circle cx="127" cy="93" r="4.5" fill="#2b2620" />
                             <circle cx="128.5" cy="91.5" r="1.4" fill="#fff" />
                         </g>
-                        <rect className="smc__lid" x="117" y="82" width="20" height="20" fill="#f5e9d7" />
+                        <rect className="smc__lid" x="117" y="82" width="20" height="20" fill="#f5e9d7" clipPath="url(#smc-eye-clip-r)" />
                     </g>
                     {/* success 弯月眼 */}
                     <g className="smc__happy">
@@ -72,6 +75,11 @@ const StationMasterCat = ({ state = 'idle', inputLength = 0 }) => {
                         <line x1="166" y1="52" x2="166" y2="42" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" />
                     </g>
                 </g>
+                {/* 双爪（covering 时上移捂眼）：置于头组之后绘制，否则捂眼位移会落进头圆内部被完全遮挡；
+                    静止位爪顶 y=140 在头圆底 y=139 之下 1px，改序不影响 idle 观感。
+                    fill 用眼白同色 #fffdf6 与头部 #f5e9d7 拉开对比，捂眼时爪形可读 */}
+                <g className="smc__paw smc__paw--l"><ellipse cx="86" cy="150" rx="13" ry="10" fill="#fffdf6" stroke="#d9c6a8" /></g>
+                <g className="smc__paw smc__paw--r"><ellipse cx="134" cy="150" rx="13" ry="10" fill="#fffdf6" stroke="#d9c6a8" /></g>
                 {/* error HUD 红环 */}
                 <circle className="smc__alert-ring" cx="110" cy="110" r="86" fill="none" stroke="#ef4444" strokeWidth="2" strokeDasharray="6 10" />
             </svg>

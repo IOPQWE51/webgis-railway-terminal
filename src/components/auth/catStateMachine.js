@@ -8,7 +8,11 @@ export function nextCatState(event, state) {
         case 'USERNAME_FOCUS':
             return { name: 'watching', inputLength: event.inputLength ?? 0 };
         case 'USERNAME_INPUT':
-            return state.name === 'watching' ? { ...state, inputLength: event.inputLength ?? 0 } : state;
+            // watching 中更新长度；idle 态收到输入（mode 切换 RESET 后继续打字）升回 watching，
+            // 否则瞳孔跟随失联，需 blur+refocus 才能恢复
+            return state.name === 'watching' || state.name === 'idle'
+                ? { name: 'watching', inputLength: event.inputLength ?? 0 }
+                : state;
         case 'USERNAME_BLUR':
             return state.name === 'watching' ? { name: 'idle', inputLength: 0 } : state;
         case 'PASSWORD_FOCUS':

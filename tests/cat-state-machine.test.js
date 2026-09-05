@@ -11,11 +11,17 @@ describe('猫站长状态机', () => {
         expect(nextCatState({ type: 'USERNAME_FOCUS', inputLength: 3 }, IDLE))
             .toEqual({ name: 'watching', inputLength: 3 });
     });
-    it('watching 中输入更新长度；其他状态忽略 INPUT', () => {
+    it('watching 中输入更新长度；idle 收到 INPUT 升回 watching（mode 切换后瞳孔恢复跟随）；loading/covering 等忽略', () => {
         const watching = { name: 'watching', inputLength: 2 };
         expect(nextCatState({ type: 'USERNAME_INPUT', inputLength: 5 }, watching))
             .toEqual({ name: 'watching', inputLength: 5 });
-        expect(nextCatState({ type: 'USERNAME_INPUT', inputLength: 5 }, IDLE)).toBe(IDLE);
+        // mode 切换（RESET→idle）后继续打字：必须重新进入 watching，瞳孔才不会失联
+        expect(nextCatState({ type: 'USERNAME_INPUT', inputLength: 5 }, IDLE))
+            .toEqual({ name: 'watching', inputLength: 5 });
+        const loading = { name: 'loading', inputLength: 0 };
+        expect(nextCatState({ type: 'USERNAME_INPUT', inputLength: 5 }, loading)).toBe(loading);
+        const covering = { name: 'covering', inputLength: 0 };
+        expect(nextCatState({ type: 'USERNAME_INPUT', inputLength: 5 }, covering)).toBe(covering);
     });
     it('用户名失焦回 idle；covering 时忽略', () => {
         expect(nextCatState({ type: 'USERNAME_BLUR' }, { name: 'watching', inputLength: 9 })).toEqual(IDLE);

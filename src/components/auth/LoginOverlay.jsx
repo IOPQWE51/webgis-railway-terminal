@@ -1,4 +1,4 @@
-import { useReducer, useState } from 'react';
+import { useEffect, useRef, useReducer, useState } from 'react';
 import { X } from 'lucide-react';
 import StationMasterCat from './StationMasterCat.jsx';
 import { nextCatState } from './catStateMachine.js';
@@ -12,6 +12,46 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
     const [busy, setBusy] = useState(false);
     const [cat, dispatchCat] = useReducer(nextCatState, { name: 'idle', inputLength: 0 });
 
+    const usernameRef = useRef(null);
+    const overlayRef = useRef(null);
+    const successTimerRef = useRef(null);
+
+    // Fix 3：mount 即聚焦用户名，键盘用户打开弹层后可直接输入，不必先 Tab 寻址
+    useEffect(() => {
+        usernameRef.current?.focus();
+    }, []);
+
+    // Fix 4：卸载（Esc/关闭按钮）时清掉 success 跳转定时器，防止组件移除后仍触发 onAuthenticated
+    useEffect(() => () => clearTimeout(successTimerRef.current), []);
+
+    // Fix 4：busy 复位后、onAuthenticated 触发前的 success 窗口内锁住整个表单，防再提交
+    const locked = busy || cat.name === 'success';
+
+    // Fix 3：Esc 直接关闭；Tab 被拦截在覆盖层内首尾循环（焦点陷阱），
+    // 防止焦点漂移到覆盖层背后的页面内容
+    const handleOverlayKeyDown = (e) => {
+        if (e.key === 'Escape') {
+            onClose();
+            return;
+        }
+        if (e.key !== 'Tab' || !overlayRef.current) return;
+        // 覆盖层内可聚焦元素：关闭按钮、用户名/密码输入框、提交按钮、登录/注册切换
+        const focusables = overlayRef.current.querySelectorAll('button:not([disabled]), input:not([disabled])');
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const current = document.activeElement;
+        if (e.shiftKey) {
+            if (current === first || !overlayRef.current.contains(current)) {
+                e.preventDefault();
+                last.focus();
+            }
+        } else if (current === last || !overlayRef.current.contains(current)) {
+            e.preventDefault();
+            first.focus();
+        }
+    };
+
     const switchMode = (next) => {
         setMode(next);
         setMessage(null);
@@ -20,7 +60,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
     const submit = async (e) => {
         e.preventDefault();
-        if (busy) return;
+        if (locked) return; // Fix 4：busy 与 success 窗口都拒绝重复提交
         setBusy(true);
         setMessage(null);
         dispatchCat({ type: 'SUBMIT' });
@@ -37,11 +77,13 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                     type: 'ok',
                     text: mode === 'register' ? `节点 ${data.username} 已注册，正在认领点位库...` : 'ACCESS GRANTED — 上行链路已建立'
                 });
-                setTimeout(() => onAuthenticated(data.username), 1100);
+                // Fix 4：timer 存 ref，卸载时由 useEffect cleanup 兜底清除
+                successTimerRef.current = setTimeout(() => onAuthenticated(data.username), 1100);
                 return;
             }
             dispatchCat({ type: 'SUBMIT_FAIL' });
-            setMessage({ type: 'error', text: data.error || '请求失败，请稍后再试' });
+            // Fix 6：限流器 429 的中文提示在 message 字段（error 为英文 'Too many requests'），故优先取 message
+            setMessage({ type: 'error', text: data.message || data.error || '请求失败，请稍后再试' });
         } catch {
             dispatchCat({ type: 'SUBMIT_FAIL' });
             setMessage({ type: 'error', text: '跃迁引擎链路异常，请检查网络连接' });
@@ -51,7 +93,15 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4" role="dialog" aria-modal="true" aria-label="身份认证">
+        // Fix 3：keydown 挂在 role=dialog 容器上，Esc 关闭 + Tab 焦点陷阱
+        <div
+            ref={overlayRef}
+            onKeyDown={handleOverlayKeyDown}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-label="身份认证"
+        >
             <div className="relative w-full max-w-md bg-zinc-900 border border-amber-400/40 rounded-3xl shadow-2xl p-8 font-mono">
                 <button onClick={onClose} aria-label="关闭" className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-zinc-700 text-zinc-400 hover:text-amber-300 hover:border-amber-400/50 transition-colors">
                     <X className="w-4 h-4 mx-auto" />
@@ -69,11 +119,12 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                     <label className="block">
                         <span className="text-zinc-400 text-[10px] tracking-[0.25em] uppercase">节点代号 NODE ID</span>
                         <input
+                            ref={usernameRef}
                             type="text"
                             value={username}
                             autoComplete="username"
                             spellCheck="false"
-                            disabled={busy}
+                            disabled={locked}
                             onChange={(e) => { setUsername(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
                             onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: username.length })}
                             onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
@@ -86,7 +137,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             type="password"
                             value={password}
                             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                            disabled={busy}
+                            disabled={locked}
                             onChange={(e) => setPassword(e.target.value)}
                             onFocus={() => dispatchCat({ type: 'PASSWORD_FOCUS' })}
                             onBlur={() => dispatchCat({ type: 'PASSWORD_BLUR' })}
@@ -94,15 +145,17 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                         />
                     </label>
 
-                    {message && (
-                        <p aria-live="polite" className={`text-xs font-bold ${message.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}>
-                            {message.type === 'error' ? '> SIGNAL LOST: ' : '> '}{message.text}
-                        </p>
-                    )}
+                    {/* Fix 6：aria-live 容器常驻（空态输出不换行空格占位），读屏才能可靠播报动态插入的消息 */}
+                    <p
+                        aria-live="polite"
+                        className={`text-xs font-bold ${message?.type === 'error' ? 'text-red-400' : 'text-emerald-400'}`}
+                    >
+                        {message ? `${message.type === 'error' ? '> SIGNAL LOST: ' : '> '}${message.text}` : '\u00A0'}
+                    </p>
 
                     <button
                         type="submit"
-                        disabled={busy || !username || !password}
+                        disabled={locked || !username || !password}
                         className="w-full py-3 rounded-xl bg-amber-400 text-zinc-900 font-black tracking-[0.3em] text-sm hover:bg-amber-300 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                         {mode === 'login' ? '▶ 建立上行链路' : '▸ 注册新节点'}
