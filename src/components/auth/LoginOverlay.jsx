@@ -3,6 +3,9 @@ import { X } from 'lucide-react';
 import StationMasterCat from './StationMasterCat.jsx';
 import { nextCatState } from './catStateMachine.js';
 
+// 🤖 Turnstile 人机验证站点密钥（构建期注入；未配置=验证关闭，后端同步跳过）
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
+
 // 🛰️ 全屏认证覆盖层：猫站长陪你建立上行链路
 export default function LoginOverlay({ onClose, onAuthenticated }) {
     const [mode, setMode] = useState('login'); // 'login' | 'register'
@@ -11,10 +14,13 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
     const [message, setMessage] = useState(null); // { type: 'error' | 'ok', text }
     const [busy, setBusy] = useState(false);
     const [cat, dispatchCat] = useReducer(nextCatState, { name: 'idle', inputLength: 0 });
+    const [turnstileToken, setTurnstileToken] = useState('');
 
     const usernameRef = useRef(null);
     const overlayRef = useRef(null);
     const successTimerRef = useRef(null);
+    const turnstileContainerRef = useRef(null);
+    const turnstileWidgetRef = useRef(null);
 
     // Fix 3：mount 即聚焦用户名，键盘用户打开弹层后可直接输入，不必先 Tab 寻址
     useEffect(() => {
@@ -23,6 +29,35 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
     // Fix 4：卸载（Esc/关闭按钮）时清掉 success 跳转定时器，防止组件移除后仍触发 onAuthenticated
     useEffect(() => () => clearTimeout(successTimerRef.current), []);
+
+    // 🤖 Turnstile 组件渲染：脚本按需注入；令牌单次有效，提交失败后须 reset 重取
+    useEffect(() => {
+        if (!TURNSTILE_SITE_KEY) return undefined;
+        const renderWidget = () => {
+            if (window.turnstile && turnstileContainerRef.current && !turnstileWidgetRef.current) {
+                turnstileWidgetRef.current = window.turnstile.render(turnstileContainerRef.current, {
+                    sitekey: TURNSTILE_SITE_KEY,
+                    callback: (token) => setTurnstileToken(token),
+                    'expired-callback': () => setTurnstileToken('')
+                });
+            }
+        };
+        if (window.turnstile) {
+            renderWidget();
+        } else {
+            const script = document.createElement('script');
+            script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+            script.async = true;
+            script.onload = renderWidget;
+            document.head.appendChild(script);
+        }
+        return () => {
+            if (turnstileWidgetRef.current && window.turnstile) {
+                window.turnstile.remove(turnstileWidgetRef.current);
+                turnstileWidgetRef.current = null;
+            }
+        };
+    }, []);
 
     // Fix 4：busy 复位后、onAuthenticated 触发前的 success 窗口内锁住整个表单，防再提交
     const locked = busy || cat.name === 'success';
@@ -61,6 +96,8 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
     const submit = async (e) => {
         e.preventDefault();
         if (locked) return; // Fix 4：busy 与 success 窗口都拒绝重复提交
+        // 🤖 Turnstile 开启时必须已取到令牌（组件未就绪则按钮本就 disabled，此处兜底）
+        if (TURNSTILE_SITE_KEY && !turnstileToken) return;
         setBusy(true);
         setMessage(null);
         dispatchCat({ type: 'SUBMIT' });
@@ -68,7 +105,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
             const res = await fetch(`/api/auth?action=${mode}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password, turnstileToken })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
@@ -82,6 +119,11 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                 return;
             }
             dispatchCat({ type: 'SUBMIT_FAIL' });
+            // 🤖 令牌被 siteverify 单次消费/已过期：失败后 reset 组件重取新令牌
+            if (TURNSTILE_SITE_KEY && window.turnstile && turnstileWidgetRef.current) {
+                window.turnstile.reset(turnstileWidgetRef.current);
+            }
+            setTurnstileToken('');
             // Fix 6：限流器 429 的中文提示在 message 字段（error 为英文 'Too many requests'），故优先取 message
             setMessage({ type: 'error', text: data.message || data.error || '请求失败，请稍后再试' });
         } catch {
@@ -147,6 +189,9 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                         />
                     </label>
 
+                    {/* 🤖 Turnstile 人机验证（未配置站点密钥时不渲染，后端同步跳过校验） */}
+                    {TURNSTILE_SITE_KEY && <div ref={turnstileContainerRef} className="flex justify-center" />}
+
                     {/* Fix 6：aria-live 容器常驻（空态输出不换行空格占位），读屏才能可靠播报动态插入的消息 */}
                     <p
                         aria-live="polite"
@@ -157,7 +202,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
                     <button
                         type="submit"
-                        disabled={locked || !username || !password}
+                        disabled={locked || !username || !password || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
                         className="w-full py-3 rounded-xl bg-cyan-500 text-white font-black tracking-[0.3em] text-sm shadow-sm hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
                         {mode === 'login' ? '▶ 建立上行链路' : '▸ 注册新节点'}

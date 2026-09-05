@@ -12,7 +12,7 @@ import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import { withRateLimit } from './_lib/rateLimiter.js';
-import { validatePointsPayload } from './_lib/validation.js';
+import { validatePointsPayload, getClientIp } from './_lib/validation.js';
 
 export const COOKIE_NAME = 'et_session';
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 7; // 7 天
@@ -195,6 +195,33 @@ function requireSecret(res) {
 
 // ---------- 端点（register/login 走 auth 档防爆破） ----------
 
+// 🤖 Turnstile 人机验证：配置了 TURNSTILE_SECRET_KEY 才强制校验（本地开发/灰度期优雅跳过）。
+// 防的是"代理池换 IP 绕过 IP 限流"的分布式撞库——IP 限流挡不住的那一类。
+export function turnstileEnforced() {
+    return Boolean(process.env.TURNSTILE_SECRET_KEY);
+}
+
+// Cloudflare 令牌单次有效：siteverify 会消费令牌，验证失败的调用方须重取新令牌
+export async function verifyTurnstile(token, remoteip) {
+    if (!turnstileEnforced()) return true;
+    if (typeof token !== 'string' || token === '') return false;
+    try {
+        const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                secret: process.env.TURNSTILE_SECRET_KEY,
+                response: token,
+                ...(remoteip ? { remoteip } : {})
+            })
+        });
+        const data = await res.json();
+        return data?.success === true;
+    } catch {
+        return false; // 验证服务失联视为未通过（fail-closed）
+    }
+}
+
 const registerHandler = withRateLimit('auth')(async (req, res) => {
     if (!requireSecret(res)) return;
     if (process.env.ALLOW_REGISTRATION === 'false') {
@@ -202,6 +229,10 @@ const registerHandler = withRateLimit('auth')(async (req, res) => {
     }
     const body = await readJsonBody(req);
     if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
+    // 人机验证放在凭据校验之前：fail-fast 且不给撞库脚本任何探测信号
+    if (!(await verifyTurnstile(body.turnstileToken, getClientIp(req)))) {
+        return res.status(400).json({ error: '人机验证未通过，请刷新后重试' });
+    }
     const creds = validateCredentials(body);
     if (!creds.ok) return res.status(400).json({ error: creds.error });
 
@@ -231,6 +262,9 @@ const loginHandler = withRateLimit('auth')(async (req, res) => {
     if (!requireSecret(res)) return;
     const body = await readJsonBody(req);
     if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
+    if (!(await verifyTurnstile(body.turnstileToken, getClientIp(req)))) {
+        return res.status(400).json({ error: '人机验证未通过，请刷新后重试' });
+    }
     const creds = validateCredentials(body);
     if (!creds.ok) return res.status(400).json({ error: creds.error });
 
