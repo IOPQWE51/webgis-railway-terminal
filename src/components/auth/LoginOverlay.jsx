@@ -8,9 +8,10 @@ const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || '';
 
 // 🛰️ 全屏认证覆盖层：猫站长陪你建立上行链路
 export default function LoginOverlay({ onClose, onAuthenticated }) {
-    const [mode, setMode] = useState('login'); // 'login' | 'register'
+    const [mode, setMode] = useState('login'); // 'login' | 'register' | 'reset'
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [email, setEmail] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [message, setMessage] = useState(null); // { type: 'error' | 'ok', text }
     const [busy, setBusy] = useState(false);
@@ -109,14 +110,26 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
         setMessage(null);
         dispatchCat({ type: 'SUBMIT' });
         try {
+            // 📧 按模式组装负载：reset 只带代号；register 附带可选邮箱
+            const body = mode === 'reset'
+                ? { username, turnstileToken }
+                : mode === 'register'
+                    ? { username, password, email: email.trim() || undefined, turnstileToken }
+                    : { username, password, turnstileToken };
             const res = await fetch(`/api/auth?action=${mode}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password, turnstileToken })
+                body: JSON.stringify(body)
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok) {
                 dispatchCat({ type: 'SUBMIT_SUCCESS' });
+                if (mode === 'reset') {
+                    // 🐾 找回不建立会话：展示战报后切回登录，等用户查邮件
+                    setMessage({ type: 'ok', text: data.message || '重置邮件已发送，请查收邮箱' });
+                    setBusy(false);
+                    return;
+                }
                 setMessage({
                     type: 'ok',
                     text: mode === 'register' ? `节点 ${data.username} 已注册，正在认领点位库...` : 'ACCESS GRANTED — 上行链路已建立'
@@ -161,7 +174,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
                 <p className="text-cyan-500 text-[10px] tracking-[0.35em] uppercase mb-1">UPLINK TERMINAL</p>
                 <h2 className="text-slate-800 text-xl font-black tracking-widest mb-1">
-                    {mode === 'login' ? '建立上行链路' : '注册新终端节点'}
+                    {mode === 'login' ? '建立上行链路' : mode === 'register' ? '注册新终端节点' : '找回通行密钥'}
                 </h2>
                 <p className="text-slate-400 text-xs mb-3">STATION MASTER ON DUTY · 猫站长值机中</p>
 
@@ -184,6 +197,25 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors placeholder:text-slate-300"
                         />
                     </label>
+                    {/* 📧 邮箱：仅注册时展示，选填，用于找回密钥 */}
+                    {mode === 'register' && (
+                        <label className="block">
+                            <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">邮箱 · 找回通道（选填）</span>
+                            <input
+                                type="email"
+                                value={email}
+                                autoComplete="email"
+                                disabled={locked}
+                                placeholder="忘记密码时收重置邮件用，不填也行"
+                                onChange={(e) => { setEmail(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
+                                onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: email.length })}
+                                onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
+                                className="mt-1 w-full bg-slate-50 border border-slate-200 focus:border-cyan-400 rounded-xl px-4 py-2.5 text-slate-800 text-sm outline-none transition-colors placeholder:text-slate-300"
+                            />
+                        </label>
+                    )}
+                    {/* 找回模式无需密码 */}
+                    {mode !== 'reset' && (
                     <label className="block">
                         <span className="text-slate-500 text-[10px] tracking-[0.25em] uppercase">密码 · 访问密钥</span>
                         <div className="relative mt-1">
@@ -208,6 +240,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             </button>
                         </div>
                     </label>
+                    )}
 
                     {/* 🤖 Turnstile 人机验证（未配置站点密钥时不渲染，后端同步跳过校验）；min-h 保组件不被压扁只露出 Troubleshoot 链接 */}
                     {TURNSTILE_SITE_KEY && <div ref={turnstileContainerRef} className="flex justify-center items-center min-h-[65px]" />}
@@ -222,18 +255,23 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
                     <button
                         type="submit"
-                        disabled={locked || !username || !password || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
+                        disabled={locked || !username || (mode !== 'reset' && !password) || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
                         className="w-full py-3 rounded-xl bg-cyan-500 text-white font-black tracking-[0.3em] text-sm shadow-sm hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                     >
-                        {mode === 'login' ? '▶ 建立上行链路' : '▸ 注册新节点'}
+                        {mode === 'login' ? '▶ 建立上行链路' : mode === 'register' ? '▸ 注册新节点' : '✉ 发送重置邮件'}
                     </button>
                 </form>
 
                 <div className="flex justify-center gap-2 mt-4">
                     <button onClick={() => switchMode('login')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'login' ? 'border-cyan-400 text-cyan-600 bg-cyan-50' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>登录</button>
                     <button onClick={() => switchMode('register')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'register' ? 'border-cyan-400 text-cyan-600 bg-cyan-50' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>注册</button>
+                    <button onClick={() => switchMode('reset')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'reset' ? 'border-cyan-400 text-cyan-600 bg-cyan-50' : 'border-slate-200 text-slate-400 hover:text-slate-600'}`}>找回</button>
                 </div>
-                <p className="text-slate-400 text-[10px] text-center mt-4 tracking-wider">匿名模式下数据仅保存在本机 · 建立链路后跨设备漫游</p>
+                <p className="text-slate-400 text-[10px] text-center mt-4 tracking-wider">
+                    {mode === 'reset'
+                        ? '注册时绑定过邮箱的节点可自助重置 · 新密钥将发到邮箱'
+                        : '匿名模式下数据仅保存在本机 · 建立链路后跨设备漫游'}
+                </p>
             </div>
         </div>
     );

@@ -11,6 +11,7 @@
 import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
+import { randomBytes } from 'node:crypto';
 import { withRateLimit } from './_lib/rateLimiter.js';
 import { validatePointsPayload, getClientIp } from './_lib/validation.js';
 
@@ -40,6 +41,53 @@ export function validateCredentials(body) {
     const password = validatePassword(body.password);
     if (!password) return { ok: false, error: '密码长度需为 8-72 位' };
     return { ok: true, username, password };
+}
+
+// 📧 可选邮箱（找回通道）：未填/空白 → ok:null；填了就必须是合法形态，
+// 避免把 "not-an-email" 之类的脏值写进库里（届时重置邮件会 4xx，用户被无辜判死刑）
+export function resolveOptionalEmail(raw) {
+    if (raw === undefined || raw === null) return { ok: true, email: null };
+    if (typeof raw !== 'string') return { ok: false, error: '邮箱格式不正确' };
+    const email = raw.trim().toLowerCase();
+    if (email === '') return { ok: true, email: null };
+    // 白名单字符集（RFC 5322 常见子集）：挡掉 < / " / 空格之类的注入字符
+    if (email.length > 200 || !/^[a-z0-9._%+-]{1,64}@[a-z0-9.-]+\.[a-z]{2,}$/.test(email)) {
+        return { ok: false, error: '邮箱格式不正确' };
+    }
+    return { ok: true, email };
+}
+
+// 🎲 找回随机密钥：96 bit 熵 → base64url 12 字符（无歧义字符，邮件复制友好）
+export function generateRandomPassword() {
+    return randomBytes(9).toString('base64url');
+}
+
+// 📨 Resend 发信：密钥缺失或发信失败一律返回 false（交由调用方决定 UX，绝不静默吞）
+export async function sendResetEmail(to, username, newPassword) {
+    const key = process.env.RESEND_API_KEY;
+    if (!key) return false;
+    const html = [
+        `<p>你好，站长「${username}」：</p>`,
+        `<p>你的 EarthTerminal 节点密钥已被重置，新的临时密钥是：</p>`,
+        `<p style="font-size:20px;font-family:monospace;background:#f1f5f9;padding:12px 16px;border-radius:8px;display:inline-block"><strong>${newPassword}</strong></p>`,
+        `<p>登录后可以在「数据解析与管理 → 作战身份卡」右上角断开旧链路。此密钥随机生成，请登录后尽快修改为你自己的密码……哦不对，这个系统还没做改密功能，那先记好它吧 😼</p>`,
+        `<p style="color:#94a3b8;font-size:12px">如果这不是你的操作，说明有人在尝试重置你的账号——原旧密钥已失效，请立即使用新密钥登录。</p>`,
+    ].join('');
+    try {
+        const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                from: 'EarthTerminal 站长台 <onboarding@resend.dev>',
+                to: [to],
+                subject: '【EarthTerminal】节点密钥重置',
+                html,
+            }),
+        });
+        return res.ok === true;
+    } catch {
+        return false;
+    }
 }
 
 // 🚧 注册总量保险丝：防人肉/脚本灌库撑爆 KV。env REGISTRATION_CAP 可调；
@@ -113,8 +161,10 @@ export async function getSessionUsername(req) {
     return verifySessionToken(token, process.env.JWT_SECRET);
 }
 
-export async function buildUserRecord(password) {
-    return { hash: await bcrypt.hash(password, 12), createdAt: new Date().toISOString() };
+export async function buildUserRecord(password, email = null) {
+    const record = { hash: await bcrypt.hash(password, 12), createdAt: new Date().toISOString() };
+    if (email) record.email = email; // 📧 可选找回邮箱（注册时 null = 未绑定）
+    return record;
 }
 
 // 一次性迁移：旧全局池搬进新注册用户名下，旧键改名归档（先到先得）
@@ -243,6 +293,8 @@ const registerHandler = withRateLimit('auth')(async (req, res) => {
     }
     const creds = validateCredentials(body);
     if (!creds.ok) return res.status(400).json({ error: creds.error });
+    const mail = resolveOptionalEmail(body.email);
+    if (!mail.ok) return res.status(400).json({ error: mail.error });
 
     const redis = getRedis();
     if (!redis) return res.status(503).json({ error: '存储服务暂不可用' });
@@ -253,7 +305,7 @@ const registerHandler = withRateLimit('auth')(async (req, res) => {
         return res.status(403).json({ error: `节点注册已达总量上限（${cap}），新节点暂停接入` });
     }
 
-    const record = await buildUserRecord(creds.password);
+    const record = await buildUserRecord(creds.password, mail.email);
     // ⚛️ nx = 不存在才写入，规避"检查-写入"竞态（多实例并发注册同一代号）
     const created = await redis.set(`user:${creds.username}`, JSON.stringify(record), { nx: true });
     if (created !== 'OK') return res.status(409).json({ error: '该节点代号已被注册' });
@@ -298,6 +350,45 @@ const loginHandler = withRateLimit('auth')(async (req, res) => {
     return res.status(200).json({ ok: true, username: creds.username });
 });
 
+// 📧 密钥找回：填用户名 → 若账号绑过邮箱，生成随机新密钥并邮件送达
+const resetHandler = withRateLimit('auth')(async (req, res) => {
+    const body = await readJsonBody(req);
+    if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
+    // 人机验证：找回端点是"邮件轰炸机"最恶心的入口，无一例外
+    if (!(await verifyTurnstile(body.turnstileToken, getClientIp(req)))) {
+        return res.status(400).json({ error: '人机验证未通过，请刷新后重试' });
+    }
+    const username = normalizeUsername(body.username);
+    if (!username) return res.status(400).json({ error: '请输入有效的节点代号' });
+
+    const redis = getRedis();
+    if (!redis) return res.status(503).json({ error: '存储服务暂不可用' });
+
+    const raw = await redis.get(`user:${username}`);
+    let record = null;
+    try { record = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { record = null; }
+    // 🎭 不区分"账号不存在"？——此处必须区分：找回 UX 需要"未绑定邮箱"的明确提示，
+    //    枚举侧信道已由注册端 409 天然开放（尝试注册同名即可知是否存在），此处不新增泄露面
+    if (!record || typeof record !== 'object') {
+        return res.status(404).json({ error: '节点代号不存在' });
+    }
+    if (typeof record.email !== 'string' || record.email === '') {
+        return res.status(400).json({ error: '该账号注册时未绑定邮箱，无法邮件找回——请联系站长手动处理' });
+    }
+    if (!process.env.RESEND_API_KEY) {
+        return res.status(503).json({ error: '邮件服务暂不可用' });
+    }
+
+    const newPassword = generateRandomPassword();
+    // 📤 先发信后落库：若先落库后发信失败，旧密码已失效新密码又收不到 = 用户被锁死
+    const sent = await sendResetEmail(record.email, username, newPassword);
+    if (!sent) return res.status(502).json({ error: '发信失败，旧密钥仍然有效，请稍后重试' });
+    // 旧记录整体保留（email / createdAt / 未来字段），仅替换 hash
+    const updated = { ...record, hash: await bcrypt.hash(newPassword, 12) };
+    await redis.set(`user:${username}`, JSON.stringify(updated));
+    return res.status(200).json({ ok: true, message: '重置邮件已发送，请查收' });
+});
+
 const logoutHandler = withRateLimit('general')(async (req, res) => {
     res.setHeader('Set-Cookie', serializeClearedCookie(isProduction()));
     return res.status(200).json({ ok: true });
@@ -314,6 +405,7 @@ export default async function handler(req, res) {
         const action = req.query?.action;
         if (req.method === 'POST' && action === 'register') return await registerHandler(req, res);
         if (req.method === 'POST' && action === 'login') return await loginHandler(req, res);
+        if (req.method === 'POST' && action === 'reset') return await resetHandler(req, res);
         if (req.method === 'POST' && action === 'logout') return await logoutHandler(req, res);
         if (req.method === 'GET' && action === 'me') return await meHandler(req, res);
         return res.status(405).json({ error: 'Method Not Allowed' });
