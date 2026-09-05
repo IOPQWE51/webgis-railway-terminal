@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from 'react';
-import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight } from 'lucide-react';
+import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
 import { getIconStyle } from '../utils/helpers'; 
 
 /**
@@ -195,7 +195,7 @@ const geocodeService = {
     }
 };
 
-const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
+const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAuth, onLogout }) => {
     const [isProcessing, setIsProcessing] = useState(false);
     const [processStatus, setProcessStatus] = useState('');
     const [progress, setProgress] = useState(0);
@@ -407,6 +407,26 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate }) => {
 
     return (
         <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500`}>
+            {/* 🔐 作战身份卡：上行链路状态 */}
+            <div className="bg-white rounded-2xl p-4 border border-gray-200 mb-6">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center text-gray-500 font-bold text-xs uppercase tracking-wider">
+                        <ShieldCheck className="w-4 h-4 mr-2" /> 作战身份
+                    </div>
+                    {session ? (
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold font-mono">NODE: {session}</span>
+                            <button onClick={onLogout} className="px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">断开链路</button>
+                        </div>
+                    ) : (
+                        <button onClick={onOpenAuth} className="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-400 text-zinc-900 hover:bg-amber-300 shadow-sm transition-colors">⚡ 建立上行链路</button>
+                    )}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">
+                    {session ? '云端同步已就绪：点位库按用户隔离，跨设备保持一致。' : '匿名模式：数据仅保存在本机浏览器。建立上行链路后可云端同步与跨设备漫游。'}
+                </p>
+            </div>
+
             <div className="grid md:grid-cols-5 gap-6">
                 
                 {/* 左侧：CSV 批量解析舱 */}

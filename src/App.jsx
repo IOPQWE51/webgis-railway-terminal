@@ -5,6 +5,7 @@ import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, Cl
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 import { BASE_POINTS_CONFIG } from './config/basePoints';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoginOverlay from './components/auth/LoginOverlay.jsx';
 
 // 🛫 战术地图整棵子树（MapTactical → MapboxMapTactical → mapbox-gl ≈ 1.7MB）
 // 按需加载：不进首屏 bundle，首次切入战术模式时才拉取异步块
@@ -20,6 +21,10 @@ const App = () => {
 
     // ☁️ 云端同步状态指示器 (可选：你可以在界面上展示它)
     const [isCloudSyncing, setIsCloudSyncing] = useState(false);
+
+    // 🔐 会话状态：null = 匿名（纯本地模式）
+    const [session, setSession] = useState(null);
+    const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
 
     // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..
     // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板
@@ -52,8 +57,24 @@ const App = () => {
         return saved || [];
     });
 
-    // 2. 🟢 挂载时：尝试从云端数据库拉取最新情报，覆盖本地
+    // 🛰️ 挂载时恢复会话（Cookie 会话，GET /api/auth?action=me）
     useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch('/api/auth?action=me');
+                if (res.ok) {
+                    const json = await res.json();
+                    if (json.username) setSession(json.username);
+                }
+            } catch {
+                console.log('📡 认证服务未连接，当前运行在本地沙盒模式。');
+            }
+        })();
+    }, []);
+
+    // ☁️ 已登录：从自己的云端点位库拉取并覆盖本地缓存；匿名：纯本地，不发云请求
+    useEffect(() => {
+        if (!session) return undefined;
         const fetchCloudPoints = async () => {
             setIsCloudSyncing(true);
             try {
@@ -62,25 +83,29 @@ const App = () => {
                     const json = await res.json();
                     if (json.data && Array.isArray(json.data)) {
                         setCustomPoints(json.data);
-                        storage.save('earth_terminal_custom_points', json.data); // 同步刷新本地缓存
+                        storage.save('earth_terminal_custom_points', json.data);
                     }
                 }
             } catch {
-                // 数据库还没建的时候会走到这里，直接忽略，使用上面的本地兜底数据即可
                 console.log('📡 云端数据库尚未连接，当前运行在本地沙盒模式。');
             } finally {
                 setIsCloudSyncing(false);
             }
         };
-
         fetchCloudPoints();
-    }, []);
+    }, [session]);
 
     // 3. 🔵 数据更新中枢：同步更新 UI、本地硬盘 和 云端数据库
     const handlePointsUpdate = async (newPointsArray) => {
         // ⚡️ 乐观更新：不等云端返回，先瞬间更新本地界面，保持极致丝滑
         setCustomPoints(newPointsArray);
         storage.save('earth_terminal_custom_points', newPointsArray);
+
+        // 🔒 匿名模式：仅本地，不打扰云端
+        if (!session) {
+            console.info('🔒 本地模式：建立上行链路后点位将自动云端同步');
+            return;
+        }
 
         // ☁️ 异步推送到云端
         try {
@@ -94,6 +119,12 @@ const App = () => {
             // 如果报错（比如目前没建数据库），只打印不弹窗，不打断用户体验
             console.warn('⚠️ 战术节点云端备份失败 (如果是本地测试则正常):', error.message);
         }
+    };
+
+    // 🚪 断开上行链路（服务端清 Cookie，本地点位数据保留）
+    const handleLogout = async () => {
+        try { await fetch('/api/auth?action=logout', { method: 'POST' }); } catch { /* 忽略网络错误 */ }
+        setSession(null);
     };
 
 
@@ -148,6 +179,9 @@ const App = () => {
                                 <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
                                 {/* 选配：你可以加个云端状态小图标 */}
                                 {isCloudSyncing && <CloudFog className="w-4 h-4 ml-3 text-cyan-500 animate-pulse" title="云端同步中..." />}
+                                {session
+                                    ? <span className="ml-3 px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold font-mono" title="已建立上行链路">NODE: {session}</span>
+                                    : <button onClick={() => setAuthOverlayOpen(true)} className="ml-3 text-xs font-bold text-cyan-600 hover:text-cyan-500 underline underline-offset-4">建立上行链路</button>}
                             </p>
                         </header>
 
@@ -255,7 +289,7 @@ const App = () => {
                     />
                     
                     {/* 👈 接入云端同步 */}
-                    <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} />
+                    <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} />
                     
                     <RulesTab isActive={activeTab === 'rules'} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
@@ -281,6 +315,12 @@ const App = () => {
                 </div>
             </div>
         )}
+            {authOverlayOpen && (
+                <LoginOverlay
+                    onClose={() => setAuthOverlayOpen(false)}
+                    onAuthenticated={(u) => { setSession(u); setAuthOverlayOpen(false); }}
+                />
+            )}
     </>
     );
 };
