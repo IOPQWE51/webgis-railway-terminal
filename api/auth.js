@@ -4,10 +4,13 @@
 //     user:<username>   → { hash, createdAt }
 //     points:<username> → 点位数组（写入前经 validatePointsPayload 硬校验）
 // - 会话 Cookie：et_session（HttpOnly / SameSite=Lax，生产追加 Secure）
+// - 端点：POST ?action=register|login|logout、GET ?action=me（register/login 走 strict 限流防爆破）
 // - 遗留迁移：首个注册用户自动认领旧全局池 earth_terminal_global_points，旧键改名归档
 
+import { Redis } from '@upstash/redis';
 import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
+import { withRateLimit } from './rateLimiter.js';
 import { validatePointsPayload } from './validation.js';
 
 export const COOKIE_NAME = 'et_session';
@@ -62,8 +65,12 @@ export function parseSessionCookie(req) {
 }
 
 // 🔑 弱密钥会让 HS256 签名可被暴力破解：任何入口遇到弱密钥立即拒绝，绝不静默降级
+export function isStrongSecret(secret) {
+    return typeof secret === 'string' && secret.length >= 32;
+}
+
 const assertSecret = (secret) => {
-    if (typeof secret !== 'string' || secret.length < 32) {
+    if (!isStrongSecret(secret)) {
         throw new Error('JWT_SECRET 必须为至少 32 位的字符串');
     }
 };
@@ -114,4 +121,115 @@ export async function claimLegacyPool(kv, username) {
     await kv.delete(LEGACY_GLOBAL_KEY);
     // 占坑失败说明该用户名下已有自己的点位库：归档遗留池后放弃写入，绝不覆盖既有数据
     return claimed ? points.length : 0;
+}
+
+// ---------- KV 单例（与 points.js / rateLimiter.js 相同的进程内复用模式） ----------
+
+let _redis = null;
+let _redisChecked = false;
+function getRedis() {
+    if (_redisChecked) return _redis;
+    _redisChecked = true;
+    const kvUrl = process.env.KV_REST_API_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN;
+    if (kvUrl && kvToken) {
+        _redis = new Redis({ url: kvUrl, token: kvToken });
+    }
+    return _redis;
+}
+
+const isProduction = () => process.env.VERCEL_ENV === 'production';
+
+async function readJsonBody(req) {
+    // 防御纵深：注册/登录请求体不可能超过 10KB，超出即视为滥用
+    if (Number(req.headers['content-length'] || 0) > 10_000) return null;
+    // 🧩 Vercel Node 运行时没有 req.json()：平台已把 JSON 请求体解析进 req.body
+    //    （与 points.js 同模式）；取不到说明体为空或畸形，按错误体统一拒绝
+    return req.body ?? null;
+}
+
+// 🔑 密钥预检：缺失或弱密钥一律 503 fail-closed。不能等到 signSession 才暴露——
+//    register 在签名之前就已写入 KV，半途抛错会留下"注册成功却拿不到会话"的半成品
+function requireSecret(res) {
+    if (!isStrongSecret(process.env.JWT_SECRET)) {
+        res.status(503).json({ error: '认证服务暂不可用' });
+        return false;
+    }
+    return true;
+}
+
+// ---------- 端点（register/login 走 strict 档防爆破） ----------
+
+const registerHandler = withRateLimit('strict')(async (req, res) => {
+    if (!requireSecret(res)) return;
+    if (process.env.ALLOW_REGISTRATION === 'false') {
+        return res.status(403).json({ error: '注册通道已关闭' });
+    }
+    const body = await readJsonBody(req);
+    if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
+    const creds = validateCredentials(body);
+    if (!creds.ok) return res.status(400).json({ error: creds.error });
+
+    const redis = getRedis();
+    if (!redis) return res.status(503).json({ error: '存储服务暂不可用' });
+
+    const record = await buildUserRecord(creds.password);
+    // ⚛️ nx = 不存在才写入，规避"检查-写入"竞态（多实例并发注册同一代号）
+    const created = await redis.set(`user:${creds.username}`, JSON.stringify(record), { nx: true });
+    if (created !== 'OK') return res.status(409).json({ error: '该节点代号已被注册' });
+
+    await claimLegacyPool(redis, creds.username);
+
+    const token = await signSession(creds.username, process.env.JWT_SECRET);
+    res.setHeader('Set-Cookie', serializeSessionCookie(token, isProduction()));
+    return res.status(201).json({ ok: true, username: creds.username });
+});
+
+const loginHandler = withRateLimit('strict')(async (req, res) => {
+    if (!requireSecret(res)) return;
+    const body = await readJsonBody(req);
+    if (body === null) return res.status(413).json({ error: '请求体过大或格式错误' });
+    const creds = validateCredentials(body);
+    if (!creds.ok) return res.status(400).json({ error: creds.error });
+
+    const redis = getRedis();
+    if (!redis) return res.status(503).json({ error: '存储服务暂不可用' });
+
+    // Upstash REST 可能返回反序列化对象或原始字符串，两种形态都兼容
+    const raw = await redis.get(`user:${creds.username}`);
+    let record = null;
+    try { record = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch { record = null; }
+    const valid = Boolean(record && typeof record.hash === 'string') && (await bcrypt.compare(creds.password, record.hash));
+    // 🎭 统一 401 文案：不区分"代号不存在/密钥错误"，堵死用户枚举侧信道
+    if (!valid) return res.status(401).json({ error: '认证失败，节点代号或访问密钥有误' });
+
+    const token = await signSession(creds.username, process.env.JWT_SECRET);
+    res.setHeader('Set-Cookie', serializeSessionCookie(token, isProduction()));
+    return res.status(200).json({ ok: true, username: creds.username });
+});
+
+const logoutHandler = withRateLimit('general')(async (req, res) => {
+    res.setHeader('Set-Cookie', serializeClearedCookie(isProduction()));
+    return res.status(200).json({ ok: true });
+});
+
+const meHandler = withRateLimit('general')(async (req, res) => {
+    const username = await getSessionUsername(req);
+    if (!username) return res.status(401).json({ error: '未登录' });
+    return res.status(200).json({ username });
+});
+
+export default async function handler(req, res) {
+    try {
+        const action = req.query?.action;
+        if (req.method === 'POST' && action === 'register') return await registerHandler(req, res);
+        if (req.method === 'POST' && action === 'login') return await loginHandler(req, res);
+        if (req.method === 'POST' && action === 'logout') return await logoutHandler(req, res);
+        if (req.method === 'GET' && action === 'me') return await meHandler(req, res);
+        return res.status(405).json({ error: 'Method Not Allowed' });
+    } catch (error) {
+        // 只记录服务端日志，不向客户端泄露内部细节
+        console.error('认证服务故障:', error.message);
+        return res.status(500).json({ error: '认证服务暂不可用' });
+    }
 }
