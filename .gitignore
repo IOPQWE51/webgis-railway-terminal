@@ -21,3 +21,6 @@ api/test-*.js
 
 # 交接运行结果（不应进入版本库）
 .handoff/
+
+# CodeGraph 本地索引（不进仓库）
+.codegraph/
