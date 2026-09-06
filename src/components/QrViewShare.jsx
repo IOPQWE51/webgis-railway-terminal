@@ -5,7 +5,7 @@
 //
 // 依赖：零。qrEncode 纯函数生成矩阵，SVG rect 逐格渲染（模块数 ≤57×57，rect 量可接受）
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { QrCode, X, Copy, Check } from 'lucide-react';
 import { qrMatrix } from '../utils/qrEncode';
 
@@ -35,7 +35,38 @@ const PALETTES = {
 const QrViewShare = ({ variant = 'light', size = 180 }) => {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  // 📍 fixed 定位锚点：打开瞬间按按钮视口坐标计算（absolute 会被面板
+  // overflow 滚动容器裁顶——线上实测弹出卡上半截被吃掉的教训）
+  const btnRef = useRef(null);
+  const [anchor, setAnchor] = useState(null); // { left, bottom, upward }
   const pal = PALETTES[variant];
+
+  const toggle = () => {
+    if (open) { setOpen(false); return; }
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const popupH = size + 150; // 码 + 标题/按钮/提示的估算高度
+      const upward = r.top > popupH + 16; // 上方放得下就向上弹，否则向下
+      setAnchor({
+        left: Math.min(Math.max(r.left + r.width / 2, 140), window.innerWidth - 140),
+        bottom: window.innerHeight - (upward ? r.top : r.bottom) + (upward ? 8 : -8),
+        upward,
+      });
+    }
+    setOpen(true);
+  };
+
+  // 滚动/缩放时锚点失效 → 直接收起（比错位更体面）
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open]);
 
   // 当前完整 URL（含 hash）——打开面板时快照，拖图不会边扫边变
   const shareUrl = useMemo(() => {
@@ -83,10 +114,11 @@ const QrViewShare = ({ variant = 'light', size = 180 }) => {
   );
 
   return (
-    <div className="relative">
+    <div>
       {/* 触发按钮：与所在面板的按钮体系风格一致 */}
       <button
-        onClick={() => setOpen(v => !v)}
+        ref={btnRef}
+        onClick={toggle}
         className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors ${pal.icon} ${variant === 'dark' ? 'border border-[rgba(251,191,36,0.3)] tracking-widest' : 'bg-white border border-gray-200 shadow-sm hover:shadow'}`}
         aria-expanded={open}
         title="把当前视角变成二维码，手机扫码直达"
@@ -95,9 +127,16 @@ const QrViewShare = ({ variant = 'light', size = 180 }) => {
         {variant === 'dark' ? 'QR_SHARE' : '视角二维码'}
       </button>
 
-      {open && (
+      {/* fixed 定位：逃出面板 overflow 裁剪，按打开时的按钮视口坐标锚定 */}
+      {open && anchor && (
         <div
-          className={`absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-[3000] rounded-2xl p-4 w-max max-w-[260px] flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 ${pal.card}`}
+          className={`fixed z-[3000] rounded-2xl p-4 w-max max-w-[260px] flex flex-col items-center gap-3 animate-in fade-in duration-200 ${pal.card}`}
+          style={{
+            left: anchor.left,
+            ...(anchor.upward
+              ? { bottom: anchor.bottom }
+              : { top: window.innerHeight - anchor.bottom }),
+          }}
           role="dialog"
           aria-label="视角分享二维码"
         >
