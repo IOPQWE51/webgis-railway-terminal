@@ -8,7 +8,7 @@ import { nextCatState } from './catStateMachine.js';
 //    便于本机/线上自动化回归——不带参数的普通访客照常走真实验证，防线不撤
 const TURNSTILE_TEST_SITEKEY = '1x00000000000000000000AA';
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
-    ? (new URLSearchParams(window.location.search).get('test') === '1' ? TURNSTILE_TEST_SITEKEY : import.meta.env.VITE_TURNSTILE_SITE_KEY)
+    ? (new URLSearchParams(window.location.search).get('test') === '114514' ? TURNSTILE_TEST_SITEKEY : import.meta.env.VITE_TURNSTILE_SITE_KEY)
     : '';
 
 // 🛰️ 全屏认证覆盖层：猫站长陪你建立上行链路
