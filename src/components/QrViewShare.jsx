@@ -145,6 +145,7 @@ const QrViewShare = ({ variant = 'light', size = 180 }) => {
           className={`fixed z-[3000] rounded-2xl p-4 w-max max-w-[260px] flex flex-col items-center gap-3 animate-in fade-in duration-200 ${pal.card}`}
           style={{
             left: anchor.left,
+            transform: 'translateX(-50%)', // anchor.left 是中心点：不回中会把码面铺出右屏（战术页实测扫不上）
             ...(anchor.upward
               ? { bottom: anchor.bottom }
               : { top: window.innerHeight - anchor.bottom }),
