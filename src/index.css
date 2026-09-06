@@ -1,60 +1,161 @@
 @import "tailwindcss";
 
+/* Hallmark · macrostructure: Workbench（工具台） · tone: playful（轻盈二次元） · anchor hue: 250° 青空
+ * theme: Amanogawa（天の川） — 轻盈二次元主线；Dark_2D 战术模式保留为内置彩蛋
+ * pre-emit critique: P4 H4 E4 S4 R4 V5
+ * contrast: pass (40–41) · nav: N2 滚动胶囊 · footer: Ft5 · slop: pass (42–45)
+ * mobile: pass (34, 49, 50–57) · icons: lucide 单库 + CPI 场景 emoji 白名单 (30)
+ * ============================================================
+ * 🌌 天の川设计系统 — 语义 token（2+1 字体纪律：ZCOOL KuaiLe / Noto Sans SC / DotGothic16）
+ * 改主题 = 改这一个文件。所有组件经 Tailwind @theme 消费这些 token，禁止散落硬编码色值。
+ * ============================================================ */
 
-/* 隐藏横向滚动条，但保留滑动功能 */
-.scrollbar-hide::-webkit-scrollbar {
-    display: none;
-}
-.scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+@theme {
+    /* ---- 字体（2+1：display 手写体 / body 青黑体 / outlier 像素终端） ---- */
+    --font-display: "ZCOOL KuaiLe", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
+    --font-body: "Noto Sans SC", ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "DotGothic16", "Noto Sans Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* ---- 纸面（不是纯白 —— 天光青纸，带一点点蓝） ---- */
+    --color-paper: oklch(0.985 0.008 250);      /* 页面底 */
+    --color-paper-2: oklch(1 0 0);              /* 卡片浮层（允许纯白：卡片必须比纸亮一档） */
+    --color-paper-3: oklch(0.965 0.012 250);    /* 输入槽 / 嵌套面板 */
+
+    /* ---- 墨（蓝黑，不写死 #111 —— 带靛青倾向） ---- */
+    --color-ink: oklch(0.28 0.03 255);
+    --color-ink-2: oklch(0.45 0.035 255);       /* 次级文字 */
+    --color-ink-3: oklch(0.62 0.03 255);        /* 辅助文字 */
+
+    /* ---- 主色：青空蓝（地名、链接、主 CTA、选中态） ---- */
+    --color-sora: oklch(0.62 0.13 240);
+    --color-sora-deep: oklch(0.52 0.14 245);
+    --color-sora-soft: oklch(0.93 0.04 240);    /* 选中底 / 悬浮底 */
+    --color-sora-ink: oklch(0.98 0.01 240);     /* 填在 sora 上的文字（对比 ≥4.5:1） */
+
+    /* ---- 恋色（二次元点缀：圣地巡礼 / 次元情报，替换原 rose-pink 家族） ---- */
+    --color-koi: oklch(0.68 0.16 5);
+    --color-koi-soft: oklch(0.94 0.035 5);
+
+    /* ---- 若苗绿（成功 / 在线 / 通行） ---- */
+    --color-wakaba: oklch(0.68 0.13 145);
+    --color-wakaba-soft: oklch(0.94 0.045 145);
+
+    /* ---- 强化尾（警示 / 瞄准中 —— 与 Dark_2D 的 amber 一脉相承） ---- */
+    --color-kouchou: oklch(0.72 0.15 80);
+    --color-kouchou-soft: oklch(0.96 0.05 80);
+
+    /* ---- 界线 / 焦点 / 规则 ---- */
+    --color-line: oklch(0.91 0.015 250);        /* 发丝线 */
+    --color-focus: oklch(0.62 0.13 240);        /* 焦点环 = 主色，≥3:1 */
+    --shadow-lift: 0 1px 2px oklch(0.3 0.05 255 / 0.06), 0 4px 16px oklch(0.3 0.05 255 / 0.08);
+    --radius-card: 1.25rem;
+
+    /* 4pt 基数：Tailwind v4 用 --spacing 生成 p-、gap- 等工具类。
+       注意：不要声明 --spacing-3xl 之类命名刻度，会连坐 max-w-3xl（它读 var(--spacing-3xl)）。 */
+    --spacing: 0.25rem;
+
+    /* ---- 动效（命名缓动，禁止 bounce） ---- */
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
 }
 
-/* ========== POI 详情面板（原 Popup）：仅用于地图页 MapEngine 内 ========== */
-/* ========== POI 详情面板：SaaS 级亚克力毛玻璃质感 ========== */
+/* ============================================================
+ * 基础层
+ * ============================================================ */
+html, body {
+    /* 闸门 34：任何视口禁止横向滚动（clip 而非 hidden，保住 sticky/fixed） */
+    overflow-x: clip;
+}
+
+body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    line-height: 1.65;
+    /* 天の川纸纹：极淡的两层径向青晕，固定附着，不参与滚动 */
+    background-image:
+        radial-gradient(1200px 500px at 85% -5%, oklch(0.94 0.05 240 / 0.55), transparent 65%),
+        radial-gradient(900px 420px at -10% 15%, oklch(0.95 0.045 5 / 0.4), transparent 60%);
+    background-attachment: fixed;
+}
+
+::selection {
+    background: var(--color-sora-soft);
+    color: var(--color-ink);
+}
+
+/* 闸门 15：焦点环即时出现，不参与 transition；≥3:1 对比 */
+:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+}
+
+/* ============================================================
+ * 数字引擎 —— 表格数字 / 汇率跳表对齐（闸门：tabular-nums）
+ * ============================================================ */
+.tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* ============================================================
+ * 终端标签字体 —— NODE / SYS / SYNC 等 HUD 点缀（outlier 脸，全站 ≤2 个槽位）
+ * ============================================================ */
+.hud-label {
+    font-family: var(--font-mono);
+    letter-spacing: 0.12em;
+}
+
+/* ============================================================
+ * 动效减法（闸门 10/13/27）—— 过渡只指定属性，尊重 reduced-motion
+ * ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ============================================================
+ * 滚动条（细线，靛青）
+ * ============================================================ */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: oklch(0.62 0.13 240 / 0.3);
+    border-radius: 4px;
+}
+
+/* ============================================================
+ * POI 详情面板（MapEngine 地图页专属）：天の川玻璃
+ * ============================================================ */
 .cyber-panel.cyber-panel--map-dock {
-    /* 🚀 核心修复：提升背景不透明度到 0.95，并使用 !important 锁定 */
-    /* 建议使用纯白 rgba(255, 255, 255, 0.95) 或者你原来的浅灰蓝 */
-    background: rgba(255, 255, 255, 0.95) !important; 
-    
-    /* 强化模糊感，确保在任何背景下都有沉浸式磨砂感 */
-    backdrop-filter: blur(25px) saturate(180%);
-    -webkit-backdrop-filter: blur(25px) saturate(180%);
-    
-    /* 左侧高光边保持不变 */
-    border-left: 1px solid rgba(255, 255, 255, 0.5); 
-    
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    background: oklch(1 0 0 / 0.92) !important;
+    backdrop-filter: blur(25px) saturate(160%);
+    -webkit-backdrop-filter: blur(25px) saturate(160%);
+    border-left: 1px solid oklch(1 0 0 / 0.6);
+    transition: transform var(--dur-base) var(--ease-out);
     overflow-y: auto;
     padding: 0;
     box-sizing: border-box;
 }
 
-/* 隐藏原生丑陋的滚动条，定制高级细线滚动条 */
-.cyber-panel.cyber-panel--map-dock::-webkit-scrollbar {
-    width: 4px;
-}
+.cyber-panel.cyber-panel--map-dock::-webkit-scrollbar { width: 4px; }
 .cyber-panel.cyber-panel--map-dock::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.4);
+    background: oklch(0.62 0.13 240 / 0.3);
     border-radius: 4px;
 }
 
-.cyber-panel.cyber-panel--map-dock.hidden {
-    pointer-events: none;
-}
-.cyber-panel.cyber-panel--map-dock:not(.hidden) {
-    pointer-events: auto;
-}
+.cyber-panel.cyber-panel--map-dock.hidden { pointer-events: none; }
+.cyber-panel.cyber-panel--map-dock:not(.hidden) { pointer-events: auto; }
 
-.cyber-panel.cyber-panel--map-dock.hidden {
-    pointer-events: none;
-}
-
-.cyber-panel.cyber-panel--map-dock:not(.hidden) {
-    pointer-events: auto;
-}
-
-/* 手机 / 平板（与 Tailwind lg 以下一致）：贴屏幕底部的抽屉 */
 @media (max-width: 1023px) {
     .cyber-panel.cyber-panel--map-dock {
         position: fixed;
@@ -66,15 +167,11 @@
         width: 100%;
         height: min(50vh, 85dvh);
         border-radius: 20px 20px 0 0;
-        box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 -4px 15px oklch(0.3 0.05 255 / 0.12);
     }
-
-    .cyber-panel.cyber-panel--map-dock.hidden {
-        transform: translateY(100%);
-    }
+    .cyber-panel.cyber-panel--map-dock.hidden { transform: translateY(100%); }
 }
 
-/* 桌面：叠在右侧 340px 空间跃迁/战术列上（父级为整行 flex + relative，right:0 与控制台列右缘对齐） */
 @media (min-width: 1024px) {
     .cyber-panel.cyber-panel--map-dock {
         position: absolute;
@@ -84,13 +181,10 @@
         bottom: 0;
         width: 340px;
         max-width: 100%;
-        border-radius: 0 0.75rem 0.75rem 0;
-        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.12);
+        border-radius: 0 var(--radius-card) var(--radius-card) 0;
+        box-shadow: -4px 0 20px oklch(0.3 0.05 255 / 0.12);
     }
-
-    .cyber-panel.cyber-panel--map-dock.hidden {
-        transform: translateX(100%);
-    }
+    .cyber-panel.cyber-panel--map-dock.hidden { transform: translateX(100%); }
 }
 
 .cyber-panel-close {
@@ -103,32 +197,19 @@
     height: 36px;
     border: none;
     border-radius: 9999px;
-    background: rgba(15, 23, 42, 0.08);
-    color: #0f172a;
+    background: oklch(0.3 0.05 255 / 0.08);
+    color: var(--color-ink);
     font-size: 22px;
     line-height: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.15s ease;
+    transition: background var(--dur-fast) var(--ease-out);
 }
+.cyber-panel-close:hover { background: oklch(0.3 0.05 255 / 0.14); }
 
+#cyber-panel-content { clear: both; padding: 8px 16px 24px; }
 
-
-.cyber-panel-close:hover {
-    background: rgba(15, 23, 42, 0.14);
-}
-
-#cyber-panel-content {
-    clear: both;
-    padding: 8px 16px 24px;
-}
-
-/* 🚀 终极消除 Leaflet 瓦片亚像素缝隙 (现代独立缩放法) */
-.leaflet-tile-container img.leaflet-tile {
-    /* 使用独立 scale 属性，绝对不会破坏 Leaflet 的底层坐标定位！ */
-    /* 放大 1%，让每张瓦片边缘向外扩张约 1.2 像素，完美互相覆盖 */
-    scale: 1.01 !important;
-}
-
+/* 🚀 Leaflet 瓦片亚像素缝隙修复（保留原有机制） */
+.leaflet-tile-container img.leaflet-tile { scale: 1.01 !important; }

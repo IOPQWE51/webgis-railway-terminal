@@ -3,7 +3,10 @@
 
 export const CAT_STATES = ['idle', 'watching', 'covering', 'loading', 'error', 'success'];
 
-export function nextCatState(event, state) {
+export function nextCatState(state, event) {
+    // ⚠️ 形参顺序必须是 (state, event)：useReducer 调用约定是 reducer(state, action)。
+    // 曾经写成 (event, state)，React 把当前 state 传给了 event 形参 —— switch 永远落 default，
+    // action 对象被整个当成新 state 返回，cat.name 恒为 undefined，六态动画从未在生产触发过。
     switch (event.type) {
         case 'USERNAME_FOCUS':
             return { name: 'watching', inputLength: event.inputLength ?? 0 };

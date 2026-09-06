@@ -210,14 +210,15 @@ const App = () => {
                 </Suspense>
                 </ErrorBoundary>
             ) : (
-                <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans selection:bg-green-200 text-gray-800">
+                <div className="min-h-screen p-4 md:p-8 text-gray-800">
                     <div className="max-w-6xl mx-auto">
                         <header className="mb-4">
-                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 flex flex-wrap items-end gap-x-3 gap-y-1">
-                                <span className="text-cyan-600">Earth</span>
-                                <span>Terminal</span>
+                            <h1 className="flex flex-wrap items-end gap-x-3 gap-y-1 text-3xl md:text-4xl lg:text-5xl">
+                                {/* 🌌 天の川字体：站名用手写展示体，副标语保持正文脸 */}
+                                <span className="font-display text-sora-deep drop-shadow-[0_2px_0_oklch(0.94_0.045_5/0.5)]">Earth</span>
+                                <span className="font-display text-ink">Terminal</span>
                             </h1>
-                            <p className="text-gray-500 mt-2 font-medium flex items-center">
+                            <p className="text-ink-2 mt-2 flex items-center text-sm md:text-base">
                                 <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
                                 {/* 选配：你可以加个云端状态小图标 */}
                                 {isCloudSyncing && <CloudFog className="w-4 h-4 ml-3 text-cyan-500 animate-pulse" title="云端同步中..." />}
@@ -230,7 +231,7 @@ const App = () => {
                                                 aria-haspopup="menu"
                                                 aria-expanded={nodeMenuOpen}
                                                 title="节点菜单"
-                                                className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold font-mono hover:border-amber-400 transition-colors"
+                                                className="tnum hud-label px-2 py-0.5 rounded-md bg-kouchou-soft text-kouchou border border-kouchou/40 text-xs font-bold hover:border-kouchou transition-colors"
                                             >
                                                 NODE: {session} ▾
                                             </button>
@@ -250,12 +251,12 @@ const App = () => {
                                             )}
                                         </span>
                                     )
-                                    : <button onClick={() => setAuthOverlayOpen(true)} className="ml-3 text-xs font-bold text-cyan-600 hover:text-cyan-500 underline underline-offset-4">建立上行链路</button>}
+                                    : <button onClick={() => setAuthOverlayOpen(true)} className="ml-3 text-xs font-bold text-sora hover:text-sora-deep underline underline-offset-4 transition-colors">建立上行链路</button>}
                             </p>
                         </header>
 
                         <nav
-                            className="flex overflow-x-auto flex-nowrap bg-white p-2 rounded-2xl shadow-sm border border-gray-100 mb-4 gap-2 scrollbar-hide"
+                            className="flex overflow-x-auto flex-nowrap bg-paper-2/90 backdrop-blur-sm p-2 rounded-2xl shadow-lift border border-line mb-4 gap-2 scrollbar-hide"
                             role="tablist"
                             ref={(el) => {
                                 if (el && !el.dataset.centered) {
@@ -331,10 +332,11 @@ const App = () => {
                             aria-selected={activeTab === tab.id}
                             aria-hidden={index >= 6 ? true : undefined}
                             tabIndex={index >= 6 ? -1 : 0}
-                            className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
+                            /* 闸门 10：过渡只指定属性（bg/color/shadow），不动画 outline —— 焦点环即时出现 */
+                            className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
                                 activeTab === tab.id
-                                    ? 'bg-zinc-900 text-white shadow-md'
-                                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                                    ? 'bg-sora text-sora-ink shadow-lift'
+                                    : 'text-ink-2 hover:text-ink hover:bg-sora-soft/60'
                             }`}
                         >
                             <tab.icon className="w-4 h-4 mr-2" />
@@ -371,9 +373,9 @@ const App = () => {
 
                 {/* 极简分割线，增加空间感 */}
                 <div className="flex items-center justify-center py-4">
-                    <div className="h-px bg-gray-200 flex-1"></div>
-                    <div className="mx-4 text-gray-400 text-xs font-bold tracking-widest uppercase">Dimension Divider</div>
-                    <div className="h-px bg-gray-200 flex-1"></div>
+                    <div className="h-px bg-line flex-1"></div>
+                    <div className="mx-4 hud-label text-ink-3 text-xs">Dimension Divider</div>
+                    <div className="h-px bg-line flex-1"></div>
                 </div>
 
                 <HanabiRadar isActive={true} />

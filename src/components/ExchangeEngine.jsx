@@ -167,13 +167,13 @@ const ExchangeEngine = ({ isActive }) => {
             {/* ================= 搜索模态框 (Modal) ================= */}
             {showSearchModal && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-gray-100">
-                        <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/80">
-                            <h3 className="font-black text-gray-800 flex items-center text-lg">
-                                <Globe className="w-5 h-5 mr-2 text-blue-500" />
+                    <div className="bg-paper-2 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-gray-100">
+                        <div className="p-5 border-b border-line flex justify-between items-center bg-paper-3/70">
+                            <h3 className="font-black text-ink flex items-center text-lg">
+                                <Globe className="w-5 h-5 mr-2 text-sora" />
                                 搜索全球货币
                             </h3>
-                            <button onClick={() => setShowSearchModal(false)} className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-colors">
+                            <button onClick={() => setShowSearchModal(false)} className="text-ink-3 hover:text-koi hover:bg-koi-soft p-1.5 rounded-full transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -185,7 +185,7 @@ const ExchangeEngine = ({ isActive }) => {
                                 placeholder="输入国家或地区名称 (如: 澳大利亚、越南)..." 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full bg-gray-100/80 border-none rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-200 focus:bg-white outline-none transition-all"
+                                className="w-full bg-gray-100/80 border-none rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-ink focus:border-sora focus:bg-paper-2 outline-none transition-colors bg-paper-3 border border-line rounded-xl pl-10 pr-4 py-3"
                             />
                         </div>
                         <div className="overflow-y-auto p-2 flex-1 custom-scrollbar">
@@ -197,16 +197,16 @@ const ExchangeEngine = ({ isActive }) => {
                                 <button 
                                     key={c.code}
                                     onClick={() => selectExtendedCurrency(c.code)}
-                                    className="w-full text-left px-4 py-3 hover:bg-blue-50/60 rounded-xl transition-colors flex items-center justify-between group"
+                                    className="w-full text-left px-4 py-3 hover:bg-sora-soft/60 rounded-xl transition-colors flex items-center justify-between group"
                                 >
                                     <div className="flex items-center">
                                         <img src={`https://flagcdn.com/w40/${c.flag}.png`} alt={c.code} className="h-5 w-7 object-cover rounded shadow-sm mr-3" />
                                         <div>
-                                            <div className="font-bold text-gray-800 text-sm">{c.country}</div>
-                                            <div className="text-xs font-bold text-gray-400">{c.name} ({c.code})</div>
+                                            <div className="font-bold text-ink text-sm">{c.country}</div>
+                                            <div className="text-xs font-bold text-ink-3">{c.name} ({c.code})</div>
                                         </div>
                                     </div>
-                                    <span className="text-blue-500 font-mono text-sm opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">{c.symbol}</span>
+                                    <span className="text-sora-deep font-mono text-sm opacity-0 group-hover:opacity-100 transition-opacity translate-x-2 group-hover:translate-x-0">{c.symbol}</span>
                                 </button>
                             ))}
                             {Object.values(EXTENDED_CURRENCIES).filter(c => c.country.includes(searchQuery) || c.name.includes(searchQuery) || c.code.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
@@ -224,16 +224,16 @@ const ExchangeEngine = ({ isActive }) => {
             <div className="bg-white border border-gray-200 rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-xl relative overflow-hidden">
                 <div className="flex justify-between items-center mb-8">
                     <div>
-                        <h3 className="font-black text-2xl text-gray-900 flex items-center">
-                            <ShoppingBag className="w-6 h-6 mr-2 text-blue-600" />
+                        <h3 className="font-display text-2xl text-ink flex items-center">
+                            <ShoppingBag className="w-6 h-6 mr-2 text-sora" />
                             跨国结算与物价中枢
                         </h3>
-                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest uppercase">Global Exchange Engine</p>
+                        <p className="hud-label text-xs text-ink-2 mt-1">Global Exchange Engine</p>
                     </div>
                     <button 
                         onClick={fetchRates} 
                         disabled={isFetching} 
-                        className={`p-3 rounded-full bg-gray-50 hover:bg-gray-100 text-gray-600 transition-all shadow-sm border border-gray-100 ${isFetching ? 'animate-spin text-blue-500 border-blue-200' : 'hover:rotate-180 hover:text-blue-600'}`}
+                        className={`p-3 rounded-full bg-paper-3 hover:bg-sora-soft/60 text-ink-2 transition-colors border border-line ${isFetching ? 'animate-spin text-sora' : 'hover:rotate-180 hover:text-sora-deep'}`}
                         title="刷新实时汇率"
                     >
                         <RefreshCw className="w-5 h-5" />
@@ -241,39 +241,41 @@ const ExchangeEngine = ({ isActive }) => {
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800 flex items-center font-bold">
+                    <div className="mb-6 p-4 bg-koi-soft border border-koi/30 rounded-xl text-sm text-ink flex items-center font-bold">
                         <AlertCircle className="w-5 h-5 mr-2" /> {error}
                     </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                    <div className="bg-green-50 p-4 md:p-6 rounded-2xl border-2 border-transparent focus-within:border-green-500 transition-colors shadow-inner">
+                    {/* 🌌 天の川：CNY 侧走 wakaba 绿（出发/本币），JPY 侧走 sora 蓝（抵达/外币），
+                        语义化"出发→抵达"而不是随机的绿/蓝装饰；数字开 tabular-nums 防跳宽 */}
+                    <div className="bg-wakaba-soft/60 p-4 md:p-6 rounded-2xl border border-line focus-within:border-wakaba focus-within:outline focus-within:outline-2 focus-within:outline-wakaba/50 transition-colors">
                         <div className="flex justify-between items-center mb-4">
-                            <label className="text-sm font-bold text-green-800 flex items-center">
+                            <label className="text-sm font-bold text-ink flex items-center">
                                 <img src="https://flagcdn.com/w40/cn.png" alt="CN" className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" /> 人民币 (CNY)
                             </label>
-                            <span className="text-[10px] font-mono bg-green-200 text-green-800 px-2 py-0.5 rounded uppercase font-bold">Base</span>
+                            <span className="hud-label text-[10px] bg-wakaba-soft text-ink px-2 py-0.5 rounded font-bold">Base</span>
                         </div>
-                        <div className="flex items-center text-2xl sm:text-3xl md:text-4xl font-black text-green-900">
-                            <span className="text-green-600/50 mr-2">¥</span>
-                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={cnyAmount} onChange={handleCnyChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setCnyAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-green-300" placeholder="0" />
+                        <div className="flex items-center tnum text-2xl sm:text-3xl md:text-4xl font-black text-ink">
+                            <span className="text-wakaba mr-2">¥</span>
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={cnyAmount} onChange={handleCnyChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setCnyAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-ink-3/50" placeholder="0" />
                         </div>
                     </div>
 
                     <div className="flex justify-center py-2 md:py-0">
-                        <div className="bg-white rounded-full p-3 border-2 border-gray-100 shadow-lg z-10 relative">
-                            <ArrowRightLeft className="w-6 h-6 text-blue-500 rotate-90 md:rotate-0" />
+                        <div className="bg-paper-2 rounded-full p-3 border border-line shadow-lift z-10 relative">
+                            <ArrowRightLeft className="w-6 h-6 text-sora rotate-90 md:rotate-0" />
                         </div>
                     </div>
 
-                    <div className="bg-blue-50 p-4 md:p-6 rounded-2xl border-2 border-transparent focus-within:border-blue-500 transition-colors shadow-inner">
+                    <div className="bg-sora-soft/50 p-4 md:p-6 rounded-2xl border border-line focus-within:border-sora focus-within:outline focus-within:outline-2 focus-within:outline-sora/50 transition-colors">
                         <div className="flex justify-between items-center mb-4 relative">
                             <div className="flex items-center">
                                 <img src={`https://flagcdn.com/w40/${activeConfig.flag}.png`} alt={activeConfig.code} className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" />
-                                <select 
-                                    value={targetCurrency} 
+                                <select
+                                    value={targetCurrency}
                                     onChange={handleCurrencySelect}
-                                    className="bg-transparent text-sm font-bold text-blue-900 outline-none cursor-pointer appearance-none pr-4"
+                                    className="bg-transparent text-sm font-bold text-ink outline-none cursor-pointer appearance-none pr-4"
                                 >
                                     {Object.keys(CURRENCY_CONFIG).map(code => (
                                         <option key={code} value={code}>{CURRENCY_CONFIG[code].name} ({code})</option>
@@ -287,47 +289,47 @@ const ExchangeEngine = ({ isActive }) => {
                                 </select>
                             </div>
                         </div>
-                        <div className="flex items-center text-2xl sm:text-3xl md:text-4xl font-black text-blue-900">
-                            <span className="text-blue-400 mr-2">{activeConfig.symbol}</span>
-                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={targetAmount} onChange={handleTargetAmountChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setTargetAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-blue-300" placeholder="0" />
+                        <div className="flex items-center tnum text-2xl sm:text-3xl md:text-4xl font-black text-ink">
+                            <span className="text-sora mr-2">{activeConfig.symbol}</span>
+                            <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={targetAmount} onChange={handleTargetAmountChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setTargetAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-sora/40" placeholder="0" />
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-8 pt-6 border-t border-gray-100">
-                    <h4 className="text-sm font-bold text-gray-800 mb-4 flex items-center">
-                        <Info className="w-4 h-4 mr-2 text-blue-500" />
+                <div className="mt-8 pt-6 border-t border-line">
+                    <h4 className="text-sm font-bold text-ink mb-4 flex items-center">
+                        <Info className="w-4 h-4 mr-2 text-sora" />
                         {activeConfig.country || activeConfig.name} 当地物价参考 (CPI)
                     </h4>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {/* 动态渲染：如果有配置好的CPI数据则显示，否则显示友好的缺省面板 */}
                         {activeConfig.cpi ? activeConfig.cpi.map((item, index) => (
-                            <div key={index} className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-start space-x-3">
-                                <span className="text-2xl leading-none">{item.icon}</span>
+                            <div key={index} className="bg-paper-3 p-4 rounded-xl border border-line flex items-start space-x-3">
+                                <span className="text-2xl leading-none" aria-hidden="true">{item.icon}</span>
                                 <div>
-                                    <p className="text-[10px] text-gray-500 font-bold mb-1">{item.label}</p>
-                                    <p className="text-sm font-black text-slate-800">{item.price}</p>
+                                    <p className="text-[10px] text-ink-3 font-bold mb-1">{item.label}</p>
+                                    <p className="text-sm font-black text-ink">{item.price}</p>
                                 </div>
                             </div>
                         )) : (
-                            <div className="col-span-full bg-slate-50 py-8 rounded-xl border border-dashed border-slate-300 flex flex-col items-center justify-center">
-                                <Globe className="w-8 h-8 text-blue-200 mb-3" />
-                                <p className="text-sm font-bold text-gray-500">已切换至 {activeConfig.country} 汇率轨道</p>
-                                <p className="text-[11px] font-bold text-gray-400 mt-1">该地区暂未收录本地消费物价指数，但汇率引擎将保持实时计算。</p>
+                            <div className="col-span-full bg-paper-3 py-8 rounded-xl border border-dashed border-line flex flex-col items-center justify-center">
+                                <Globe className="w-8 h-8 text-sora/40 mb-3" />
+                                <p className="text-sm font-bold text-ink-2">已切换至 {activeConfig.country} 汇率轨道</p>
+                                <p className="text-[11px] text-ink-3 mt-1">该地区暂未收录本地消费物价指数，但汇率引擎将保持实时计算。</p>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="mt-6 flex flex-wrap justify-between gap-1 text-[10px] font-mono text-gray-400 bg-gray-50 p-2 rounded-lg">
+                <div className="mt-6 flex flex-wrap justify-between gap-1 text-[10px] text-ink-3 bg-paper-3 p-2 rounded-lg">
                     <span>
-                        <strong className="text-gray-600">当前汇率：</strong> 
-                        1 CNY = {currentRate.toFixed(4)} {targetCurrency} 
+                        <strong className="text-ink-2">当前汇率：</strong>
+                        1 CNY = {currentRate.toFixed(4)} {targetCurrency}
                         {currentRate > 0 && targetCurrency !== 'CNY' ? ` (100 ${targetCurrency} = ${(100 / currentRate).toFixed(2)} CNY)` : ''}
                     </span>
                     <span className="flex items-center">
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isFetching ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isFetching ? 'bg-kouchou animate-pulse' : 'bg-wakaba'}`}></span>
                         SYNC: {lastUpdate || '--:--:--'}
                     </span>
                 </div>
