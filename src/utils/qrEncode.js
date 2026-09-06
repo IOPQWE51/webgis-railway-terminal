@@ -81,14 +81,15 @@ const MASK_FNS = [
   (r, c) => ((((r % 2) + ((r * c) % 3)) % 2)) === 0,
 ];
 
-// 格式信息 BCH(15,5)：5 位数据（纠错级 2 位 + 掩码 3 位）→ 15 位
+// 格式信息 BCH(15,5)：5 位数据（纠错级 2 位 + 掩码 3 位）→ 10 位 BCH → XOR 掩码
+// 多项式除法直白实现（避免移位超 32 位截断）
 function formatBits(ecLevelBits, maskId) {
-  const data = (ecLevelBits << 3) | maskId;
-  let v = data << 10;
+  const data = (ecLevelBits << 3) | maskId; // 5 位
+  let rem = data << 10; // 余数寄存器
   for (let i = 14; i >= 10; i--) {
-    if ((v >> i) & 1) v ^= 0x537 << (i - 10);
+    if ((rem >> i) & 1) rem ^= 0x537 << (i - 10);
   }
-  return ((data << 10) | v) ^ 0x5412; // 掩码 101010000010010
+  return ((data << 10) | (rem & 0x3ff)) ^ 0x5412;
 }
 
 /**
@@ -104,9 +105,12 @@ export function qrMatrix(text) {
 
   // ---------- 1. 选版本 ----------
   const bytes = Array.from(new TextEncoder().encode(text));
+  // ⚠️ 版本选择必须计入协议开销：mode 指示符 4 位 + 字符计数 8 位 + 终止符 4 位。
+  // 只比裸内容字节数会差 2 字节余量 → 数据被截断、码不可解（实测教训）
+  const neededBits = bytes.length * 8 + 16;
   let version = 0;
   for (let v = 1; v <= 10; v++) {
-    if (bytes.length <= VERSION_TABLE_L[v - 1].data) { version = v; break; }
+    if (neededBits <= VERSION_TABLE_L[v - 1].data * 8) { version = v; break; }
   }
   if (!version) {
     throw new Error(`qrMatrix: 内容 ${bytes.length} 字节超出版本 10-L 容量（271）`);
@@ -224,7 +228,7 @@ export function qrMatrix(text) {
   let col = n - 1;
   let upward = true;
   while (col > 0) {
-    if (col === 6) col--; // 跳过时序列
+    if (col === 6) col--; // 跳过时序列（col 6 纵贯，无数据）
     for (let i = 0; i < n; i++) {
       const r = upward ? n - 1 - i : i;
       for (const cc of [col, col - 1]) {
@@ -238,8 +242,8 @@ export function qrMatrix(text) {
   }
 
   // ---------- 6. 掩码选择（0-7 全试，取惩罚分最低）----------
-  // 惩罚规则简化为 N1（连续同色行/列）+ N3（1:1:3:1:1 比例查找器样模式）：
-  // 视角链接场景简化版足够（真机扫描率按主流实现仍很高）
+  // 惩罚规则 N1（连续同色 ≥5 行/列）——视角链接场景简化版足够，
+  // 掩码择优对真机可扫性影响远小于格式/布板正确性
   let bestMask = 0, bestScore = Infinity;
   for (let mask = 0; mask < 8; mask++) {
     const candidate = m.map(row => row.slice());
@@ -275,17 +279,25 @@ export function qrMatrix(text) {
   }
 
   // ---------- 7. 格式信息（纠错 L = 01）----------
+  // 15 位格式串（BCH + 掩码后），bit14（最高位）先放。
+  // 规范布板位置表（两份拷贝冗余容错）：
+  //   拷贝1 环绕左上定位图案： (8,0)(8,1)(8,2)(8,3)(8,4)(8,5)(8,7)(8,8)(7,8)(5,8)(4,8)(3,8)(2,8)(1,8)(0,8)
+  //   拷贝2 左下+右上：(n-8,8)(n-7,8)(n-6,8)(n-5,8)(n-4,8)(n-3,8)(n-2,8)(n-1,8) + (8,n-8)...(8,n-1)
   const fmt = formatBits(0b01, bestMask);
-  const fmtBits = [];
-  for (let i = 14; i >= 0; i--) fmtBits.push((fmt >> i) & 1);
-  // 布板：围绕左上（含时序交界）+ 右上/左下镜像位
-  const placeFmt = (idx, r, c) => { m[r][c] = fmtBits[14 - idx]; };
-  for (let i = 0; i <= 5; i++) placeFmt(i, 8, i);           // 左上横
-  placeFmt(6, 8, 7); placeFmt(7, 8, 8); placeFmt(8, 7, 8);   // 时序交界跳位
-  for (let i = 9; i <= 14; i++) placeFmt(i, 14 - i, 8);       // 左上竖（下行）
-  for (let i = 0; i <= 7; i++) placeFmt(15 + i - 15, n - 1 - i, 8); // 左下竖
-  for (let i = 8; i <= 14; i++) placeFmt(i, 8, n - 15 + i);  // 右上横
-  placeFmt(0, n - 8, 8); // 暗模块旁的格式位（已在上面覆盖前 0 位，规范要求此位为 bit0）
+  const fb = [];
+  for (let i = 14; i >= 0; i--) fb.push((fmt >> i) & 1); // fb[0]=bit14 ... fb[14]=bit0
+  const copy1 = [
+    [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 7],
+    [8, 8], [7, 8], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8],
+  ];
+  copy1.forEach(([r, c], i) => { m[r][c] = fb[i]; });
+  const copy2 = [
+    [n - 1, 8], [n - 2, 8], [n - 3, 8], [n - 4, 8], [n - 5, 8], [n - 6, 8], [n - 7, 8],
+    [n - 8, 8],
+    [8, n - 8], [8, n - 7], [8, n - 6], [8, n - 5], [8, n - 4], [8, n - 3], [8, n - 2], [8, n - 1],
+  ].slice(0, 15); // 16 个位置但只用前 15（最后 (8,n-1) 是数据区，规范如此）
+  copy2.forEach(([r, c], i) => { m[r][c] = fb[i]; });
+  m[n - 8][8] = 1; // 暗模块（紧贴拷贝2 首位旁，固定深色）
 
   return m;
 }

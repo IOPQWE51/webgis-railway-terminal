@@ -29,6 +29,41 @@ describe('qrMatrix —— 视角分享链接编码', () => {
     expect(m.length).toBeGreaterThan(25); // 升到版本 2+（25×25）
   });
 
+  it('版本选择必须计入协议开销（回归：55 字节曾被塞进 v3 导致截断）', () => {
+    // 55 字节内容 + mode 4 位 + len 8 位 + 终止 4 位 = 需要 57 字节 > v3-L 容量 55
+    // → 必须选 v4（33×33）。教训：裸字节数对比会差 2 字节余量、码不可解
+    const url55 = 'https://eterm.vercel.app/#lat=35.6812&lon=139.7671&z=12'; // 恰 55 字节
+    expect(Buffer.byteLength(url55, 'utf8')).toBe(55);
+    const m = qrMatrix(url55);
+    expect(m.length).toBe(33); // 版本 4，不是版本 3 的 29
+  });
+
+  it('真实视角链接可被独立解码器还原（jsqr 交叉验证，真机可扫性守卫）', async () => {
+    const { createRequire } = await import('node:module');
+    // jsqr/qrcode 仅在本地验证时存在（--no-save 安装），CI 缺失时跳过而非挂红
+    let jsQR;
+    try {
+      jsQR = createRequire(import.meta.url)('jsqr');
+    } catch {
+      console.warn('jsqr 未安装，跳过交叉验证（本地 npm i --no-save jsqr 可启用）');
+      return;
+    }
+    const url = 'https://eterm.vercel.app/#lat=35.6812&lon=139.7671&z=12&mode=tactical';
+    const m = qrMatrix(url);
+    const scale = 6, quiet = 4, n = m.length, W = (n + quiet * 2) * scale;
+    const rgba = new Uint8ClampedArray(W * W * 4);
+    for (let r = 0; r < W; r++) {
+      for (let c = 0; c < W; c++) {
+        const mr = Math.floor(r / scale) - quiet, mc = Math.floor(c / scale) - quiet;
+        const v = (mr >= 0 && mr < n && mc >= 0 && mc < n) ? (m[mr][mc] === 1 ? 0 : 255) : 255;
+        const i = (r * W + c) * 4;
+        rgba[i] = v; rgba[i + 1] = v; rgba[i + 2] = v; rgba[i + 3] = 255;
+      }
+    }
+    const result = jsQR(rgba, W, W);
+    expect(result && result.data).toBe(url);
+  });
+
   it('三个定位图案（左上/右上/左下）的 7×7 外框为全 1', () => {
     const m = qrMatrix('https://eterm.vercel.app/#lat=1&lon=2&z=3');
     const n = m.length;
