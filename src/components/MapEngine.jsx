@@ -7,7 +7,7 @@ import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
 import { serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
-import ShootingBrief from './ShootingBrief';
+import TodayCard from './TodayCard';
 
 // 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
@@ -121,6 +121,9 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 处理窗口尺寸变化
     useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);
 
+    // 🗓️ 今日去这卡：点击附近点位跃迁
+    const handleTodayFlyTo = (lat, lon) => mapRef.current?.flyTo([lat, lon], 13, { duration: 1.5 });
+
     // 🔗 视角深链接：地图移动/缩放后把当前视角写进 URL 哈希
     // 用 replaceState 不产生历史记录，直接复制地址栏即可分享当前视角
     useEffect(() => {
@@ -209,7 +212,13 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     )}
 
                     {mapView && leafletReady && (
-                        <ShootingBrief lat={mapView.lat} lng={mapView.lng} />
+                        <TodayCard
+                            lat={mapView.lat}
+                            lng={mapView.lng}
+                            customPoints={customPoints}
+                            basePoints={basePoints}
+                            onFlyTo={handleTodayFlyTo}
+                        />
                     )}
 
                     <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all animate-bounce">
