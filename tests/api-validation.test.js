@@ -39,37 +39,6 @@ describe('validatePointsPayload', () => {
     expect(r.points[0]).toEqual(validPoint);
   });
 
-  // ── v2 数据模型：group / updatedAt / importedAt（specs/2026-09-06-points-model-v2-design.md §2）──
-  it('v2 可选字段 group/updatedAt/importedAt 通过白名单', () => {
-    const r = validatePointsPayload([{
-      ...validPoint,
-      group: '关东之行',
-      updatedAt: 1725628800000,
-      importedAt: 1725542400000,
-    }]);
-    expect(r.ok).toBe(true);
-    expect(r.points[0].group).toBe('关东之行');
-    expect(r.points[0].updatedAt).toBe(1725628800000);
-    expect(r.points[0].importedAt).toBe(1725542400000);
-  });
-
-  it('group 超长（>24）整体拒绝，与其他文本字段同策略', () => {
-    const r = validatePointsPayload([{ ...validPoint, group: 'g'.repeat(25) }]);
-    expect(r.ok).toBe(false);
-  });
-
-  it('updatedAt/importedAt 非数值整体拒绝', () => {
-    expect(validatePointsPayload([{ ...validPoint, updatedAt: '不是时间' }]).ok).toBe(false);
-    expect(validatePointsPayload([{ ...validPoint, importedAt: NaN }]).ok).toBe(false);
-  });
-
-  it('group 空串视为未分组，输出与 v1 等价；v1 旧点位（无新字段）合法', () => {
-    const r = validatePointsPayload([{ ...validPoint, group: '' }]);
-    expect(r.ok).toBe(true);
-    expect(r.points[0]).toEqual(validPoint);
-    expect(validatePointsPayload([validPoint]).ok).toBe(true);
-  });
-
   it('数字字符串坐标被强制转换为数值', () => {
     const r = validatePointsPayload([{ ...validPoint, lat: '35.6812', lon: '139.7671' }]);
     expect(r.ok).toBe(true);

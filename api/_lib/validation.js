@@ -13,7 +13,6 @@ const MAX_ID_LEN = 64;
 const MAX_NAME_LEN = 120;
 const MAX_CATEGORY_LEN = 32;
 const MAX_SOURCE_LEN = 32;
-const MAX_GROUP_LEN = 24; // v2 行程分组（specs/2026-09-06-points-model-v2-design.md §2）
 
 /** 数值或数字字符串 → 有限数值；否则 NaN */
 function asFiniteNumber(value) {
@@ -78,33 +77,7 @@ export function validatePointsPayload(body) {
     }
 
     // 只输出白名单字段，多余字段（如 isAdmin）在此被剥离
-    const point = { id, name, lat, lon, category, source };
-
-    // ── v2 可选字段：group 行程分组 / updatedAt 合并时间戳 / importedAt 导入时间 ──
-    // 全部可选：缺省/空串 group 不进库（与 v1 输出等价，兼容旧客户端）
-    if (raw.group !== undefined) {
-      const group = asBoundedString(raw.group, MAX_GROUP_LEN);
-      if (group === null) {
-        return { ok: false, error: `${at}group 字段不合法（字符串，≤${MAX_GROUP_LEN} 字符）` };
-      }
-      if (group !== '') point.group = group; // 空串 = 未分组，省略字段
-    }
-    if (raw.updatedAt !== undefined) {
-      const updatedAt = asFiniteNumber(raw.updatedAt);
-      if (Number.isNaN(updatedAt)) {
-        return { ok: false, error: `${at}updatedAt 需为数值时间戳` };
-      }
-      point.updatedAt = updatedAt;
-    }
-    if (raw.importedAt !== undefined) {
-      const importedAt = asFiniteNumber(raw.importedAt);
-      if (Number.isNaN(importedAt)) {
-        return { ok: false, error: `${at}importedAt 需为数值时间戳` };
-      }
-      point.importedAt = importedAt;
-    }
-
-    points.push(point);
+    points.push({ id, name, lat, lon, category, source });
   }
 
   return { ok: true, points };
