@@ -24,15 +24,20 @@ describe('computeShootingBrief · 真实值锚定', () => {
   });
 
   it('傍晚存在一段黄金时刻，且结束于日落前后 90 分钟内', () => {
-    const ev = brief.goldenHours.filter(g => g.start.getHours() >= 11).pop();
+    // 时区无关筛法：取"结束时刻离日落最近"的一段即傍晚段。
+    // （此前用本地 getHours()>=11 筛段，在 UTC 时区的 CI 上会筛错段，断言出 11 小时级偏差）
+    const ev = [...brief.goldenHours]
+      .sort((a, b) => Math.abs(a.end - brief.sunset) - Math.abs(b.end - brief.sunset))[0];
     expect(ev).toBeTruthy();
     expect(Math.abs(ev.end.getTime() - brief.sunset.getTime()))
       .toBeLessThanOrEqual(90 * 60000);
   });
 
   it('晚侧蓝调段紧贴黄金段外沿（|gold.end − blue.start| ≤ 5min）', () => {
-    const evGold = brief.goldenHours.filter(g => g.start.getHours() >= 11).pop();
-    const evBlue = brief.blueHours.filter(b => b.start.getHours() >= 11).pop();
+    const nearest = (arr, t) => [...arr]
+      .sort((a, b) => Math.abs(a.start - t) - Math.abs(b.start - t))[0];
+    const evGold = nearest(brief.goldenHours, brief.sunset); // 结束贴日落的黄金段
+    const evBlue = nearest(brief.blueHours, evGold.end);      // 起点贴它外沿的蓝调段
     expect(evGold).toBeTruthy();
     expect(evBlue).toBeTruthy();
     expect(Math.abs(evGold.end.getTime() - evBlue.start.getTime()))
