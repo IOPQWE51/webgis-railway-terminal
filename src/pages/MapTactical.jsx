@@ -6,7 +6,9 @@ import MapboxMapTactical from '../components/MapboxMapTactical';
 import DataCenter from '../components/DataCenter';
 import TacticalBottomSheet from '../components/TacticalBottomSheet';
 import { Map, Database, Search, Crosshair, Loader2 } from 'lucide-react';
-import { storage, geocodeRequest, getCurrentPosition } from '../utils/performanceHelpers';
+import { storage } from '../utils/performanceHelpers';
+import { searchPlace } from '../utils/geocode';
+import { useGeolocation } from '../hooks/useGeolocation';
 import { TACTICAL_STYLES } from '../config/mapConstants';
 
 export default function MapTactical({ customPoints: _initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
@@ -99,13 +101,13 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
     setClickedCoord({ longitude, latitude });
   };
 
-  // 📍 位置搜索处理（使用统一的地理编码工具）
+  // 📍 位置搜索处理（统一链路：代理优先 + Nominatim 兜底）
   const handleSearch = async (query) => {
     if (!query.trim()) return;
 
     setIsSearching(true);
     try {
-      const result = await geocodeRequest(query, 'nominatim');
+      const result = await searchPlace(query);
 
       if (result) {
         const { lat, lon, displayName } = result;
@@ -136,11 +138,14 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
     }
   };
 
-  // 📍 定位自身
+  // 📍 定位自身（统一 hook：GPS → IP 兜底，与主地图共用）
+  const { locate } = useGeolocation();
   const handleLocate = async () => {
     setIsLocating(true);
     try {
-      const position = await getCurrentPosition({ fallbackToIP: true });
+      const position = await locate({ fallbackToIP: true });
+      if (!position) return; // 失败原因已由 hook 记录，此处静默退出
+
       setMapCenter([position.longitude, position.latitude]);
       setMapZoom(position.accuracy === 'low' ? 10 : 13);
 
@@ -179,7 +184,6 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
       setIsLocating(false);
     }
   };
-
   // 🗺️ 定位到特定点位（从 DataCenter 列表点击）
   // 修复：原为 useState（误用），副作用只在首渲执行一次，customPoints 变化时闭包捕获旧点位；
   // 且卸载时不清理 window.__locatePointOnMap，退出战术模式后会残留指向已失效 setter 的野指针。

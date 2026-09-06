@@ -1,9 +1,15 @@
 /**
- * Dark 2D 地区检测器
+ * Dark 2D 地区检测器 —— 双范式
  *
- * 根据经纬度检测站点所属地区，为后续 API 适配做准备
- * 返回地区信息，便于选择合适的交通 API
+ * 范式 1（快路径）detectRegion：bbox 离线秒判，仅覆盖高频站（日本/中国/美国/欧洲）。
+ *   ⚠️ 定位为"缓存性质"的提示值：resolved:false，边界重叠区可能误判（见下方沈阳回归）。
+ * 范式 2（主路径）detectRegionOnline：服务端逆地理编码（/api/mapbox?type=reverse），
+ *   全球任何坐标都能解析；失败时自动回退到快路径结果。
+ * 调用方规则：能等网络的用 detectRegionOnline；需要离线立即可用的用 detectRegion，
+ *   并把 resolved:false 显示成"待确认"而不是事实。
  */
+
+import { reverseGeocode } from './geocode';
 
 // 简化的地区边界框（用于快速判断）
 // 格式: { name, continent, country, regions: [[minLat, minLon, maxLat, maxLon], ...] }
@@ -16,8 +22,8 @@ const REGION_BOUNDARIES = {
     country: 'JP',
     apiProvider: 'yahoo-transit',
     bounds: [
-      [24.0, 122.0, 46.0, 146.0], // 本土
-      [24.0, 141.0, 26.0, 145.0], // 冲绳
+      [30.0, 128.0, 46.0, 146.0], // 本土（东界收紧到 128：旧框 [24,122] 与中国框重叠，沈阳/哈尔滨曾被误判为日本）
+      [24.0, 122.0, 26.5, 132.0], // 冲绳（纬度带低于中国大陆南缘，不与中国框冲突）
     ],
     regions: {
       kanto: { name: '关东', bounds: [34.5, 138.5, 37.5, 140.5] },
@@ -36,7 +42,7 @@ const REGION_BOUNDARIES = {
     country: 'CN',
     apiProvider: 'amap', // 高德地图
     bounds: [
-      [18.0, 73.0, 54.0, 135.0], // 大陆
+      [21.5, 78.0, 54.0, 135.0], // 大陆（南界抬到 21.5、西界收到 78：旧框 [18,73] 曾把清迈/缅北等东南亚吞进来）
       [22.0, 113.0, 23.0, 115.0], // 香港
     ],
     regions: {
@@ -102,22 +108,35 @@ function detectSubRegion(lat, lon, region) {
 }
 
 /**
- * 根据经纬度检测地区信息
+ * Unknown 占位（形状稳定：调用方可放心解构任何字段）
+ */
+export function UNKNOWN_REGION() {
+  return {
+    continent: 'Unknown',
+    country: 'Unknown',
+    countryCode: null,
+    countryName: '未知地区',
+    countryNameEn: 'Unknown',
+    apiProvider: null,
+    region: null,
+    regionName: null,
+    city: null,
+    fullAddress: null,
+    resolved: false,
+    source: 'unknown',
+  };
+}
+
+/**
+ * 快路径：bbox 离线秒判（仅覆盖高频站，边界重叠区可能误判）
  *
  * @param {number} lat - 纬度
  * @param {number} lon - 经度
- * @returns {object} 地区信息
+ * @returns {object} 地区信息（resolved:false 表示未经主路径确认）
  *
  * @example
  * detectRegion(35.6812, 139.7671)
- * // => {
- * //   continent: 'Asia',
- * //   country: 'JP',
- * //   countryName: '日本',
- * //   region: 'kanto',
- * //   regionName: '关东',
- * //   apiProvider: 'yahoo-transit'
- * // }
+ * // => { countryName: '日本', regionName: '关东', source: 'bbox', resolved: false, ... }
  */
 export function detectRegion(lat, lon) {
   for (const [, region] of Object.entries(REGION_BOUNDARIES)) {
@@ -132,70 +151,61 @@ export function detectRegion(lat, lon) {
       return {
         continent: region.continent,
         country: region.country,
+        countryCode: region.country,
         countryName: region.name,
         countryNameEn: region.enName,
         apiProvider: region.apiProvider,
         region: subRegion?.key || null,
         regionName: subRegion?.name || null,
+        city: null,
+        fullAddress: null,
+        resolved: false, // ⚠️ 快路径未经主路径确认
+        source: 'bbox',
       };
     }
   }
 
-  // 未匹配到任何地区
-  return {
-    continent: 'Unknown',
-    country: 'Unknown',
-    countryName: '未知地区',
-    countryNameEn: 'Unknown',
-    apiProvider: null,
-    region: null,
-    regionName: null,
-  };
+  // 未匹配到任何地区（全球大部分坐标在此——由 detectRegionOnline 主路径负责）
+  return UNKNOWN_REGION();
 }
 
 /**
- * 使用逆地理编码 API 获取更精确的地区信息（备用方案）
+ * 主路径：服务端逆地理编码（全球覆盖，任何坐标都能解析）
+ *
+ * 失败时回退到 bbox 快路径结果；两者皆盲 → UNKNOWN_REGION 占位。
+ * 注意：不做 bbox 命中即跳过网络的"优化"——bbox 只是缓存性质的快路径，
+ * 与逆编码结果冲突时以逆编码为准（旧快路径在重叠区有误判前科）。
  *
  * @param {number} lat - 纬度
  * @param {number} lon - 经度
- * @returns {Promise<object>} 地区信息
+ * @returns {Promise<object>} 地区信息（resolved:true = 主路径确认）
+ *
+ * @example
+ * await detectRegionOnline(18.79, 98.98) // 清迈（bbox 盲区）
+ * // => { countryName: 'Thailand', regionName: 'Chiang Mai', source: 'reverse', resolved: true, ... }
  */
-export async function detectRegionByGeocoding(lat, lon) {
-  try {
-    // 使用 Nominatim (OSM) 免费逆地理编码
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&accept-language=zh-CN,en`,
-      {
-        headers: {
-          'User-Agent': 'EarthTerminal/5.0.1'
-        }
-      }
-    );
+export async function detectRegionOnline(lat, lon) {
+  const geocoded = await reverseGeocode(lat, lon);
 
-    if (!response.ok) {
-      throw new Error('Geocoding request failed');
-    }
-
-    const data = await response.json();
-    const address = data.address || {};
-
-    // 解析 OSM 返回的地址信息
-    const countryCode = address.country_code?.toUpperCase() || 'Unknown';
-    const city = address.city || address.town || address.village || address.county || '';
-
+  if (geocoded) {
     return {
-      continent: address.continent || null,
-      country: countryCode,
-      countryName: address.country || '未知',
-      city: city,
-      fullAddress: data.display_name || '',
-      osmType: data.osm_type,
-      osmId: data.osm_id,
+      continent: null, // Mapbox 逆编码不直接给大洲，需要时由调用方按 countryCode 映射
+      country: geocoded.countryCode || 'Unknown',
+      countryCode: geocoded.countryCode || null,
+      countryName: geocoded.country || '未知',
+      countryNameEn: geocoded.country || 'Unknown',
+      apiProvider: null, // provider 适配层后续接入，见 transitIntel 规划
+      region: geocoded.region || null,
+      regionName: geocoded.region || null,
+      city: geocoded.city || null,
+      fullAddress: geocoded.fullAddress || null,
+      resolved: true,
+      source: 'reverse',
     };
-  } catch (error) {
-    console.error('逆地理编码失败:', error);
-    return null;
   }
+
+  // 主路径失联：回退 bbox 快路径（可能有值，可能盲区占位）
+  return detectRegion(lat, lon);
 }
 
 /**

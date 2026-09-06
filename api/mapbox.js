@@ -20,6 +20,44 @@ export function compactGeocodeResults(raw) {
         .filter(r => r.name && r.lat !== null && r.lon !== null);
 }
 
+// 🌍 逆向地理编码压平：坐标 → { country, countryCode, region, city }
+// 区域检测的全球主路径（bbox 只是离线快路径，错判时以此为准）
+export function compactReverseResult(raw) {
+    const features = raw && Array.isArray(raw.features) ? raw.features : [];
+    const findFeature = (type) => features.find(f => f?.place_type?.includes(type));
+
+    const country = findFeature('country');
+    if (!country) return null; // 拿不到国家就视为整包不可用
+
+    const region = findFeature('region');
+    const place = findFeature('place');
+    const firstWithName = features.find(f => f?.text);
+
+    return {
+        country: country.text || '',
+        countryCode: (country.properties?.short_code || '').toUpperCase(),
+        region: region?.text || '',
+        city: place?.text || '',
+        fullAddress: firstWithName?.place_name || country.text || '',
+        provider: 'mapbox'
+    };
+}
+
+// 🌍 Nominatim reverse 的服务端兜底压平（与 compactReverseResult 同构）
+export function compactNominatimReverse(data) {
+    const addr = data?.address;
+    if (!addr?.country) return null;
+    const city = addr.city || addr.town || addr.village || addr.county || '';
+    return {
+        country: addr.country,
+        countryCode: (addr.country_code || '').toUpperCase(),
+        region: addr.state || '',
+        city,
+        fullAddress: data.display_name || addr.country,
+        provider: 'nominatim'
+    };
+}
+
 // 🛡️ 应用速率限制：每个IP每分钟最多10次请求（rateLimiter.js 已改为 Redis 分布式限流）
 export default withRateLimit('mapbox')(async function handler(req, res) {
     // 允许跨域请求
@@ -70,6 +108,50 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
         }
         const raw = await geoRes.json();
         return res.status(200).json({ results: compactGeocodeResults(raw) });
+    }
+
+    // 🌍 逆向地理编码：坐标 → 国家/省州/城市（区域检测全球主路径）
+    if (type === 'reverse') {
+        const latNum = Number.parseFloat(lat);
+        const lonNum = Number.parseFloat(lon);
+        if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+            return res.status(400).json({ error: '经纬度参数无效' });
+        }
+        if (Math.abs(latNum) > 90 || Math.abs(lonNum) > 180) {
+            return res.status(400).json({ error: '经纬度超出范围' });
+        }
+
+        // 主链：Mapbox 逆编码（types 带上 region/place/country 才能抽出省州与城市）
+        try {
+            const revRes = await fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lonNum},${latNum}.json?access_token=${MAPBOX_TOKEN}&types=country,region,place,neighborhood&language=zh`
+            );
+            if (revRes.ok) {
+                const compacted = compactReverseResult(await revRes.json());
+                if (compacted) return res.status(200).json(compacted);
+            } else {
+                const fp = `${MAPBOX_TOKEN.slice(0, 3)}…len=${MAPBOX_TOKEN.length}…${MAPBOX_TOKEN.slice(-4)}`;
+                console.error(`❌ Mapbox 逆向地理编码上游异常: HTTP ${revRes.status} token指纹[${fp}]`);
+            }
+        } catch (err) {
+            console.error('❌ Mapbox 逆向地理编码请求异常:', err?.message || err);
+        }
+
+        // 兜底链：Nominatim 服务端直连（出口网络稳定，不受浏览器本地网络影响）
+        try {
+            const nomRes = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latNum}&lon=${lonNum}&accept-language=zh-CN,en&zoom=10`,
+                { headers: { 'User-Agent': 'EarthTerminal/5.3 (global travel tool)' } }
+            );
+            if (nomRes.ok) {
+                const compacted = compactNominatimReverse(await nomRes.json());
+                if (compacted) return res.status(200).json(compacted);
+            }
+        } catch (err) {
+            console.error('❌ Nominatim 逆向兜底异常:', err?.message || err);
+        }
+
+        return res.status(502).json({ error: '逆向地理编码服务暂不可用' });
     }
 
     if (!lat || !lon) return res.status(400).json({ error: "缺少经纬度参数" });

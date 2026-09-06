@@ -8,15 +8,21 @@
  * - 幽灵视效: 背景模糊、半透明
  */
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, Train, MapPin, AlertTriangle, Navigation } from 'lucide-react';
-import { detectRegion, formatCoordinate } from '../utils/regionDetector';
+import { detectRegion, detectRegionOnline, UNKNOWN_REGION, formatCoordinate } from '../utils/regionDetector';
 
 const DarkTacticalHUD = ({ stationData, onClose }) => {
   // 📱 首次渲染时就检测是否为移动端（使用函数形式初始化）
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   const [isPulseActive, setIsPulseActive] = useState(true);
   const hasDispatchedMobileRef = useRef(false);
+  // 🌍 区域信息：同步派生快路径（渲染期算，无坐标时天然是"未知地区"），
+  // 异步主路径（服务端逆编码）结果落在 resolvedRegion，解析中快路径先行占位
+  const quickInfo = stationData?.lat && stationData?.lon
+    ? detectRegion(stationData.lat, stationData.lon)
+    : UNKNOWN_REGION();
+  const [resolvedRegion, setResolvedRegion] = useState(null); // null = 主路径还没回来
 
   // 📱 响应窗口大小变化
   useEffect(() => {
@@ -33,12 +39,21 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // 检测地区信息：纯派生值，渲染期直接计算
-  // （无坐标时为 null —— 顺带修复旧实现切换到无坐标目标时残留上一站地区信息的瑕疵）
-  const regionInfo = useMemo(
-    () => (stationData?.lat && stationData?.lon ? detectRegion(stationData.lat, stationData.lon) : null),
-    [stationData]
-  );
+  // 🌍 主路径：服务端逆编码（全球覆盖，bbox 盲区如清迈也能显示泰国）
+  // 只做异步写入——stationData 换人时旧结果自动作废（resolvedRegion 只被最新请求覆盖）
+  useEffect(() => {
+    if (!stationData?.lat || !stationData?.lon) return;
+    let cancelled = false;
+
+    detectRegionOnline(stationData.lat, stationData.lon)
+      .then(info => { if (!cancelled) setResolvedRegion(info); })
+      .catch(() => { if (!cancelled) setResolvedRegion(null); });
+
+    return () => { cancelled = true; };
+  }, [stationData]);
+
+  // 展示值：主路径确认结果 > bbox 快路径占位 > 未知
+  const regionInfo = resolvedRegion || quickInfo;
 
   // 脉冲动画控制
   useEffect(() => {
@@ -63,7 +78,7 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
 
       const { name, lat, lon, source } = stationData;
       const coords = formatCoordinate(lat, lon);
-      const info = detectRegion(lat, lon);
+      const info = regionInfo; // 🌍 主路径异步结果（useEffect 已就位，移动端 HTML 同样取它）
 
       const mobileContent = `
         <div style="padding: 20px; font-family: 'Courier New', monospace;">
@@ -78,7 +93,7 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
           <div style="color: #fbbf24; font-size: 12px; margin-bottom: 8px;">
             坐标: ${coords.full}
           </div>
-          ${info ? `
+          ${info && info.countryName !== '未知地区' ? `
             <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;">
               <span style="background: rgba(251, 191, 36, 0.1); color: #fbbf24; padding: 4px 10px; border-radius: 6px; font-size: 11px; border: 1px solid rgba(251, 191, 36, 0.2);">
                 ${info.continent}
@@ -102,7 +117,7 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
 
       window.dispatchEvent(new CustomEvent('openTacticalBottomSheet', { detail: mobileContent }));
     }
-  }, [stationData, isMobile]);
+  }, [stationData, isMobile, regionInfo]);
 
   if (!stationData) return null;
 
@@ -286,8 +301,8 @@ const DarkTacticalHUD = ({ stationData, onClose }) => {
               </div>
             </div>
 
-            {/* 地区信息 */}
-            {regionInfo && (
+            {/* 地区信息（快路径占位或主路径解析成功，至少要有国家才显示） */}
+            {regionInfo && regionInfo.countryName !== '未知地区' && (
               <>
                 <div style={{ marginBottom: '16px' }}>
                   <div
