@@ -39,6 +39,7 @@ const QrViewShare = ({ variant = 'light', size = 180 }) => {
   // overflow 滚动容器裁顶——线上实测弹出卡上半截被吃掉的教训）
   const btnRef = useRef(null);
   const [anchor, setAnchor] = useState(null); // { left, bottom, upward }
+  const btnCenterRef = useRef(null); // 打开瞬间的按钮视口中心（scroll 误伤过滤基准）
   const pal = PALETTES[variant];
 
   const toggle = () => {
@@ -47,24 +48,35 @@ const QrViewShare = ({ variant = 'light', size = 180 }) => {
     if (r) {
       const popupH = size + 150; // 码 + 标题/按钮/提示的估算高度
       const upward = r.top > popupH + 16; // 上方放得下就向上弹，否则向下
+      const cx = r.left + r.width / 2;
+      const cy = upward ? r.top : r.bottom;
+      btnCenterRef.current = { x: cx, y: cy };
       setAnchor({
-        left: Math.min(Math.max(r.left + r.width / 2, 140), window.innerWidth - 140),
-        bottom: window.innerHeight - (upward ? r.top : r.bottom) + (upward ? 8 : -8),
+        left: Math.min(Math.max(cx, 140), window.innerWidth - 140),
+        bottom: window.innerHeight - cy + (upward ? 8 : -8),
         upward,
       });
     }
     setOpen(true);
   };
 
-  // 滚动/缩放时锚点失效 → 直接收起（比错位更体面）
+  // 滚动/缩放时若按钮真的位移了才收起（防错位）。
+  // ⚠️ 不能见 scroll 就关：Leaflet 地图内部会异步发 scroll 事件，
+  //    capture 捕获后误杀弹窗（线上实测弹出不到一秒即消失的教训）
   useEffect(() => {
     if (!open) return undefined;
-    const close = () => setOpen(false);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
+    const maybeClose = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      const c = btnCenterRef.current;
+      if (!r || !c) { setOpen(false); return; }
+      const moved = Math.abs(r.left + r.width / 2 - c.x) > 4 || Math.abs((r.top + r.bottom) / 2 - c.y) > 4;
+      if (moved) setOpen(false);
+    };
+    window.addEventListener('scroll', maybeClose, true);
+    window.addEventListener('resize', maybeClose);
     return () => {
-      window.removeEventListener('scroll', close, true);
-      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', maybeClose, true);
+      window.removeEventListener('resize', maybeClose);
     };
   }, [open]);
 
