@@ -109,12 +109,14 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
     if (!weather) return null;
     try {
       const altitude = SunCalc.getPosition(now, latKey, lngKey).altitude * (180 / Math.PI);
+      const moonPhase = SunCalc.getMoonIllumination(now).fraction;
       const env = {
-        astronomy: { now: now.getTime(), solarAltitude: altitude, isNight: altitude < -6 },
+        astronomy: { now: now.getTime(), solarAltitude: altitude, isNight: altitude < -6, moonPhase },
         climate: { season: getGlobalSeason(latKey, now.getMonth() + 1) },
         weather: {
           condition: weather.condition, clouds: weather.cloud,
-          humidity: weather.humidity, visibility: 10000, windKph: weather.wind_kph
+          humidity: weather.humidity, visibility: 10000, windKph: weather.wind_kph,
+          temp: weather.temp_c
         },
         terrain: { rawTags: [], poiTypes: [] }
       };
