@@ -11,6 +11,7 @@ import { searchPlace } from '../utils/geocode';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { TACTICAL_STYLES } from '../config/mapConstants';
 import { parseViewHash, serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
+import QrViewShare from '../components/QrViewShare';
 
 // 🏠 记住上次战术视角（本机持久，与主地图的视角指纹同仓不同 key）
 const TACTICAL_LAST_VIEW = 'et_tactical_last_view';
@@ -448,11 +449,16 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
         display: 'flex',
         flexWrap: 'wrap', // 允许文字换行
         justifyContent: 'space-between',
+        alignItems: 'center',
         gap: '10px',
         flexShrink: 0
       }}>
         <span>SYS_STATUS: NORMAL</span>
         <span style={{ wordBreak: 'break-all' }}>LAT: {mapCenter[1].toFixed(4)} // LNG: {mapCenter[0].toFixed(4)} // Z: {mapZoom}</span>
+        {/* 🔳 战术视角二维码：向上弹出（琥珀暗色变体，战术 HUD 风格） */}
+        <div style={{ width: '170px', flexShrink: 0 }}>
+          <QrViewShare variant="dark" size={170} />
+        </div>
       </div>
 
       {/* 📱 移动端战术抽屉 */}

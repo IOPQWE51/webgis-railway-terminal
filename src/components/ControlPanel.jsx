@@ -1,5 +1,6 @@
 import { Loader2, CloudRain, Cloud, Map as MapIcon, Moon, Globe, Ruler, Layers, Target, Navigation, Crosshair, Radar } from 'lucide-react';
 import SearchNavEngine from './SearchNavEngine';
+import QrViewShare from './QrViewShare';
 
 const ControlPanel = ({
     // 状态
@@ -21,6 +22,10 @@ const ControlPanel = ({
                     {isLocating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Crosshair className="w-4 h-4 mr-2" />}
                     {isLocating ? '连接卫星中...' : '注入真实坐标'}
                 </button>
+                {/* 🔳 视角二维码：当前视角深链接扫码带走（弹出向上展开，不占面板流） */}
+                <div className="mt-3">
+                    <QrViewShare variant="light" />
+                </div>
             </div>
 
             {/* 3. 测距雷达 */}
