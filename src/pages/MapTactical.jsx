@@ -1,15 +1,19 @@
 // src/pages/MapTactical.jsx
 // 🗺️ 战术地图页面
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import MapboxMapTactical from '../components/MapboxMapTactical';
 import DataCenter from '../components/DataCenter';
 import TacticalBottomSheet from '../components/TacticalBottomSheet';
 import { Map, Database, Search, Crosshair, Loader2 } from 'lucide-react';
-import { storage } from '../utils/performanceHelpers';
+import { storage, debounce } from '../utils/performanceHelpers';
 import { searchPlace } from '../utils/geocode';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { TACTICAL_STYLES } from '../config/mapConstants';
+import { parseViewHash, serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
+
+// 🏠 记住上次战术视角（本机持久，与主地图的视角指纹同仓不同 key）
+const TACTICAL_LAST_VIEW = 'et_tactical_last_view';
 
 export default function MapTactical({ customPoints: _initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
   // 🎯 Dark 2D 模式使用独立的点位存储（不继承主地图的点）
@@ -17,8 +21,21 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
     return storage.load('earth_terminal_dark2d_points', []);
   });
   const [activeTab, setActiveTab] = useState('map'); // 'map' 或 'data'
-  const [mapCenter, setMapCenter] = useState([-73.9851, 40.7484]); // 🗽 纽约（美国第一城）
-  const [mapZoom, setMapZoom] = useState(1); // 🌍 缩放到地球视图级别（0-22，1=全地球）
+  // 🧭 默认视角三连：分享链接 hash（mode=tactical）> 上次战术视角（本机记住）> 东京湾
+  // （全球出行工具的"第一站"不应硬编码成单一城市——分享/上次视角命中时永远优先）
+  const [mapCenter, setMapCenter] = useState(() => {
+    const fromHash = parseViewHash(window.location.hash);
+    if (fromHash?.lat !== null && fromHash?.lon !== null) return [fromHash.lon, fromHash.lat];
+    const last = storage.load(TACTICAL_LAST_VIEW, null);
+    if (Array.isArray(last) && Number.isFinite(last[0]) && Number.isFinite(last[1])) return last;
+    return [139.7671, 35.6812]; // 东京站（全球工具的第一站默认，非"某国第一城"叙事）
+  });
+  const [mapZoom, setMapZoom] = useState(() => {
+    const fromHash = parseViewHash(window.location.hash);
+    if (fromHash?.lat !== null && fromHash?.lon !== null && fromHash.z !== null) return fromHash.z;
+    const last = storage.load('et_tactical_last_zoom', null);
+    return (typeof last === 'number' && Number.isFinite(last) && last >= 0) ? last : 4; // 全球概览级
+  });
   const [searchQuery, setSearchQuery] = useState(''); // 🔍 搜索关键词
   const [isSearching, setIsSearching] = useState(false); // 🔍 搜索状态
   const [isLocating, setIsLocating] = useState(false); // 📍 定位中状态
@@ -100,6 +117,27 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
   const handleMapClick = ({ longitude, latitude }) => {
     setClickedCoord({ longitude, latitude });
   };
+
+  // 🔗 视角变化 → URL hash（mode=tactical，复制地址栏即可分享战术视角）
+  //  + 本机"上次视角"记忆（下次进入直接回到上次位置，与主地图同一套哲学）
+  //  + 视角指纹（自己收藏夹打开不弹分享面板——与 App.jsx 启动恢复逻辑共用判断）
+  // 防抖 600ms 与主地图对齐；注意这里的参数是 [lng, lat]（Mapbox 惯例），
+  // 序列化时翻转成 lat/lon（URL 惯例）
+  const handleViewChange = ({ center, zoom }) => {
+    if (!Array.isArray(center)) return;
+    const [lng, lat] = center;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    const next = serializeViewHash({ lat, lon: lng, z: zoom, mode: 'tactical' });
+    if (window.location.hash !== next) window.history.replaceState(null, '', next);
+    try {
+      window.localStorage.setItem(OWN_VIEW_FINGERPRINT, next);
+      window.localStorage.setItem(TACTICAL_LAST_VIEW, JSON.stringify([lng, lat]));
+      window.localStorage.setItem('et_tactical_last_zoom', String(Math.round(zoom)));
+    } catch { /* 隐私模式忽略 */ }
+  };
+  // 防抖 600ms 与主地图哲学对齐：拖动中不刷地址栏，拖完落定再写
+  const debouncedViewChange = useMemo(() => debounce(handleViewChange, 600), []);
 
   // 📍 位置搜索处理（统一链路：代理优先 + Nominatim 兜底）
   const handleSearch = async (query) => {
@@ -383,6 +421,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
               onMapClick={handleMapClick}
               clickedCoord={clickedCoord}
               userLocation={userLocation}
+              onViewChange={debouncedViewChange}
             />
           </div>
         ) : (

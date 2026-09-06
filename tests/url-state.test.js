@@ -15,6 +15,7 @@ describe('parseViewHash', () => {
       lon: 139.7671,
       z: 12,
       tab: 'map',
+      mode: null,
     });
   });
 
@@ -25,8 +26,8 @@ describe('parseViewHash', () => {
   });
 
   it('只有坐标时 tab 为 null；只有合法 tab 时坐标为 null', () => {
-    expect(parseViewHash('#lat=10&lon=20')).toEqual({ lat: 10, lon: 20, z: null, tab: null });
-    expect(parseViewHash('#tab=data')).toEqual({ lat: null, lon: null, z: null, tab: 'data' });
+    expect(parseViewHash('#lat=10&lon=20')).toEqual({ lat: 10, lon: 20, z: null, tab: null, mode: null });
+    expect(parseViewHash('#tab=data')).toEqual({ lat: null, lon: null, z: null, tab: 'data', mode: null });
   });
 
   it('越界坐标被拒绝（但同串里的合法 tab 仍保留）', () => {
@@ -35,6 +36,7 @@ describe('parseViewHash', () => {
       lon: null,
       z: null,
       tab: 'rules',
+      mode: null,
     });
     expect(parseViewHash('#lat=10&lon=-181')).toBeNull(); // 坐标对残缺且无 tab → 整体视为无内容
     expect(parseViewHash('#lat=10&lon=-181&z=5')).toBeNull();
@@ -43,7 +45,7 @@ describe('parseViewHash', () => {
   it('非法数值与未知 tab 被忽略', () => {
     expect(parseViewHash('#lat=abc&lon=20')).toBeNull();
     expect(parseViewHash('#tab=hacker')).toBeNull();
-    expect(parseViewHash('#lat=10&lon=20&z=99')).toEqual({ lat: 10, lon: 20, z: null, tab: null });
+    expect(parseViewHash('#lat=10&lon=20&z=99')).toEqual({ lat: 10, lon: 20, z: null, tab: null, mode: null });
   });
 });
 
@@ -62,7 +64,42 @@ describe('serializeViewHash', () => {
   it('与 parse 构成往返', () => {
     const view = { lat: 35.68123, lon: 139.76712, z: 12 };
     const back = parseViewHash(serializeViewHash(view));
-    expect(back).toEqual({ ...view, tab: null });
+    expect(back).toEqual({ ...view, tab: null, mode: null });
+  });
+});
+
+describe('mode=tactical（战术轨道视角）', () => {
+  it('解析 mode=tactical 且其余字段照常工作', () => {
+    expect(parseViewHash('#lat=35.68&lon=139.76&z=14&mode=tactical')).toEqual({
+      lat: 35.68,
+      lon: 139.76,
+      z: 14,
+      tab: null,
+      mode: 'tactical',
+    });
+  });
+
+  it('无 mode 时为 null（默认 = 主地图轨道）', () => {
+    expect(parseViewHash('#lat=35.68&lon=139.76&z=14').mode).toBeNull();
+  });
+
+  it('未知 mode 值被忽略（只认 tactical，防伪造其他轨道）', () => {
+    expect(parseViewHash('#lat=1&lon=2&z=3&mode=hacker').mode).toBeNull();
+  });
+
+  it('serialize 带 mode=tactical 输出（战术视角链接复制即可分享）', () => {
+    expect(serializeViewHash({ lat: 35.68, lon: 139.76, z: 14, mode: 'tactical' })).toBe(
+      '#lat=35.68&lon=139.76&z=14&mode=tactical'
+    );
+  });
+
+  it('serialize 不带 mode 时输出与旧版一致（主地图链接不变）', () => {
+    expect(serializeViewHash({ lat: 35.68, lon: 139.76, z: 14 })).toBe('#lat=35.68&lon=139.76&z=14');
+  });
+
+  it('往返：战术视角 serialize → parse 不丢 mode', () => {
+    const back = parseViewHash(serializeViewHash({ lat: 1.5, lon: 2.5, z: 8, mode: 'tactical' }));
+    expect(back).toEqual({ lat: 1.5, lon: 2.5, z: 8, tab: null, mode: 'tactical' });
   });
 });
 

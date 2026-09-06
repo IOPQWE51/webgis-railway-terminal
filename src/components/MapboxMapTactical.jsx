@@ -69,7 +69,8 @@ export default function MapboxMapTactical({
   pitch = 0,
   bearing = 0,
   clickedCoord = null, // 🖱️ 点击的坐标（显示面板用）
-  userLocation = null // 📍 用户当前位置（幽灵蓝）
+  userLocation = null, // 📍 用户当前位置（幽灵蓝）
+  onViewChange = null // 🔗 视角变化上报（moveend/zoomend 后回调 {center, zoom}，供 URL hash 同步）
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -373,6 +374,24 @@ export default function MapboxMapTactical({
 
     flyToDebounced();
   }, [center, zoom, isLoaded]);
+
+  // 🔗 视角变化上报：用户拖动/缩放地图结束后回调当前中心与缩放
+  // （供父组件同步 URL hash；ref 存回调避免回调身份变化导致地图监听重绑）
+  const viewChangeRef = useRef(onViewChange);
+  viewChangeRef.current = onViewChange;
+
+  useEffect(() => {
+    if (!map.current || !isLoaded) return;
+
+    const report = () => {
+      const cb = viewChangeRef.current;
+      if (!cb || !map.current) return;
+      const c = map.current.getCenter();
+      cb({ center: [c.lng, c.lat], zoom: map.current.getZoom() });
+    };
+    map.current.on('moveend', report);
+    return () => { if (map.current) map.current.off('moveend', report); };
+  }, [isLoaded]);
 
   // 📍 渲染自定义标记点
   useEffect(() => {

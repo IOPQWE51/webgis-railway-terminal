@@ -1,13 +1,16 @@
 // src/utils/urlState.js
 // 🔗 视角深链接：把地图视角编码进 URL 哈希，让"这个角度"可以复制粘贴分享。
 //
-// 格式: #lat=<纬度>&lon=<经度>&z=<缩放>&tab=<页签>
+// 格式: #lat=<纬度>&lon=<经度>&z=<缩放>&tab=<页签>&mode=<轨道>
 // 约定:
 // - 坐标是成对的：纬纬度或经度任一缺失/越界，整对作废（半张地图没有意义）
 // - tab 仅接受已知页签 id，未知值静默忽略
+// - mode 仅接受 'tactical'（dark2d 战术轨道）；缺省 = 主地图轨道。
+//   战术链接打开时 App 据此直接拉起战术模式并摆到视角
 // - 序列化时坐标取 5 位小数（≈1 米精度）、缩放取整并夹取到 [0, 22]
 
 const VALID_TABS = new Set(['map', 'data', 'rules', 'tools', 'sub-culture', 'aviation']);
+const VALID_MODES = new Set(['tactical']);
 const MAX_ZOOM = 22;
 
 function toFiniteNumber(value) {
@@ -43,22 +46,25 @@ export function parseViewHash(hash) {
 
   const tabRaw = params.get('tab');
   const tab = tabRaw && VALID_TABS.has(tabRaw) ? tabRaw : null;
+  const modeRaw = params.get('mode');
+  const mode = modeRaw && VALID_MODES.has(modeRaw) ? modeRaw : null;
 
   const hasView = lat !== null || tab !== null;
   if (!hasView) return null;
 
-  return { lat, lon, z, tab };
+  return { lat, lon, z, tab, mode };
 }
 
 /**
  * 把视角对象序列化为 URL 哈希。
- * @param {{lat:number, lon:number, z?:number}} view
- * @returns {string} 形如 "#lat=..&lon=..&z=.."
+ * @param {{lat:number, lon:number, z?:number, mode?:string}} view
+ * @returns {string} 形如 "#lat=..&lon=..&z=.."（mode=tactical 时追加轨道标记）
  */
-export function serializeViewHash({ lat, lon, z }) {
+export function serializeViewHash({ lat, lon, z, mode }) {
   const fmt = (n) => (Math.round(n * 100000) / 100000).toString();
   const clampZoom = Math.max(0, Math.min(MAX_ZOOM, Math.round(z ?? 0)));
-  return `#lat=${fmt(lat)}&lon=${fmt(lon)}&z=${clampZoom}`;
+  const modeSuffix = mode && VALID_MODES.has(mode) ? `&mode=${mode}` : '';
+  return `#lat=${fmt(lat)}&lon=${fmt(lon)}&z=${clampZoom}${modeSuffix}`;
 }
 
 // 🧭 视角恢复守卫：URL 哈希既是"分享载体"也是"被动跟随"（地图一动就写入），

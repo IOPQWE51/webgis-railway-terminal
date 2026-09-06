@@ -32,16 +32,22 @@ const App = () => {
     sessionRef.current = session;
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
 
-    // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..
+    // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..&mode=..
     // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板。
     // 🧭 仅"首次到访"恢复（shouldRestoreSharedView 用 sessionStorage 区分）：
     // 同标签页刷新时哈希只是被动跟随，不再绑架视角跳回旧位置
     // 🏠 本机指纹（isOwnDeviceView 用 localStorage 区分）：从自己收藏夹打开的链接
     //    静默摆到目标视角（不弹分享面板），朋友打开的真分享才走完整仪式感
+    // 🎯 mode=tactical（战术轨道链接）：直接拉起 dark2d 战术模式，视角由
+    //    MapTactical 自己从 hash 恢复（含本机"上次视角"记忆链），App 不越俎代庖
     useEffect(() => {
         if (!shouldRestoreSharedView(window.sessionStorage)) return;
         const view = parseViewHash(window.location.hash);
         if (!view) return;
+        if (view.mode === 'tactical') {
+            setIsTacticalMode(true);
+            return; // 战术轨道视角恢复全部由 MapTactical 内部处理
+        }
         if (view.tab) setActiveTab(view.tab);
         if (view.lat !== null) {
             if (isOwnDeviceView(window.location.hash, window.localStorage)) {
