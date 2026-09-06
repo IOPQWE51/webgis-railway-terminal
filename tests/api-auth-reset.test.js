@@ -7,7 +7,6 @@ import handler, {
     generateRandomPassword,
     generateEmailCode,
     sendVerifyEmail,
-    signSession,
 } from '../api/auth.js';
 
 const SECRET = 'test-secret-32-chars-long-xxxxxxxx';
