@@ -13,6 +13,7 @@ const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
 import { storage } from './utils/performanceHelpers';
 import { parseViewHash, shouldRestoreSharedView, isOwnDeviceView } from './utils/urlState';
+import { mergeOnPull } from './utils/pointsMerge';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
@@ -87,6 +88,10 @@ const App = () => {
         return saved || [];
     });
 
+    // 拉云合并/写云打戳要读最新点位，避免 stale 闭包（渲染期同步，对齐 sessionRef 模式）
+    const customPointsRef = useRef(customPoints);
+    customPointsRef.current = customPoints;
+
     // 🛰️ 挂载时恢复会话（Cookie 会话，GET /api/auth?action=me）
     useEffect(() => {
         (async () => {
@@ -116,8 +121,20 @@ const App = () => {
                     // 取舍：在 A 设备清空云库不会传播删除到 B 设备，远轻于误清空本地
                     // （对齐同仓先例 MapTactical.jsx 的同款 length > 0 守卫）。
                     if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-                        setCustomPoints(json.data);
-                        storage.save('earth_terminal_custom_points', json.data);
+                        // 🔄 v2 多设备合并：同 id 点位 updatedAt 新者胜，单侧保留
+                        // （specs/2026-09-06-points-model-v2-design.md §3.1）
+                        const merged = mergeOnPull(customPointsRef.current, json.data);
+                        setCustomPoints(merged);
+                        storage.save('earth_terminal_custom_points', merged);
+                        // 合并结果与云端有差异时回推落库，让其他设备下次拉到同样结果
+                        if (merged.length !== json.data.length ||
+                            JSON.stringify(merged) !== JSON.stringify(json.data)) {
+                            fetch('/api/points', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(merged)
+                            }).catch(() => {});
+                        }
                     }
                 }
             } catch {
@@ -148,12 +165,23 @@ const App = () => {
             return;
         }
 
+        // ⏱️ v2 写前打时间戳：本次发生变化的点位盖上 updatedAt，多设备拉云合并时新者胜
+        // （specs/2026-09-06-points-model-v2-design.md §3.1）。未变的点保留原时间戳，
+        // 避免全量盖戳把"设备 A 无意识的新"误判胜过"设备 B 有意识改的旧"
+        const prev = new Map(customPointsRef.current.map((p) => [String(p.id), p]));
+        const stamped = newPointsArray.map((p) => {
+            const old = prev.get(String(p.id));
+            const contentChanged = !old || old.name !== p.name || old.lat !== p.lat || old.lon !== p.lon
+                || old.category !== p.category || (old.group || '') !== (p.group || '');
+            return contentChanged ? { ...p, updatedAt: Date.now() } : p;
+        });
+
         // ☁️ 异步推送到云端
         try {
             const res = await fetch('/api/points', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newPointsArray)
+                body: JSON.stringify(stamped)
             });
             // 🔑 会话过期自愈：JWT 失效（401）时主动翻回匿名，
             // header 徽章随即变回"建立上行链路"，后续点位变更自然走匿名本地分支，

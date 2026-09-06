@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
-import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight, ShieldCheck } from 'lucide-react';
-import { getIconStyle } from '../utils/helpers'; 
+import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight, ShieldCheck, Download, FolderInput } from 'lucide-react';
+import { getIconStyle } from '../utils/helpers';
+import { toJSON, toCSV, exportFileName, downloadTextFile } from '../utils/pointsExport';
 
 /**
  * 🛰️ 地理编码与数据解析中枢 (Google API 独家重装版 v4.2.1)
@@ -390,7 +391,8 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
     const groupedPoints = useMemo(() => {
         const groups = {};
         customPoints.forEach(pt => {
-            let source = (pt.source || '未分类').replace(/^源：/, '');
+            // 🧭 v2 分组维度：group 优先（行程分组），source 兜底（旧数据语义不变）
+            let source = (pt.group || pt.source || '未分类').replace(/^源：/, '');
             // 🆕 去掉 .csv 后缀，显示更清爽
             if (source.endsWith('.csv')) {
                 source = source.slice(0, -4);
@@ -401,6 +403,30 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
             if (pt.importedAt && pt.importedAt > groups[source].lastImport) groups[source].lastImport = pt.importedAt;
         });
         return Object.values(groups).sort((a, b) => b.lastImport - a.lastImport);
+    }, [customPoints]);
+
+    // 🧳 v2 分组编辑：整组重命名 / 单点移入分组（prompt 式轻交互，贴合本页朴素风格）
+    const renameGroup = useCallback((group) => {
+        const next = window.prompt('分组改名（留空 = 退回未分组）', group.name);
+        if (next === null) return;
+        const trimmed = next.trim().slice(0, 24);
+        const ids = new Set(group.points.map(p => String(p.id)));
+        onPointsUpdate(customPoints.map(p => (ids.has(String(p.id)) ? { ...p, group: trimmed } : p)));
+    }, [customPoints, onPointsUpdate]);
+
+    const moveToGroup = useCallback((point) => {
+        const next = window.prompt('移入分组（输入名称，留空 = 未分组）', point.group || '');
+        if (next === null) return;
+        const trimmed = next.trim().slice(0, 24);
+        onPointsUpdate(customPoints.map(p => (String(p.id) === String(point.id) ? { ...p, group: trimmed } : p)));
+    }, [customPoints, onPointsUpdate]);
+
+    // 📤 v2 一键导出：JSON（完整字段）/ CSV（BOM，Excel 直开不乱码）
+    const exportJSON = useCallback(() => {
+        downloadTextFile(toJSON(customPoints), exportFileName('earth-terminal-points', 'json'), 'application/json');
+    }, [customPoints]);
+    const exportCSV = useCallback(() => {
+        downloadTextFile(toCSV(customPoints), exportFileName('earth-terminal-points', 'csv'), 'text/csv;charset=utf-8');
     }, [customPoints]);
 
     const handlePointClick = useCallback((point) => { if (window.__locatePointOnMap) window.__locatePointOnMap(point.id); }, []);
@@ -536,7 +562,16 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                     <div className="mt-8">
                         <div className="flex justify-between items-end mb-3 border-b pb-2">
                             <h4 className="font-bold text-gray-700">战术星标库 ({customPoints.length})</h4>
-                            {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-red-500 hover:text-red-700 flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 格式化缓存</button>}
+                            <div className="flex items-center gap-3">
+                                {customPoints.length > 0 && (
+                                    <span className="flex items-center gap-2 text-xs text-cyan-600">
+                                        <button onClick={exportJSON} className="hover:text-cyan-800 flex items-center transition-colors font-bold" title="导出 JSON（完整字段）"><Download className="w-3 h-3 mr-0.5" /> JSON</button>
+                                        <span className="text-gray-300">|</span>
+                                        <button onClick={exportCSV} className="hover:text-cyan-800 flex items-center transition-colors font-bold" title="导出 CSV（Excel 直开）"><Download className="w-3 h-3 mr-0.5" /> CSV</button>
+                                    </span>
+                                )}
+                                {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-red-500 hover:text-red-700 flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 格式化缓存</button>}
+                            </div>
                         </div>
                         <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
                             {customPoints.length === 0 && <p className="text-sm text-gray-400 text-center py-8">雷达图当前为空，等待数据注入。</p>}
@@ -548,7 +583,19 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                                             <span className="font-bold text-sm text-gray-800 truncate max-w-[150px]">{group.name}</span>
                                             <span className="text-xs text-gray-500">({group.count})</span>
                                         </div>
-                                        <span className="text-[10px] text-gray-400">{formatImportTime(group.lastImport)}</span>
+                                        <span className="flex items-center gap-2">
+                                            <span
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={(e) => { e.stopPropagation(); renameGroup(group); }}
+                                                onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); renameGroup(group); } }}
+                                                className="text-[10px] text-cyan-600 hover:text-cyan-800 flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-all"
+                                                title="重命名分组"
+                                            >
+                                                <FolderInput className="w-3 h-3" /> 改组名
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">{formatImportTime(group.lastImport)}</span>
+                                        </span>
                                     </button>
                                     {expandedGroup === group.name && (
                                         <div className="mt-1 ml-4 space-y-1 animate-in slide-in-from-top-1 duration-200">
@@ -558,7 +605,19 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                                                         <span className="mr-2 text-lg">{getIconStyle(pt.category, pt.source).icon}</span>
                                                         <span className="truncate max-w-[180px]">{pt.name}</span>
                                                     </span>
-                                                    <span className="font-mono text-[10px] text-cyan-700 bg-cyan-100/50 px-2 py-1 rounded-md border border-cyan-200">{pt.lat.toFixed(4)}, {pt.lon.toFixed(4)}</span>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <span
+                                                            role="button"
+                                                            tabIndex={0}
+                                                            onClick={(e) => { e.stopPropagation(); moveToGroup(pt); }}
+                                                            onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); moveToGroup(pt); } }}
+                                                            className="text-[10px] text-gray-400 hover:text-cyan-600 transition-colors"
+                                                            title="移入分组"
+                                                        >
+                                                            🧳
+                                                        </span>
+                                                        <span className="font-mono text-[10px] text-cyan-700 bg-cyan-100/50 px-2 py-1 rounded-md border border-cyan-200">{pt.lat.toFixed(4)}, {pt.lon.toFixed(4)}</span>
+                                                    </span>
                                                 </button>
                                             ))}
                                         </div>
