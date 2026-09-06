@@ -21,6 +21,14 @@ if (SENTRY_DSN) {
 
 
 
+// 📱 PWA Service Worker：应用外壳离线能力（UI/收藏点断网可用）。
+// 仅生产注册——本地 dev 的 SW 会把热更新缓存住，弊大于利
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* 注册失败不影响主应用 */ });
+  });
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
