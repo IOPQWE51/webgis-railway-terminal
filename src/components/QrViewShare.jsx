@@ -21,7 +21,9 @@ const PALETTES = {
     copyBtn: 'bg-slate-100 text-slate-700 hover:bg-slate-200',
   },
   dark: {
-    card: 'bg-black/90 border-[rgba(251,191,36,0.3)] shadow-2xl backdrop-blur-md',
+    // ⚠️ 不用 backdrop-blur：guest 渲染器上 backdrop-filter 会让卡片子元素
+    //    （含整张码面 SVG）静默不绘制——实测琥珀像素 0 的元凶，纯实底即可
+    card: 'bg-[#0a0a0a] border-[rgba(251,191,36,0.3)] shadow-2xl',
     text: 'text-[#fbbf24]',
     hint: 'text-[#64748b]',
     icon: 'text-[#fbbf24] hover:bg-[rgba(251,191,36,0.1)]',
