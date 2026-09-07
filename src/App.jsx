@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useRef } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 // 1. 新增了 PlaneTakeoff 图标
 import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, CloudFog } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
@@ -11,27 +11,26 @@ import LoginOverlay from './components/auth/LoginOverlay.jsx';
 // 按需加载：不进首屏 bundle，首次切入战术模式时才拉取异步块
 const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
-import { storage } from './utils/performanceHelpers';
 import { parseViewHash, shouldRestoreSharedView, isOwnDeviceView } from './utils/urlState';
-import { mergeOnPull } from './utils/pointsMerge';
+import { usePoints } from './hooks/usePoints';
 
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
     const [pendingMapTarget, setPendingMapTarget] = useState(null); // 🆕 待定位的地点
     const [isTacticalMode, setIsTacticalMode] = useState(false); // 🎯 战术模式状态
-
-    // ☁️ 云端同步状态指示器 (可选：你可以在界面上展示它)
-    const [isCloudSyncing, setIsCloudSyncing] = useState(false);
-
-    // 🔐 会话状态：null = 匿名（纯本地模式）
-    const [session, setSession] = useState(null);
     const [nodeMenuOpen, setNodeMenuOpen] = useState(false); // 顶栏 NODE 徽章快捷菜单
-    // 🛡️ 会话快照：CSV 批量解析是数分钟级长任务，完成时回调里的旧闭包 session 可能
-    // 早已换人（登出/换号）。推送前用快照比对当前闭包值即可识别（见 handlePointsUpdate 守卫）
-    const sessionRef = useRef(session);
-    // 渲染期直接同步而非 useEffect：避免会话变更后到 effect 执行之间留出一帧守卫盲窗
-    sessionRef.current = session;
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
+
+    // 🎯 主轨点位 + 会话全部走统一 hook（#9 usePoints）：
+    // 会话探测/拉云 LWW 合并/写前盖戳/空库守卫/401 自愈/登出全在 hook 内
+    const {
+        points: customPoints,
+        updatePoints: handlePointsUpdate,
+        session,
+        setSession,
+        isCloudSyncing,
+        logout: handleLogout,
+    } = usePoints('main');
 
     // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..&mode=..
     // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板。
@@ -46,6 +45,7 @@ const App = () => {
         const view = parseViewHash(window.location.hash);
         if (!view) return;
         if (view.mode === 'tactical') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- 启动恢复链：一次性条件切模式，非级联渲染
             setIsTacticalMode(true);
             return; // 战术轨道视角恢复全部由 MapTactical 内部处理
         }
@@ -74,135 +74,6 @@ const App = () => {
             }
         }
     }, []);
-
-    // 1. 🛡️ 初始状态：先用本地 localStorage 垫底，保证画面瞬间渲染
-    const [customPoints, setCustomPoints] = useState(() => {
-        let saved = storage.load('earth_terminal_custom_points', null);
-        if (!saved) {
-            const oldData = storage.load('railway_custom_points', null);
-            if (oldData) {
-                storage.save('earth_terminal_custom_points', oldData);
-                saved = oldData;
-            }
-        }
-        return saved || [];
-    });
-
-    // 拉云合并/写云打戳要读最新点位，避免 stale 闭包（渲染期同步，对齐 sessionRef 模式）
-    const customPointsRef = useRef(customPoints);
-    customPointsRef.current = customPoints;
-
-    // 🛰️ 挂载时恢复会话（Cookie 会话，GET /api/auth?action=me）
-    useEffect(() => {
-        (async () => {
-            try {
-                const res = await fetch('/api/auth?action=me');
-                if (res.ok) {
-                    const json = await res.json();
-                    if (json.username) setSession(json.username);
-                }
-            } catch {
-                console.log('📡 认证服务未连接，当前运行在本地沙盒模式。');
-            }
-        })();
-    }, []);
-
-    // ☁️ 已登录：从自己的云端点位库拉取并覆盖本地缓存；匿名：纯本地，不发云请求
-    useEffect(() => {
-        if (!session) return undefined;
-        const fetchCloudPoints = async () => {
-            setIsCloudSyncing(true);
-            try {
-                const res = await fetch('/api/points');
-                if (res.ok) {
-                    const json = await res.json();
-                    // 🈳 空云库守卫：空数组视为"云端还没有数据"而非"清空指令"，
-                    // 否则新注册用户登录到空库会清掉本地积累的全部点位。
-                    // 取舍：在 A 设备清空云库不会传播删除到 B 设备，远轻于误清空本地
-                    // （对齐同仓先例 MapTactical.jsx 的同款 length > 0 守卫）。
-                    if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-                        // 🔄 v2 多设备合并：同 id 点位 updatedAt 新者胜，单侧保留
-                        // （specs/2026-09-06-points-model-v2-design.md §3.1）
-                        const merged = mergeOnPull(customPointsRef.current, json.data);
-                        setCustomPoints(merged);
-                        storage.save('earth_terminal_custom_points', merged);
-                        // 合并结果与云端有差异时回推落库，让其他设备下次拉到同样结果
-                        if (merged.length !== json.data.length ||
-                            JSON.stringify(merged) !== JSON.stringify(json.data)) {
-                            fetch('/api/points', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(merged)
-                            }).catch(() => {});
-                        }
-                    }
-                }
-            } catch {
-                console.log('📡 云端数据库尚未连接，当前运行在本地沙盒模式。');
-            } finally {
-                setIsCloudSyncing(false);
-            }
-        };
-        fetchCloudPoints();
-    }, [session]);
-
-    // 3. 🔵 数据更新中枢：同步更新 UI、本地硬盘 和 云端数据库
-    const handlePointsUpdate = async (newPointsArray) => {
-        // ⚡️ 乐观更新：不等云端返回，先瞬间更新本地界面，保持极致丝滑
-        setCustomPoints(newPointsArray);
-        storage.save('earth_terminal_custom_points', newPointsArray);
-
-        // 🔒 匿名模式：仅本地，不打扰云端
-        if (!session) {
-            console.info('🔒 本地模式：建立上行链路后点位将自动云端同步');
-            return;
-        }
-
-        // 🛡️ 长任务闭包守卫：批次开始时的会话与当前会话不一致（登出/换号）则放弃上行，
-        // 防止旧闭包把前用户点位写进新用户的云库
-        if (sessionRef.current !== session) {
-            console.warn('🛡️ 会话已变更，本次点位变更仅保留在本地');
-            return;
-        }
-
-        // ⏱️ v2 写前打时间戳：本次发生变化的点位盖上 updatedAt，多设备拉云合并时新者胜
-        // （specs/2026-09-06-points-model-v2-design.md §3.1）。未变的点保留原时间戳，
-        // 避免全量盖戳把"设备 A 无意识的新"误判胜过"设备 B 有意识改的旧"
-        const prev = new Map(customPointsRef.current.map((p) => [String(p.id), p]));
-        const stamped = newPointsArray.map((p) => {
-            const old = prev.get(String(p.id));
-            const contentChanged = !old || old.name !== p.name || old.lat !== p.lat || old.lon !== p.lon
-                || old.category !== p.category || (old.group || '') !== (p.group || '');
-            return contentChanged ? { ...p, updatedAt: Date.now() } : p;
-        });
-
-        // ☁️ 异步推送到云端
-        try {
-            const res = await fetch('/api/points', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(stamped)
-            });
-            // 🔑 会话过期自愈：JWT 失效（401）时主动翻回匿名，
-            // header 徽章随即变回"建立上行链路"，后续点位变更自然走匿名本地分支，
-            // 避免之后每次更新都带着失效 Cookie 白跑一趟
-            if (res.status === 401) {
-                console.warn('🔑 上行链路会话已过期，已自动降级为本地模式');
-                setSession(null);
-            }
-            if (!res.ok) throw new Error('云端写入失败');
-        } catch (error) {
-            // 如果报错（比如目前没建数据库），只打印不弹窗，不打断用户体验
-            console.warn('⚠️ 战术节点云端备份失败 (如果是本地测试则正常):', error.message);
-        }
-    };
-
-    // 🚪 断开上行链路（服务端清 Cookie，本地点位数据保留）
-    const handleLogout = async () => {
-        try { await fetch('/api/auth?action=logout', { method: 'POST' }); } catch { /* 忽略网络错误 */ }
-        setSession(null);
-    };
-
 
     // 🆕 全局通信：从外部触发地图定位并弹出面板
     useEffect(() => {

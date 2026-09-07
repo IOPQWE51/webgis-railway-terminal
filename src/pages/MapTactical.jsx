@@ -12,15 +12,14 @@ import { useGeolocation } from '../hooks/useGeolocation';
 import { TACTICAL_STYLES } from '../config/mapConstants';
 import { parseViewHash, serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
 import QrViewShare from '../components/QrViewShare';
+import { usePoints } from '../hooks/usePoints';
 
 // 🏠 记住上次战术视角（本机持久，与主地图的视角指纹同仓不同 key）
 const TACTICAL_LAST_VIEW = 'et_tactical_last_view';
 
 export default function MapTactical({ customPoints: _initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
-  // 🎯 Dark 2D 模式使用独立的点位存储（不继承主地图的点）
-  const [customPoints, setCustomPoints] = useState(() => {
-    return storage.load('earth_terminal_dark2d_points', []);
-  });
+  // 🎯 Dark 2D 点位走统一 hook（#9）：拉云合并/盖戳/三防御与主轨同款
+  const { points: customPoints, updatePoints: handlePointsUpdate } = usePoints('dark2d');
   const [activeTab, setActiveTab] = useState('map'); // 'map' 或 'data'
   // 🧭 默认视角三连：分享链接 hash（mode=tactical）> 上次战术视角（本机记住）> 东京湾
   // （全球出行工具的"第一站"不应硬编码成单一城市——分享/上次视角命中时永远优先）
@@ -65,36 +64,6 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
       window.removeEventListener('closeTacticalBottomSheet', handleCloseSheet);
     };
   }, []);
-
-  // ☁️ 挂载时从云端拉取 Dark 2D 点位
-  useEffect(() => {
-    const fetchCloudPoints = async () => {
-      try {
-        const res = await fetch('/api/points?scope=dark2d');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-            setCustomPoints(json.data);
-            storage.save('earth_terminal_dark2d_points', json.data);
-          }
-        }
-      } catch (_) {
-        // 云端未连接时使用本地 localStorage 兜底
-      }
-    };
-    fetchCloudPoints();
-  }, []);
-
-  // 🔄 处理点位更新（乐观更新：先本地，再异步推云端）
-  const handlePointsUpdate = (newPoints) => {
-    setCustomPoints(newPoints);
-    storage.save('earth_terminal_dark2d_points', newPoints);
-    fetch('/api/points?scope=dark2d', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newPoints)
-    }).catch(() => {});
-  };
 
   // 🚪 退出战术模式
   const handleExit = () => {
