@@ -281,7 +281,7 @@ MIT License
 
 ## 👥 维护团队
 
-**项目维护者**: IOPQWE51 & Gemini & Claude
+**项目维护者**: IOPQWE51
 
 **特别感谢**:
 - Mapbox Team - 优秀的地图工具
