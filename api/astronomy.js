@@ -8,6 +8,21 @@
 
 import { withRateLimit } from './_lib/rateLimiter.js';
 import { parseCoords } from './_lib/validation.js';
+import { callProvider } from './_lib/provider.js';
+
+// 🔭 AstronomyAPI provider（付费凭证，仅服务端持有）
+const astronomyProvider = {
+  name: 'astronomy',
+  cache: { ttl: 21600 }, // 天体位置按日恒定：6h KV 缓存
+  request: async ({ lat, lon, date }) => {
+    const authString = Buffer.from(`${process.env.ASTRO_APP_ID}:${process.env.ASTRO_APP_SECRET}`).toString('base64');
+    return {
+      url: `https://api.astronomyapi.com/api/v2/bodies/positions?latitude=${lat}&longitude=${lon}&elevation=0&from_date=${date}&to_date=${date}&time=12:00:00`,
+      headers: { Authorization: `Basic ${authString}` },
+    };
+  },
+  map: (raw) => raw,
+};
 
 async function handleAstronomy(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,25 +45,10 @@ async function handleAstronomy(req, res) {
         return res.status(500).json({ error: '服务端未配置 ASTRO 凭证' });
     }
 
-    try {
-        const authString = Buffer.from(`${appId}:${appSecret}`).toString('base64');
-        const apiUrl = `https://api.astronomyapi.com/api/v2/bodies/positions?latitude=${lat}&longitude=${lon}&elevation=0&from_date=${targetDate}&to_date=${targetDate}&time=12:00:00`;
-
-        const astroRes = await fetch(apiUrl, {
-            headers: { Authorization: `Basic ${authString}` },
-        });
-
-        if (!astroRes.ok) {
-            console.error(`AstronomyAPI 上游错误: ${astroRes.status}`);
-            return res.status(502).json({ error: '上游天文数据服务异常' });
-        }
-
-        const astroData = await astroRes.json();
-        res.status(200).json(astroData);
-    } catch (error) {
-        console.error('天文台连接失败:', error.message);
-        res.status(500).json({ error: '云端天文台连接失败' });
-    }
+    // #11 provider 三件套：天体位置按坐标+日期缓存 6h（付费配额保护）
+    // fallback 空：调用方（详情卡）已有多层兜底，502 语义保持
+    const result = await callProvider(astronomyProvider, { lat, lon, date: targetDate });
+    return res.status(result.status).json(result.json);
 }
 
 // 🛡️ 严格限流：付费 API 配额保护（10 次/小时/IP）

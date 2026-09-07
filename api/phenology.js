@@ -2,6 +2,18 @@
 // 🌸 植物物候 API - 樱花积温 + 红叶冷刺激 + 残花判定
 
 import { parseCoords } from './_lib/validation.js';
+import { callProvider } from './_lib/provider.js';
+
+// Open-Meteo 历史归档 provider（免钥；90 天温度序列，本地算积温）
+const meteoArchiveProvider = {
+  name: 'meteo-archive',
+  cache: { ttl: 21600 }, // 窗口按日滚动，6h 足够新鲜
+  request: async ({ lat, lon, start, end }) => ({
+    url: `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${start}&end_date=${end}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto`,
+    headers: {},
+  }),
+  map: (raw) => raw,
+};
 
 export default async function handler(req, res) {
     // 📌 修复 1：加上原生跨域头，彻底解决前端调不通的问题
@@ -23,22 +35,14 @@ export default async function handler(req, res) {
         const past90Days = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
         const todayStr = today.toISOString().split('T')[0];
 
-        // 📌 Open-Meteo API - 参数拼装
-        const meteoUrl = new URL('https://archive-api.open-meteo.com/v1/archive');
-        meteoUrl.searchParams.append('latitude', lat);
-        meteoUrl.searchParams.append('longitude', lon);
-        meteoUrl.searchParams.append('start_date', past90Days);
-        meteoUrl.searchParams.append('end_date', todayStr);
-        meteoUrl.searchParams.append('daily', 'temperature_2m_max,temperature_2m_min,precipitation_sum');
-        meteoUrl.searchParams.append('timezone', 'auto');
-
-        const meteoRes = await fetch(meteoUrl.toString());
-        
-        if (!meteoRes.ok) {
-            throw new Error(`Open-Meteo API failed: ${meteoRes.status}`);
+        // 📌 Open-Meteo 历史数据走 provider 三件套（#11）：90 天窗口按日变化 → 缓存 6h
+        const meteoResult = await callProvider(meteoArchiveProvider, {
+            lat, lon, start: past90Days, end: todayStr,
+        });
+        if (meteoResult.status !== 200) {
+            throw new Error(`Open-Meteo API failed: ${meteoResult.status}`);
         }
-
-        const meteoData = await meteoRes.json();
+        const meteoData = meteoResult.json;
 
         // =========== 🌸 第一步：樱花积温计算 (GDD) ===========
         let sakuraGDD = 0;

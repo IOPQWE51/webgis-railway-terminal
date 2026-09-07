@@ -1,17 +1,34 @@
 // api/bangumi.js
 // Bangumi 番剧搜索代理（免钥上游；规范 User-Agent 是 bgm.tv API 的礼仪硬要求）
 // 注意：api.bgm.tv 在部分国内网络不可达，本地 dev 报"上游连接失败"属预期，生产 Vercel 正常。
+// #11 收编 provider 三件套：KV 缓存（1h，关键词维度）+ 8s 超时 + 过期缓存兜底。
 
 import { withRateLimit } from './_lib/rateLimiter.js';
+import { callProvider } from './_lib/provider.js';
 import { compactSearchResults } from '../src/utils/pilgrimageData.js';
 
 const UA = 'EarthTerminal/5.3.1 (https://github.com/IOPQWE51/webgis-railway-terminal)';
+
+const bangumiProvider = {
+  name: 'bangumi',
+  cache: { ttl: 3600 }, // 同一关键词 1h（番剧搜索结果基本不变）
+  request: async ({ q }) => ({
+    url: 'https://api.bgm.tv/v0/search/subjects?limit=12',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
+    init: {
+      method: 'POST',
+      // 契约见 bangumi/server handle.go：keyword 单数、type 为整数数组；limit=12 与前端卡片上限对齐（服务端默认仅返回 10）
+      body: JSON.stringify({ keyword: q, filter: { type: [2] } }),
+    },
+  }),
+  // 极限瘦身：原始响应数百 KB → 12 张卡片所需字段
+  map: (raw) => ({ list: compactSearchResults(raw) }),
+};
 
 async function handleBangumiSearch(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET');
 
-  // 同一关键词 1 小时边缘缓存（番剧搜索结果基本不变）
   const isProduction = process.env.VERCEL_ENV === 'production';
   res.setHeader('Cache-Control', isProduction
     ? 'public, s-maxage=3600, stale-while-revalidate=86400'
@@ -22,23 +39,8 @@ async function handleBangumiSearch(req, res) {
     return res.status(400).json({ error: '参数非法：q 须为 1~60 字符的关键词' });
   }
 
-  try {
-    const upstream = await fetch('https://api.bgm.tv/v0/search/subjects?limit=12', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body: JSON.stringify({ keyword: q, filter: { type: [2] } }), // 契约见 bangumi/server handle.go：keyword 单数、type 为整数数组；limit=12 与前端卡片上限对齐（服务端默认仅返回 10）
-    });
-    if (!upstream.ok) {
-      console.error(`❌ Bangumi 上游异常: HTTP ${upstream.status}`);
-      return res.status(502).json({ error: 'Bangumi 上游服务异常' });
-    }
-    // 极限瘦身：原始响应数百 KB → 12 张卡片所需字段
-    const raw = await upstream.json();
-    return res.status(200).json({ list: compactSearchResults(raw) });
-  } catch (err) {
-    console.error('❌ Bangumi 上游连接失败:', err);
-    return res.status(502).json({ error: 'Bangumi 上游不可达或响应异常（本地网络可能无法访问 bgm.tv，生产环境正常）' });
-  }
+  const result = await callProvider(bangumiProvider, { q });
+  return res.status(result.status).json(result.json);
 }
 
 // 🛡️ 限流：搜索比 lite 略贵，仍是 general 档（60 次/分钟/IP）
