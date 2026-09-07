@@ -3,7 +3,7 @@ import {
   Camera, ExternalLink, HeartHandshake, MapPin, Search,
   ArrowLeft, Send, Layers, Loader2, AlertTriangle,
 } from 'lucide-react';
-import { PILGRIMAGE_PICKS } from '../config/pilgrimagePicks';
+import { PILGRIMAGE_PICKS } from '../config/regions';
 import {
   mapLiteToViewModel,
   mapPointCommon,

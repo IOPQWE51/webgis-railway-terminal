@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Calendar, MapPin, Sparkles, ExternalLink } from 'lucide-react';
-import { HANABI_DATA } from '../config/hanabiData';
+import { HANABI_DATA } from '../config/regions';
 
 const HanabiRadar = ({ isActive }) => {
     const [searchQuery, setSearchQuery] = useState('');

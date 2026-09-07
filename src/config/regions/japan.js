@@ -1,10 +1,11 @@
-// 基础坐标数据配置
-/**
- * 基础地理拓扑节点配置
- * 包含全日本青春 18 铁路骨架的关键站点
- * 坐标系统：WGS84 GPS 经纬度
- */
-export const BASE_POINTS_CONFIG = [
+// src/config/regions/japan.js
+// 🇯🇵 日本区内容包 —— 本区全部行程内容数据的唯一权威源
+// 设计契约见 specs/2026-09-07-regional-content-packs-design.md
+// 新增其他区域（如 europe.js）时：复制本文件的分区注释结构 + 注册表加一行即可，
+// 主 bundle 只经 regions/index.js 聚合导出，消费方 import 路径永不变化。
+
+// ── 铁道骨架站点（青春 18 视角，WGS84）──
+export const STATIONS = [
     /* --- 极端节点 --- */
     { id: 'wakkanai', name: "稚内站", type: "jr", lon: 141.673, lat: 45.416, desc: "【最北端】日本铁路最北端，宗谷本线起点。" },
     { id: 'higashi_nemuro', name: "东根室站", type: "jr", lon: 145.597, lat: 43.323, desc: "【最东端】系统的东部绝对边界。" },
@@ -72,3 +73,46 @@ export const BASE_POINTS_CONFIG = [
     { id: 'takamatsu', name: "高松站", type: "jr", lon: 134.046, lat: 34.342, desc: "通过濑户大桥线进入四国的门户。" },
     { id: 'naha', name: "那霸", type: "plane", lon: 127.679, lat: 26.212, desc: "铁路无法覆盖，必须乘坐 ✈ 飞机。" }
 ];
+
+// ── 铁道线（points 引用 STATIONS 的 id）──
+export const RAILWAY_LINES = [
+    { points: ['wakkanai', 'nayoro', 'asahikawa', 'iwamizawa', 'sapporo', 'tomakomai', 'hakodate'], color: '#22c55e', dashArray: null },
+    { points: ['hakodate', 'shin_hakodate', 'shin_aomori'], color: '#f97316', dashArray: '6, 6' },
+    { points: ['shin_aomori', 'aomori', 'hachinohe', 'morioka', 'ichinoseki', 'sendai', 'shiroishi', 'fukushima', 'koriyama', 'utsunomiya', 'omiya', 'ueno', 'tokyo'], color: '#22c55e', dashArray: null },
+    { points: ['tokyo', 'yokohama', 'odawara', 'atami', 'shizuoka', 'hamamatsu', 'toyohashi', 'nagoya', 'maibara', 'kyoto', 'osaka'], color: '#22c55e', dashArray: null },
+    { points: ['osaka', 'kobe', 'himeji', 'okayama', 'hiroshima', 'yamaguchi', 'shimonoseki'], color: '#22c55e', dashArray: null },
+    { points: ['shimonoseki', 'moji', 'kokura', 'hakata', 'kumamoto', 'kagoshima_chuo'], color: '#22c55e', dashArray: null },
+    { points: ['asahikawa', 'higashi_nemuro'], color: '#4ade80', dashArray: '4, 4' },
+    { points: ['hakata', 'sasebo'], color: '#4ade80', dashArray: '4, 4' },
+    { points: ['kagoshima_chuo', 'nishi_oyama'], color: '#22c55e', dashArray: null },
+    { points: ['okayama', 'takamatsu'], color: '#22c55e', dashArray: null },
+    { points: ['okayama', 'sakaiminato', 'oki'], color: '#3b82f6', dashArray: '4, 4' },
+    { points: ['hiroshima', 'miyajima_guchi', 'miyajima'], color: '#3b82f6', dashArray: '4, 4' }
+];
+
+// ── 圣地巡礼精选番剧 ──
+// 全部 bangumiId 已于 2026-09-03 通过 GET api.anitabi.cn/bangumi/{id}/lite 实测验证
+//（lite 返回 200 且 litePoints 非空）；points 数为当日巡礼点总量。
+// 展示名取 anitabi cn 字段；新增作品前先跑一次 lite 验证再收录。
+export const PILGRIMAGE_PICKS = [
+  { id: 328609, name: '孤独摇滚！', city: '东京都', color: '#ff428e', points: 414 },
+  { id: 207195, name: '摇曳露营△', city: '山梨县', color: '#6a55aa', points: 684 },
+  { id: 262897, name: '摇曳露营△ 二期', city: '静冈县', color: '#634e47', points: 738 },
+  { id: 115908, name: '吹响吧！上低音号', city: '宇治市', color: '#02a7bd', points: 577 },
+  { id: 160209, name: '你的名字。', city: '高山市', color: '#0080ff', points: 113 },
+  { id: 10440, name: '未闻花名', city: '秩父市', color: '#002aaa', points: 94 },
+  { id: 485, name: '凉宫春日的忧郁', city: '西宫市', color: '#e7170c', points: 76 },
+  { id: 126461, name: '樱子小姐的脚下埋着尸体', city: '旭川市', color: '#b03faf', points: 67 },
+];
+
+// ── 花火大会（年度切换手册：docs/📚 项目文档/花火数据年度切换手册.md）──
+// 经纬度为河川敷燃放点的近似坐标
+export const HANABI_EVENTS = [
+    { id: 1, name: "长冈祭大花火大会", date: "2026-08-02", location: "新潟县长冈市信浓川河川敷", scale: "约20000发", status: "confirmed", lat: 37.4792, lon: 138.8543 },
+    { id: 2, name: "大曲之花火 (全国花火竞技大会)", date: "2026-08-29", location: "秋田县大仙市雄物川河畔", scale: "约18000发", status: "confirmed", lat: 39.5028, lon: 140.4889 },
+    { id: 3, name: "土浦全国花火竞技大会", date: "2026-11-07", location: "茨城县土浦市樱川畔", scale: "约20000发", status: "planned", lat: 36.0836, lon: 140.2000 },
+    { id: 4, name: "隅田川花火大会", date: "2026-07-25", location: "东京都墨田区", scale: "约20000发", status: "confirmed", lat: 35.7101, lon: 139.8016 },
+];
+
+// ── 区域元数据（注册表用）──
+export const JAPAN_REGION = { id: 'jp', name: '日本' };

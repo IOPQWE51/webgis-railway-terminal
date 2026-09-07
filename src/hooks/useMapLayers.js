@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getIconStyle } from '../utils/helpers';
-import { RAILWAY_LINES_CONFIG, TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM_API_KEY, getPointFilterType } from '../config/mapConstants';
+import { TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM_API_KEY, getPointFilterType } from '../config/mapConstants';
+import { RAILWAY_LINES_CONFIG } from '../config/regions';
 import { generatePopupContent } from '../utils/photoEngine';
 import { openCyberPanel } from '../utils/cyberPanel';
 

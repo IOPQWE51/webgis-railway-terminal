@@ -1,4 +1,5 @@
 // src/config/mapConstants.js
+// 区域内容（铁道线/站点等）已迁至 config/regions/<区域>.js —— 本文件只留跨区域通用配置
 
 // 🔑 OpenWeatherMap API Key - 从环境变量读取
 export const OWM_API_KEY = import.meta.env.VITE_OWM_KEY || '';
@@ -7,20 +8,6 @@ if (!OWM_API_KEY) {
   console.warn('⚠️ OpenWeatherMap API Key 未设置，天气图层将不可用');
 }
 
-export const RAILWAY_LINES_CONFIG = [
-    { points: ['wakkanai', 'nayoro', 'asahikawa', 'iwamizawa', 'sapporo', 'tomakomai', 'hakodate'], color: '#22c55e', dashArray: null },
-    { points: ['hakodate', 'shin_hakodate', 'shin_aomori'], color: '#f97316', dashArray: '6, 6' },
-    { points: ['shin_aomori', 'aomori', 'hachinohe', 'morioka', 'ichinoseki', 'sendai', 'shiroishi', 'fukushima', 'koriyama', 'utsunomiya', 'omiya', 'ueno', 'tokyo'], color: '#22c55e', dashArray: null },
-    { points: ['tokyo', 'yokohama', 'odawara', 'atami', 'shizuoka', 'hamamatsu', 'toyohashi', 'nagoya', 'maibara', 'kyoto', 'osaka'], color: '#22c55e', dashArray: null },
-    { points: ['osaka', 'kobe', 'himeji', 'okayama', 'hiroshima', 'yamaguchi', 'shimonoseki'], color: '#22c55e', dashArray: null },
-    { points: ['shimonoseki', 'moji', 'kokura', 'hakata', 'kumamoto', 'kagoshima_chuo'], color: '#22c55e', dashArray: null },
-    { points: ['asahikawa', 'higashi_nemuro'], color: '#4ade80', dashArray: '4, 4' },
-    { points: ['hakata', 'sasebo'], color: '#4ade80', dashArray: '4, 4' },
-    { points: ['kagoshima_chuo', 'nishi_oyama'], color: '#22c55e', dashArray: null },
-    { points: ['okayama', 'takamatsu'], color: '#22c55e', dashArray: null },
-    { points: ['okayama', 'sakaiminato', 'oki'], color: '#3b82f6', dashArray: '4, 4' },
-    { points: ['hiroshima', 'miyajima_guchi', 'miyajima'], color: '#3b82f6', dashArray: '4, 4' }
-];
 
 export const TYPE_COLORS = { station: '#3b82f6', airport: '#8b5cf6', anime: '#ec4899', hotel: '#f97316', spot: '#06b6d4' };
 

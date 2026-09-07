@@ -3,7 +3,7 @@ import { lazy, Suspense, useState, useEffect } from 'react';
 import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, CloudFog } from 'lucide-react';
 // 2. 新增了 AviationEngine 组件
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
-import { BASE_POINTS_CONFIG } from './config/basePoints';
+import { BASE_POINTS_CONFIG } from './config/regions';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginOverlay from './components/auth/LoginOverlay.jsx';
 

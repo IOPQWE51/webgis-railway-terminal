@@ -10,7 +10,7 @@ import { buildTodayCard } from '../utils/todayCard';
 import { convertToRuleFormat } from '../utils/ruleDataConverter';
 import { getTopSuggestions } from '../utils/ruleMatcher';
 import { getGlobalSeason } from '../utils/dataGateway';
-import { HANABI_DATA } from '../config/hanabiData';
+import { HANABI_DATA } from '../config/regions';
 
 const fmtTime = (d) =>
   d instanceof Date && !Number.isNaN(d.getTime())

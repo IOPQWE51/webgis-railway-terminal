@@ -6,7 +6,7 @@ import {
   buildTodayCard,
   mapWeatherEmoji
 } from '../src/utils/todayCard';
-import { HANABI_DATA } from '../src/config/hanabiData';
+import { HANABI_DATA } from '../src/config/regions';
 
 const TOKYO = { lat: 35.6812, lon: 139.7671 };
 const YOKOHAMA = { lat: 35.4437, lon: 139.6380 };
