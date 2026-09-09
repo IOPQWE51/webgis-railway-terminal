@@ -124,7 +124,7 @@ const App = () => {
                                 <span className="font-display text-ink">Terminal</span>
                             </h1>
                             <p className="text-ink-2 mt-2 flex items-center text-sm md:text-base">
-                                <MapPin className="w-4 h-4 mr-1" /> 已开启 Esri 卫星地形层，加载青春18北至南 50 站骨架
+                                <MapPin className="w-4 h-4 mr-1" /> 首站日本已接入 —— 铁道骨架自稚内延伸至鹿儿岛，下一块大陆正在加载
                                 {/* 选配：你可以加个云端状态小图标 */}
                                 {isCloudSyncing && <CloudFog className="w-4 h-4 ml-3 text-cyan-500 animate-pulse" title="云端同步中..." />}
                                 {session
