@@ -27,18 +27,31 @@ const GLOBAL_RULES_CONFIG = [
         country: "韩国 (South Korea)",
         icon: "🇰🇷",
         subtitle: "KTX 高铁与首都圈地铁法则",
-        tag: "Coming Soon",
-        rules: [],
-        warnings: []
+        tag: "Active",
+        rules: [
+            { name: "KTX 无闸口制", status: "yes", desc: "韩国车站不设剪票闸口，列车长在车厢内核对车票；KR Pass（外国人通票）持有人指定席划满时，可直接上 5-6 号自由座车厢找位。" },
+            { name: "KR Pass 须提前划位", status: "yes", desc: "外国人专用的 KORAIL 通票，最早可在乘车日 31 天前线上划位；旺季指定席很快售罄，定了行程就立刻划。" },
+            { name: "SRT 私铁不互通", status: "no", desc: "水西 SRT 由私铁 SR 公司运营，与 KORAIL 系统互不相通，KR Pass 不能乘坐，需另行购票；首尔地铁也要用 T-money 卡另算。" }
+        ],
+        warnings: [
+            { title: "年龄即秩序", desc: "韩国社会以儒家年龄观运作：公共交通上要给 60 岁以上长辈、孕妇、残障人士让座；用餐时等桌上最年长者先动筷。一岁的差距都能改变社交规则。" },
+            { title: "优先席请留空", desc: "地铁老弱病孕优先席即使空着，年轻乘客一般也不坐 —— 站着是常态，坐上去会被侧目。" }
+        ]
     },
     {
         id: 'thailand',
         country: "泰国 (Thailand)",
         icon: "🇹🇭",
         subtitle: "夜班卧铺火车与双条车生存手册",
-        tag: "Coming Soon",
-        rules: [],
-        warnings: []
+        tag: "Active",
+        rules: [
+            { name: "国铁提前 60 天售票", status: "yes", desc: "泰国火车票全国联网，任一车站可买全程方向车票；车种按速度分五档（普通/柴油/快车/特快/超级特快），座位按 1 等空调卧铺 / 2 等空调风扇卧铺 / 3 等风扇座分级。" },
+            { name: "夜班卧铺是移动酒店", status: "yes", desc: "曼谷辐射清迈、合艾等四条线路的夜班卧铺体验极佳，含毛毯提供；但空调开到极冷，务必带厚衣服 —— 多名旅客反馈'冷到怀疑人生'。" }
+        ],
+        warnings: [
+            { title: "皇室神圣不可冒犯", desc: "泰国对皇室极尽尊崇：电影院放国歌时所有观众（含游客）必须起身站立；任何对皇室成员的不当言论都可能触犯刑法（冒犯君主罪），切勿开玩笑。" },
+            { title: "'大皇宫今天不开放'骗局", desc: "热门景点前若有人告诉你皇宫因节日关闭、可以便宜载你去别处，那是拉客去珠宝店的圈套 —— 直接拒绝，正规开放信息以官网为准。" }
+        ]
     },
     {
         id: 'europe',
@@ -60,18 +73,30 @@ const GLOBAL_RULES_CONFIG = [
         country: "英国 (United Kingdom)",
         icon: "🇬🇧",
         subtitle: "全球最贵铁路网与 split ticketing 玄学",
-        tag: "Coming Soon",
-        rules: [],
-        warnings: []
+        tag: "Active",
+        rules: [
+            { name: "拆分购票 (Split Ticketing) 完全合法", status: "yes", desc: "National Conditions of Carriage 第 14 条明文允许：同一趟车、拆成多段票（如伦敦→伯明翰→曼彻斯特）常省 30% 以上；列车公司不得拒载或加价。官方购票网站不提示此技巧，需要第三方工具或手动规划。" },
+            { name: "Advance 早鸟票抢法", status: "yes", desc: "行程确定就提前抢 Advance 票（最早约提前 12 周，每周固定时间释放新批次），叠 Railcard 折扣卡可再省 1/3；错峰选 Super Off-Peak（工作日 10:00-15:30 及周末）。" },
+            { name: "地铁进出站都要刷卡", status: "no", desc: "伦敦地铁进站出站都要 tap 卡（黄色读卡器），哪怕闸门开着不刷也会按最贵票价扣款；公交和电车只需进站刷一次。同一行程务必用同一张卡/设备，iPhone 进 Apple Watch 出会按两张卡计费。" }
+        ],
+        warnings: [
+            { title: "列车门不是自动的", desc: "英国老式列车的车门要自己按下把手/按钮才能开 —— 到站干等门不会开，司机看所有乘客上下完才发车；下车也别忘了提前按开门钮。" }
+        ]
     },
     {
         id: 'usa',
         country: "美国 (United States)",
         icon: "🇺🇸",
         subtitle: "Amtrak 长途慢车与车轮上的国度",
-        tag: "Coming Soon",
-        rules: [],
-        warnings: []
+        tag: "Active",
+        rules: [
+            { name: "Amtrak 长途 = 移动酒店", status: "yes", desc: "卧铺车厢（Roomette/Bedroom/Family）票价约座位票 2-4 倍，含餐车三餐与贵宾休息室；不与陌生人拼房，一人也想独占包厢需付全额。" },
+            { name: "餐车要预约", status: "no", desc: "餐车用餐需要向乘务员订座（每天固定时段挨车厢走访登记），座位票乘客需另付费；没约上就去观景车厢下层 Cafe 买简餐，可带到上层透明穹顶区吃。" },
+            { name: "火车是观光不是通勤", status: "no", desc: "除东北走廊（波士顿-纽约-华盛顿）外，美国铁路速度慢、班次少，长途线路动辄 1-2 天 —— 把它当观光项目规划，而不是交通刚需。" }
+        ],
+        warnings: [
+            { title: "小费是工资不是奖励", desc: "餐厅服务员底薪极低，靠小费生活：午餐 15-18%、晚餐 18-20%（已成新常态）、高级餐厅至少 20%（税前账单计）；6 人以上团体账单常自动加 18% 服务费，付前先核对。酒吧单点每杯 1-2 美元。" }
+        ]
     },
     {
         id: 'singapore',
