@@ -3,24 +3,42 @@ import { Train, CheckCircle2, XCircle, Globe, ChevronDown, ChevronUp, Map, Compa
 
 /**
  * 按国家/地区划分的系统规则配置库 (支持交通法则 & 行为禁忌)
+ * 排序：中国（站长主场）置顶，日本压轴；其余按扩张优先级排列
  */
 const GLOBAL_RULES_CONFIG = [
     {
-        id: 'japan',
-        country: "日本 (Japan)",
-        icon: "🇯🇵",
-        subtitle: "基于「青春18」与 JR 铁道网络的漫游法则",
+        id: 'china',
+        country: "中国 (China)",
+        icon: "🇨🇳",
+        subtitle: "国家铁路网与绿皮慢车探索指南",
         tag: "Active",
         rules: [
-            { name: "JR 青春 18 主干线", status: "yes", desc: "宗谷、函馆、东北、东海道、山阳、鹿儿岛本线等。可无限次乘坐。" },
-            { name: "JR 宫岛渡轮", status: "yes", desc: "唯一可使用的水上交通，直达广岛严岛神社。" },
-            { name: "跨海新干线/特急", status: "no", desc: "如北海道新干线 (函馆 - 新青森)。青春 18 绝对禁区，需另购特例票或乘船。" }
+            { name: "12306 实名购票", status: "yes", desc: "全路网实名制，高铁/普速统一在 12306 购票，无需打印纸质票，刷身份证直接进站。" },
+            { name: "绿皮慢车 (普速列车)", status: "yes", desc: "K/T 字头慢车票价亲民，硬座穿越数省是感受中国大地的最优解，但旺季一票难求。" },
+            { name: "地铁安检", status: "no", desc: "全国地铁进站均需安检（液体有时需试喝），高峰期预留 10 分钟排队时间。" }
         ],
         warnings: [
-            { title: "电车静音法则", desc: "在电车、公交内接打电话被视为严重违反礼仪，需将手机调至静音（Manner Mode）。" },
-            { title: "绝对的无小费文化", desc: "日本没有任何小费文化。如果你在桌上留下零钱，服务员大概率会追出一条街还给你。" },
-            { title: "街头禁烟与边走边吃", desc: "绝大多数城市街头严禁边走边吸烟（需在指定吸烟区），边走边吃也被视为极度不雅。" }
+            { title: "火车禁烟零容忍", desc: "2026年5月起全国普速列车（K/T/Z字头）全列禁烟，卫生间、车厢连接处、电子烟统统不行；高铁上吸烟触发警报可直接行政拘留。" },
+            { title: "安检禁品清单", desc: "除了常规刀具易燃品，充电宝必须标称容量合规（≤100Wh）且随身携带不能托运，散装酒类不能带上车。" }
         ]
+    },
+    {
+        id: 'korea',
+        country: "韩国 (South Korea)",
+        icon: "🇰🇷",
+        subtitle: "KTX 高铁与首都圈地铁法则",
+        tag: "Coming Soon",
+        rules: [],
+        warnings: []
+    },
+    {
+        id: 'thailand',
+        country: "泰国 (Thailand)",
+        icon: "🇹🇭",
+        subtitle: "夜班卧铺火车与双条车生存手册",
+        tag: "Coming Soon",
+        rules: [],
+        warnings: []
     },
     {
         id: 'europe',
@@ -38,6 +56,24 @@ const GLOBAL_RULES_CONFIG = [
         ]
     },
     {
+        id: 'uk',
+        country: "英国 (United Kingdom)",
+        icon: "🇬🇧",
+        subtitle: "全球最贵铁路网与 split ticketing 玄学",
+        tag: "Coming Soon",
+        rules: [],
+        warnings: []
+    },
+    {
+        id: 'usa',
+        country: "美国 (United States)",
+        icon: "🇺🇸",
+        subtitle: "Amtrak 长途慢车与车轮上的国度",
+        tag: "Coming Soon",
+        rules: [],
+        warnings: []
+    },
+    {
         id: 'singapore',
         country: "新加坡 (Singapore)",
         icon: "🇸🇬",
@@ -50,18 +86,26 @@ const GLOBAL_RULES_CONFIG = [
         ]
     },
     {
-        id: 'china',
-        country: "中国 (China)",
-        icon: "🇨🇳",
-        subtitle: "国家铁路网与绿皮慢车探索指南",
-        tag: "Planning",
-        rules: [],
-        warnings: []
+        id: 'japan',
+        country: "日本 (Japan)",
+        icon: "🇯🇵",
+        subtitle: "基于「青春18」与 JR 铁道网络的漫游法则",
+        tag: "Active",
+        rules: [
+            { name: "JR 青春 18 主干线", status: "yes", desc: "宗谷、函馆、东北、东海道、山阳、鹿儿岛本线等。可无限次乘坐。" },
+            { name: "JR 宫岛渡轮", status: "yes", desc: "唯一可使用的水上交通，直达广岛严岛神社。" },
+            { name: "跨海新干线/特急", status: "no", desc: "如北海道新干线 (函馆 - 新青森)。青春 18 绝对禁区，需另购特例票或乘船。" }
+        ],
+        warnings: [
+            { title: "电车静音法则", desc: "在电车、公交内接打电话被视为严重违反礼仪，需将手机调至静音（Manner Mode）。" },
+            { title: "绝对的无小费文化", desc: "日本没有任何小费文化。如果你在桌上留下零钱，服务员大概率会追出一条街还给你。" },
+            { title: "街头禁烟与边走边吃", desc: "绝大多数城市街头严禁边走边吸烟（需在指定吸烟区），边走边吃也被视为极度不雅。" }
+        ]
     }
 ];
 
 const RulesTab = ({ isActive }) => {
-    const [openSections, setOpenSections] = useState({ 'japan': true });
+    const [openSections, setOpenSections] = useState({ 'china': true });
 
     const toggleSection = (id) => {
         setOpenSections(prev => ({
