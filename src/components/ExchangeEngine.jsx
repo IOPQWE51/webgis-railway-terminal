@@ -63,7 +63,7 @@ const formatTime = (date) => [
 
 const ExchangeEngine = ({ isActive }) => {
     const [rates, setRates] = useState({});
-    const [targetCurrency, setTargetCurrency] = useState('JPY');
+    const [targetCurrency, setTargetCurrency] = useState('USD');
     
     const [cnyAmount, setCnyAmount] = useState('1000');
     const [targetAmount, setTargetAmount] = useState('');
