@@ -26,7 +26,7 @@ const SearchNavEngine = ({ onLocationFound, onLocate, isLocating = false }) => {
     };
 
     return (
-        <div className="flex items-center bg-paper-2/92 backdrop-blur-md rounded-2xl shadow-lift border border-line/90 focus-within:border-sora focus-within:ring-2 focus-within:ring-sora/20 transition-all overflow-hidden">
+        <div className="flex items-center bg-paper-3/85 focus-within:bg-paper-2 rounded-xl border border-line/90 focus-within:border-sora focus-within:ring-2 focus-within:ring-sora/20 transition-all overflow-hidden">
             <button
                 type="button"
                 onClick={handleSearch}

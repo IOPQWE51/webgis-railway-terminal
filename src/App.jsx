@@ -227,6 +227,7 @@ const App = () => {
                         pendingMapTarget={pendingMapTarget}
                         onTargetHandled={() => setPendingMapTarget(null)}
                         onEnterTactical={handleEnterTactical}
+                        onSwitchTab={setActiveTab}
                         skipIpAutoLocate={hasInitialHashView}
                     />
                     
