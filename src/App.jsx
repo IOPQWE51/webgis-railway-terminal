@@ -50,7 +50,6 @@ const App = () => {
                 // eslint-disable-next-line react-hooks/set-state-in-effect -- 启动恢复链：一次性传递战术深链接视角
                 setTacticalInitialView({ lat: view.lat, lon: view.lon, zoom: view.z ?? 12 });
             }
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- 启动恢复链：一次性条件切模式，非级联渲染
             setIsTacticalMode(true);
             return;
         }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useReducer, useState } from 'react';
-import { X, Eye, EyeOff } from 'lucide-react';
+import { X, Eye, EyeOff, Sparkles } from 'lucide-react';
 import { getMascot } from './mascots.js';
 import { nextCatState } from './catStateMachine.js';
 
@@ -183,150 +183,187 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
         <div
             ref={overlayRef}
             onKeyDown={handleOverlayKeyDown}
-            className="fixed inset-0 z-[4000] flex items-center justify-center bg-gradient-to-br from-sora-soft/85 via-paper/85 to-koi-soft/70 backdrop-blur-xl p-4"
+            className="fixed inset-0 z-[4000] flex items-center justify-center bg-ink/35 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-200"
             role="dialog"
             aria-modal="true"
             aria-label="账号登录"
         >
-            {/* 📐 卡片限高内部滚动：100% 缩放的 1080p 笔记本也要完整可见 */}
-            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-paper-2/95 border border-line rounded-3xl shadow-xl shadow-sora/5 p-6 sm:p-8 custom-scrollbar">
-                <button onClick={onClose} aria-label="关闭" className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-line text-ink-3 hover:text-sora hover:border-sora transition-colors">
-                    <X className="w-4 h-4 mx-auto" />
+            {/* 🎭 双栏分屏登录卡片：左侧互动几何小人舞台 + 右侧极简表单 */}
+            <div className="relative w-full max-w-[820px] max-h-[calc(100dvh-2rem)] overflow-y-auto md:overflow-hidden bg-paper-2 border border-line rounded-[2rem] shadow-2xl grid grid-cols-1 md:grid-cols-2 custom-scrollbar">
+                <button
+                    onClick={onClose}
+                    aria-label="关闭"
+                    className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-paper-3/80 hover:bg-paper-3 text-ink-3 hover:text-ink transition-colors flex items-center justify-center"
+                >
+                    <X className="w-4 h-4" />
                 </button>
 
-                <p className="text-sora text-[10px] font-mono tracking-[0.28em] uppercase mb-1">CLOUD ACCOUNT</p>
-                <h2 className="text-ink text-xl font-black tracking-wide mb-1">
-                    {mode === 'login' ? '登录账号' : mode === 'register' ? '注册账号' : mode === 'reset' ? '找回密码' : '验证绑定邮箱'}
-                </h2>
-                <p className="text-ink-3 text-xs mb-3">{MASCOT_TAGLINE}</p>
-
-                <MascotComponent state={cat.name} inputLength={cat.inputLength} />
-
-                <form onSubmit={submit} className="space-y-3 mt-2">
-                    <label className="block">
-                        <span className="text-ink-2 text-xs font-bold">用户名</span>
-                        <input
-                            ref={usernameRef}
-                            type="text"
-                            value={username}
-                            autoComplete="username"
-                            spellCheck="false"
-                            disabled={locked}
-                            placeholder={mode === 'reset' ? '输入用户名（忘了可留空，填下方邮箱找回）' : '例如 traveler_01（3-24 位小写字母/数字/-/_）'}
-                            onChange={(e) => { setUsername(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
-                            onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: username.length })}
-                            onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
-                            className="mt-1 w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/70"
+                {/* 左栏：轻盈浅灰舞台 + 互动几何小人 */}
+                <div className="relative flex flex-col items-center justify-end bg-[#EEF1F6] pt-6 px-4 md:pt-10 md:px-6 overflow-hidden min-h-[190px] md:min-h-[520px]">
+                    <div className="absolute top-5 left-6 hidden md:flex items-baseline gap-1 text-lg select-none">
+                        <span className="font-display text-sora-deep">Earth</span>
+                        <span className="font-display text-ink">Terminal</span>
+                    </div>
+                    <div className="origin-bottom scale-[0.58] sm:scale-[0.7] md:scale-100 -mb-1">
+                        <MascotComponent
+                            state={cat.name}
+                            inputLength={cat.inputLength}
+                            showPassword={showPassword}
                         />
-                    </label>
-                    {/* 📧 邮箱：注册（选填找回通道）/ 找回（填了即按邮箱反查用户名）*/}
-                    {(mode === 'register' || mode === 'reset') && (
-                        <label className="block">
-                            <span className="text-ink-2 text-xs font-bold">
-                                {mode === 'register' ? '邮箱（选填，用于找回密码）' : '注册邮箱（忘记用户名时填写）'}
-                            </span>
-                            <input
-                                type="email"
-                                value={email}
-                                autoComplete="email"
-                                disabled={locked}
-                                placeholder={mode === 'register' ? '用于接收密码重置邮件，也可不填' : '填写注册邮箱即可找回（与用户名二选一）'}
-                                onChange={(e) => { setEmail(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
-                                onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: email.length })}
-                                onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
-                                className="mt-1 w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/70"
-                            />
-                        </label>
-                    )}
-                    {/* 🔢 验证码：verify 模式收码（重发态不显示）*/}
-                    {mode === 'verify' && !wantResend && (
-                        <label className="block">
-                            <span className="text-ink-2 text-xs font-bold">邮件验证码</span>
-                            <input
-                                type="text"
-                                inputMode="numeric"
-                                maxLength={6}
-                                value={verifyCode}
-                                disabled={locked}
-                                placeholder="输入邮件收到的 6 位数字"
-                                onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
-                                onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: verifyCode.length })}
-                                onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
-                                className="mt-1 w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 tracking-[0.5em] text-center text-ink text-sm font-mono outline-none transition-colors placeholder:text-ink-3/70 placeholder:tracking-normal placeholder:font-sans"
-                            />
-                        </label>
-                    )}
-                    {/* 密码：login/register 用；reset/verify 不需要 */}
-                    {(mode === 'login' || mode === 'register') && (
-                    <label className="block">
-                        <span className="text-ink-2 text-xs font-bold">密码</span>
-                        <div className="relative mt-1">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                                disabled={locked}
-                                placeholder="至少 8 位"
-                                onChange={(e) => setPassword(e.target.value)}
-                                onFocus={() => dispatchCat({ type: 'PASSWORD_FOCUS' })}
-                                onBlur={() => dispatchCat({ type: 'PASSWORD_BLUR' })}
-                                className="w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 pr-11 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/70"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(v => !v)}
-                                aria-label={showPassword ? '隐藏密码' : '显示密码'}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-3 hover:text-sora transition-colors"
-                            >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                            </button>
-                        </div>
-                    </label>
-                    )}
-
-                    {/* 🔁 verify 模式：收码 ⇄ 重发 切换（互斥小链接） */}
-                    {mode === 'verify' && (
-                        <button type="button" onClick={() => { setWantResend(v => !v); setMessage(null); }} className="w-full text-center text-xs text-sora-deep hover:text-sora underline-offset-4" >
-                            {wantResend ? '← 返回输入验证码' : '没收到验证码？点此重发 →'}
-                        </button>
-                    )}
-
-                    {/* 🤖 Turnstile 人机验证（未配置站点密钥时不渲染，后端同步跳过校验）；min-h 保组件不被压扁只露出 Troubleshoot 链接 */}
-                    {TURNSTILE_SITE_KEY && <div ref={turnstileContainerRef} className="flex justify-center items-center min-h-[65px]" />}
-
-                    {/* Fix 6：aria-live 容器常驻（空态输出不换行空格占位），读屏才能可靠播报动态插入的消息 */}
-                    <p
-                        aria-live="polite"
-                        className={`text-xs font-bold ${message?.type === 'error' ? 'text-koi' : 'text-wakaba'}`}
-                    >
-                        {message ? message.text : '\u00A0'}
-                    </p>
-
-                    <button
-                        type="submit"
-                        disabled={locked || (mode !== 'reset' && !username) || (mode === 'reset' && !username && !email.trim()) || ((mode === 'login' || mode === 'register') && !password) || (mode === 'verify' && !wantResend && verifyCode.length !== 6) || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
-                        className="w-full py-3 rounded-xl bg-sora text-sora-ink font-bold tracking-wide text-sm shadow-lift hover:bg-sora-deep disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                    >
-                        {mode === 'login' ? '登录并开启云同步'
-                            : mode === 'register' ? '注册账号'
-                            : mode === 'reset' ? '发送重置邮件'
-                            : wantResend ? '重新发送验证码' : '完成邮箱验证'}
-                    </button>
-                </form>
-
-                <div className="flex justify-center gap-2 mt-4">
-                    <button onClick={() => switchMode('login')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'login' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>登录</button>
-                    <button onClick={() => switchMode('register')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'register' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>注册</button>
-                    <button onClick={() => switchMode('reset')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'reset' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>找回</button>
-                    <button onClick={() => switchMode('verify')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'verify' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>验证</button>
+                    </div>
                 </div>
-                <p className="text-ink-3 text-[11px] text-center mt-4">
-                    {mode === 'reset'
-                        ? '用户名与注册邮箱二选一 · 仅已验证邮箱可收到重置邮件'
-                        : mode === 'verify'
-                            ? '输入用户名与邮件里的 6 位验证码 · 未收到可重发'
-                            : '未登录时收藏仅保存在本机 · 登录后支持云端同步与跨设备访问'}
-                </p>
+
+                {/* 右栏：干净克制的登录表单 */}
+                <div className="flex flex-col justify-center p-6 sm:p-9 md:p-10 md:max-h-[calc(100dvh-2rem)] md:overflow-y-auto custom-scrollbar">
+                    <div className="text-center mb-6">
+                        <div className="inline-flex items-center justify-center w-9 h-9 rounded-2xl bg-paper-3 text-ink mb-3">
+                            <Sparkles className="w-4 h-4" />
+                        </div>
+                        <h2 className="text-ink text-2xl font-black tracking-tight">
+                            {mode === 'login' ? '欢迎回来' : mode === 'register' ? '创建账号' : mode === 'reset' ? '找回密码' : '验证邮箱'}
+                        </h2>
+                        <p className="text-ink-3 text-xs mt-1.5">{MASCOT_TAGLINE}</p>
+                    </div>
+
+                    <form onSubmit={submit} className="space-y-4">
+                        <label className="block">
+                            <span className="text-ink-2 text-xs font-bold">用户名</span>
+                            <input
+                                ref={usernameRef}
+                                type="text"
+                                value={username}
+                                autoComplete="username"
+                                spellCheck="false"
+                                disabled={locked}
+                                placeholder={mode === 'reset' ? '输入用户名（忘了可留空，填下方邮箱）' : '例如 traveler_01（3-24 位小写字母/数字/-/_）'}
+                                onChange={(e) => { setUsername(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
+                                onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: username.length })}
+                                onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
+                                className="mt-1 w-full bg-transparent border-0 border-b border-line focus:border-ink px-1 py-2 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/60"
+                            />
+                        </label>
+
+                        {(mode === 'register' || mode === 'reset') && (
+                            <label className="block">
+                                <span className="text-ink-2 text-xs font-bold">
+                                    {mode === 'register' ? '邮箱（选填，用于找回密码）' : '注册邮箱（忘记用户名时填写）'}
+                                </span>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    autoComplete="email"
+                                    disabled={locked}
+                                    placeholder={mode === 'register' ? '用于接收密码重置邮件，也可不填' : '填写注册邮箱即可找回（与用户名二选一）'}
+                                    onChange={(e) => { setEmail(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
+                                    onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: email.length })}
+                                    onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
+                                    className="mt-1 w-full bg-transparent border-0 border-b border-line focus:border-ink px-1 py-2 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/60"
+                                />
+                            </label>
+                        )}
+
+                        {mode === 'verify' && !wantResend && (
+                            <label className="block">
+                                <span className="text-ink-2 text-xs font-bold">邮件验证码</span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={6}
+                                    value={verifyCode}
+                                    disabled={locked}
+                                    placeholder="输入邮件收到的 6 位数字"
+                                    onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
+                                    onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: verifyCode.length })}
+                                    onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
+                                    className="mt-1 w-full bg-transparent border-0 border-b border-line focus:border-ink px-1 py-2 tracking-[0.5em] text-center text-ink text-sm font-mono outline-none transition-colors placeholder:text-ink-3/60 placeholder:tracking-normal placeholder:font-sans"
+                                />
+                            </label>
+                        )}
+
+                        {(mode === 'login' || mode === 'register') && (
+                            <label className="block">
+                                <span className="text-ink-2 text-xs font-bold">密码</span>
+                                <div className="relative mt-1">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        value={password}
+                                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                                        disabled={locked}
+                                        placeholder="至少 8 位"
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        onFocus={() => dispatchCat({ type: 'PASSWORD_FOCUS' })}
+                                        onBlur={() => dispatchCat({ type: 'PASSWORD_BLUR' })}
+                                        className="w-full bg-transparent border-0 border-b border-line focus:border-ink px-1 py-2 pr-9 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/60"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(v => !v)}
+                                        aria-label={showPassword ? '隐藏密码' : '显示密码'}
+                                        className="absolute right-1 top-1/2 -translate-y-1/2 p-1 text-ink-3 hover:text-ink transition-colors"
+                                    >
+                                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                </div>
+                            </label>
+                        )}
+
+                        {mode === 'verify' && (
+                            <button type="button" onClick={() => { setWantResend(v => !v); setMessage(null); }} className="w-full text-center text-xs text-sora-deep hover:text-sora">
+                                {wantResend ? '← 返回输入验证码' : '没收到验证码？点此重发 →'}
+                            </button>
+                        )}
+
+                        {TURNSTILE_SITE_KEY && <div ref={turnstileContainerRef} className="flex justify-center items-center min-h-[65px]" />}
+
+                        <p
+                            aria-live="polite"
+                            className={`text-xs font-bold min-h-[1rem] ${message?.type === 'error' ? 'text-koi' : 'text-wakaba'}`}
+                        >
+                            {message ? message.text : '\u00A0'}
+                        </p>
+
+                        <button
+                            type="submit"
+                            disabled={locked || (mode !== 'reset' && !username) || (mode === 'reset' && !username && !email.trim()) || ((mode === 'login' || mode === 'register') && !password) || (mode === 'verify' && !wantResend && verifyCode.length !== 6) || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
+                            className="w-full py-3 rounded-full bg-ink text-white font-bold text-sm shadow-lift hover:bg-sora-deep disabled:opacity-35 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {mode === 'login' ? '登录'
+                                : mode === 'register' ? '注册账号'
+                                : mode === 'reset' ? '发送重置邮件'
+                                : wantResend ? '重新发送验证码' : '完成邮箱验证'}
+                        </button>
+                    </form>
+
+                    <div className="flex justify-center gap-1.5 mt-5 pt-4 border-t border-line/70">
+                        {[
+                            { id: 'login', label: '登录' },
+                            { id: 'register', label: '注册' },
+                            { id: 'reset', label: '找回' },
+                            { id: 'verify', label: '验证' },
+                        ].map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => switchMode(item.id)}
+                                className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                                    mode === item.id
+                                        ? 'bg-sora-soft text-sora-deep'
+                                        : 'text-ink-3 hover:text-ink hover:bg-paper-3'
+                                }`}
+                            >
+                                {item.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <p className="text-ink-3 text-[11px] text-center mt-3">
+                        {mode === 'reset'
+                            ? '用户名与注册邮箱二选一 · 仅已验证邮箱可收到重置邮件'
+                            : mode === 'verify'
+                                ? '输入用户名与邮件里的 6 位验证码 · 未收到可重发'
+                                : '未登录时收藏保存在本机 · 登录后自动云端同步'}
+                    </p>
+                </div>
             </div>
         </div>
     );

@@ -1,0 +1,144 @@
+/* Animated geometric login characters — crisp spring motion + reduced-motion safe */
+
+.ac-stage {
+  position: relative;
+  width: 340px;
+  height: 290px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  user-select: none;
+}
+
+.ac-char {
+  position: absolute;
+  bottom: 0;
+  transform-origin: bottom center;
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* 1. 紫色高个子（后左） */
+.ac-purple {
+  left: 52px;
+  width: 122px;
+  height: 255px;
+  background: #6c3ff5;
+  border-radius: 10px 10px 0 0;
+  z-index: 1;
+}
+
+/* 2. 深灰炭黑中个子（中右） */
+.ac-black {
+  left: 148px;
+  width: 82px;
+  height: 186px;
+  background: #1f2229;
+  border-radius: 10px 10px 0 0;
+  z-index: 2;
+}
+
+/* 3. 暖橙半圆团子（前左） */
+.ac-orange {
+  left: 14px;
+  width: 176px;
+  height: 98px;
+  background: #ff7a2f;
+  border-radius: 176px 176px 0 0;
+  z-index: 3;
+}
+
+/* 4. 明黄小鸟块（前右） */
+.ac-yellow {
+  left: 192px;
+  width: 96px;
+  height: 138px;
+  background: #f1cc38;
+  border-radius: 96px 96px 0 0;
+  z-index: 4;
+}
+
+/* 脸部容器：随视线/状态微移 */
+.ac-face {
+  position: absolute;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/* 白眼眶 + 瞳孔 */
+.ac-eye-white {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: height 0.1s ease-out;
+}
+
+.ac-eye-white.is-blinking {
+  height: 2px;
+}
+
+.ac-pupil {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 9999px;
+  background: #14161c;
+  transition: transform 0.14s ease-out;
+}
+
+/* 纯黑圆豆眼（橙团子 & 黄小鸟） */
+.ac-eye-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: #181a20;
+  transition: transform 0.14s ease-out, height 0.1s ease-out;
+}
+
+.ac-eye-dot.is-blinking {
+  height: 2px;
+}
+
+/* 状态动画：提交中轻跳 / 失败轻晃 / 成功欢呼 */
+.ac-stage.state-loading .ac-purple { animation: acBob 0.9s ease-in-out infinite; }
+.ac-stage.state-loading .ac-black  { animation: acBob 0.9s ease-in-out 0.15s infinite; }
+.ac-stage.state-loading .ac-orange { animation: acBob 0.9s ease-in-out 0.3s infinite; }
+.ac-stage.state-loading .ac-yellow { animation: acBob 0.9s ease-in-out 0.45s infinite; }
+
+.ac-stage.state-error .ac-char { animation: acShake 0.42s ease-in-out; }
+.ac-stage.state-success .ac-purple { animation: acJump 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
+.ac-stage.state-success .ac-black  { animation: acJump 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.06s; }
+.ac-stage.state-success .ac-orange { animation: acJump 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s; }
+.ac-stage.state-success .ac-yellow { animation: acJump 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.18s; }
+
+@keyframes acBob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -8px; }
+}
+
+@keyframes acShake {
+  0%, 100% { translate: 0 0; }
+  20% { translate: -6px 0; }
+  45% { translate: 6px 0; }
+  70% { translate: -4px 0; }
+  88% { translate: 3px 0; }
+}
+
+@keyframes acJump {
+  0%, 100% { translate: 0 0; }
+  45% { translate: 0 -16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-char,
+  .ac-face,
+  .ac-pupil,
+  .ac-eye-dot {
+    transition: none !important;
+    animation: none !important;
+  }
+}

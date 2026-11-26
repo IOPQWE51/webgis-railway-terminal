@@ -9,9 +9,15 @@
 //   credit?    — 可选来源署名（原创角色留空；引用他人作品请自行确认授权并注明）
 
 import StationMasterCat from './StationMasterCat.jsx';
+import AnimatedCharacters from './AnimatedCharacters.jsx';
 
 export const MASCOTS = {
-    // 🐱 初代：猫站长（原创 SVG，六态全动画）
+    // 🎨 互动几何小人团队（跟随视线 / 密码回避）
+    'geometric-crew': {
+        component: AnimatedCharacters,
+        tagline: '登录后即可在多设备间云端同步你的收藏地点',
+    },
+    // 🐱 初代：猫站长（保留备用）
     'station-master-cat': {
         component: StationMasterCat,
         tagline: 'STATION MASTER ON DUTY · 猫站长值机中',
@@ -19,7 +25,7 @@ export const MASCOTS = {
 };
 
 // 🎯 当前启用的角色 —— 换人改这一行就行
-export const MASCOT_ID = 'station-master-cat';
+export const MASCOT_ID = 'geometric-crew';
 
 export function getMascot(id = MASCOT_ID) {
     return MASCOTS[id] || MASCOTS[MASCOT_ID];
