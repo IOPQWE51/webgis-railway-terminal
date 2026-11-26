@@ -136,7 +136,7 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
   // 🌤️ 默认态：轻盈单行浅色毛玻璃胶囊（融入天の川底色，不挡地图）
   if (!expanded) {
     return (
-      <div className="absolute top-[104px] left-3 lg:top-3.5 lg:left-1/2 lg:-translate-x-1/2 z-[1050] max-w-[calc(100%-84px)]">
+      <div className="absolute top-[60px] left-3.5 lg:top-3.5 lg:left-1/2 lg:-translate-x-1/2 z-[1050] max-w-[calc(100%-84px)]">
         <button
           type="button"
           onClick={toggle}
@@ -188,7 +188,7 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
     <div
       role="status"
       aria-label="当地天气与光影详情"
-      className="absolute top-[104px] left-3 lg:top-3.5 lg:left-1/2 lg:-translate-x-1/2 z-[1150] w-[min(calc(100%-84px),340px)] rounded-2xl bg-paper-2/95 backdrop-blur-xl border border-line shadow-xl text-ink overflow-hidden"
+      className="absolute top-[60px] left-3.5 lg:top-3.5 lg:left-1/2 lg:-translate-x-1/2 z-[1150] w-[min(calc(100%-84px),340px)] rounded-2xl bg-paper-2/95 backdrop-blur-xl border border-line shadow-xl text-ink overflow-hidden"
     >
       {/* 顶栏：当地天气 + 收起 */}
       <div className="flex items-center justify-between px-4 py-2.5 bg-paper-3/60 border-b border-line/80">

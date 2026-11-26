@@ -255,45 +255,45 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 5. 渲染视图层（全宽沉浸画布 + 天の川浅色毛玻璃悬浮控件）
     return (
         <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300`}>
-            <div className="relative rounded-[1.75rem] overflow-hidden shadow-lift border border-line/90 bg-paper-2" style={{ height: 'calc(100dvh - 96px)', minHeight: '560px' }}>
+            <div className="relative rounded-[1.75rem] overflow-hidden shadow-lift border border-line/90 bg-paper-2" style={{ height: 'calc(100dvh - 104px)', minHeight: '560px' }}>
                 <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#eef4fa' }}></div>
 
-                {/* 🔍 左上角：轻盈浅色搜索框（内置定位）+ 一键快捷芯片 */}
-                <div className="absolute top-3 left-3 z-[1100] w-[min(calc(100%-84px),320px)] flex flex-col gap-2 pointer-events-none">
-                    <div className="pointer-events-auto">
-                        <SearchNavEngine
-                            onLocationFound={tools.handleSearchLocationFound}
-                            onLocate={tools.locatePlayer}
-                            isLocating={tools.isLocating}
-                        />
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 pointer-events-auto">
-                        {visitorGeo?.city && (
+                {/* 🔍 左上角：只保留极简浅色搜索栏（内置定位），把上半画布留白还给地图 */}
+                <div className="absolute top-3.5 left-3.5 z-[1100] w-[min(calc(100%-84px),276px)]">
+                    <SearchNavEngine
+                        onLocationFound={tools.handleSearchLocationFound}
+                        onLocate={tools.locatePlayer}
+                        isLocating={tools.isLocating}
+                    />
+                </div>
+
+                {/* 🧭 左下角：安静的区域骨架与 IP 快捷芯片，不与顶部争抢视线 */}
+                <div className="absolute bottom-4 left-3.5 z-[1050] flex flex-wrap items-center gap-1.5 max-w-[calc(100%-96px)]">
+                    {visitorGeo?.city && (
+                        <button
+                            type="button"
+                            onClick={() => handleTodayFlyTo(visitorGeo.lat, visitorGeo.lon, 10)}
+                            title={`IP 识别城市：${visitorGeo.city}，点击回到附近`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-paper-2/88 hover:bg-paper-2 backdrop-blur-md border border-line/80 shadow-sm text-ink-2 hover:text-sora-deep transition-colors"
+                        >
+                            <MapPin className="w-3 h-3 text-sora" />
+                            <span>{visitorGeo.city}</span>
+                        </button>
+                    )}
+                    {REGION_REGISTRY.map((region) => (
+                        region.center && (
                             <button
+                                key={region.id}
                                 type="button"
-                                onClick={() => handleTodayFlyTo(visitorGeo.lat, visitorGeo.lon, 10)}
-                                title={`IP 识别城市：${visitorGeo.city}，点击回到附近`}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-paper-2/88 hover:bg-paper-2 backdrop-blur-md border border-line/80 shadow-sm text-ink-2 hover:text-sora-deep transition-colors"
+                                onClick={() => handleJumpToRegion(region)}
+                                title={region.description || `查看${region.name}铁道骨架`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-bold bg-paper-2/88 hover:bg-paper-2 backdrop-blur-md border border-line/80 shadow-sm text-ink-2 hover:text-ink transition-colors"
                             >
-                                <MapPin className="w-3 h-3 text-sora" />
-                                <span>{visitorGeo.city}</span>
+                                <span>{region.icon || '🌍'}</span>
+                                <span>{region.name}铁道</span>
                             </button>
-                        )}
-                        {REGION_REGISTRY.map((region) => (
-                            region.center && (
-                                <button
-                                    key={region.id}
-                                    type="button"
-                                    onClick={() => handleJumpToRegion(region)}
-                                    title={region.description || `查看${region.name}铁道骨架`}
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-paper-2/88 hover:bg-paper-2 backdrop-blur-md border border-line/80 shadow-sm text-ink-2 hover:text-ink transition-colors"
-                                >
-                                    <span>{region.icon || '🌍'}</span>
-                                    <span>{region.name}铁道</span>
-                                </button>
-                            )
-                        ))}
-                    </div>
+                        )
+                    ))}
                 </div>
 
                 {/* 📏 测距模式悬浮胶囊（浅色毛玻璃 + 暖琥珀提示） */}

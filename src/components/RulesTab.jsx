@@ -1,17 +1,18 @@
 import { useState } from 'react';
-import { Train, CheckCircle2, XCircle, Globe, ChevronDown, ChevronUp, Map, Compass, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Train, CheckCircle2, XCircle, Globe, AlertTriangle, ShieldAlert, MapPin } from 'lucide-react';
+import { REGION_REGISTRY } from '../config/regions';
 
 /**
- * 按国家/地区划分的系统规则配置库 (支持交通法则 & 行为禁忌)
- * 排序：中国（站长主场）置顶，日本压轴；其余按扩张优先级排列
+ * 按国家/地区划分的全球出行指南配置库 (交通票务 & 行为禁忌)
  */
 const GLOBAL_RULES_CONFIG = [
     {
         id: 'china',
-        country: "中国 (China)",
+        regionPackId: 'cn',
+        country: "中国",
+        enName: "China",
         icon: "🇨🇳",
         subtitle: "国家铁路网与绿皮慢车探索指南",
-        tag: "Active",
         rules: [
             { name: "12306 实名购票", status: "yes", desc: "全路网实名制，高铁/普速统一在 12306 购票，无需打印纸质票，刷身份证直接进站。" },
             { name: "绿皮慢车 (普速列车)", status: "yes", desc: "K/T 字头慢车票价亲民，硬座穿越数省是感受中国大地的最优解，但旺季一票难求。" },
@@ -23,229 +24,236 @@ const GLOBAL_RULES_CONFIG = [
         ]
     },
     {
+        id: 'japan',
+        regionPackId: 'jp',
+        country: "日本",
+        enName: "Japan",
+        icon: "🇯🇵",
+        subtitle: "JR 铁道网络、青春 18 与日常礼仪",
+        rules: [
+            { name: "JR 青春 18 主干线", status: "yes", desc: "宗谷、函馆、东北、东海道、山阳、鹿儿岛本线等普通列车可按季通票无限次乘坐。" },
+            { name: "JR 宫岛渡轮", status: "yes", desc: "JR 体系内的水上接驳，可直达广岛严岛神社。" },
+            { name: "跨海新干线 / 特急", status: "no", desc: "如北海道新干线（函馆 - 新青森），普通通票不可直接乘坐，需另购特例票或改乘轮渡。" }
+        ],
+        warnings: [
+            { title: "电车静音礼仪", desc: "在电车、公交内接打电话被视为严重失礼，乘车前建议将手机调至静音模式。" },
+            { title: "无小费文化", desc: "日本没有小费文化，在餐桌留下零钱服务员大概率会追出来归还。" },
+            { title: "街头禁烟与边走边吃", desc: "绝大多数城市街头严禁边走边吸烟（需到指定吸烟区），步行饮食在商店街外同样不礼貌。" }
+        ]
+    },
+    {
         id: 'korea',
-        country: "韩国 (South Korea)",
+        country: "韩国",
+        enName: "South Korea",
         icon: "🇰🇷",
         subtitle: "KTX 高铁与首都圈地铁法则",
-        tag: "Active",
         rules: [
-            { name: "KTX 无闸口制", status: "yes", desc: "韩国车站不设剪票闸口，列车长在车厢内核对车票；KR Pass（外国人通票）持有人指定席划满时，可直接上 5-6 号自由座车厢找位。" },
+            { name: "KTX 无闸口制", status: "yes", desc: "韩国车站不设剪票闸口，列车长在车厢内核对车票；KR Pass 持有人指定席划满时，可直接上 5-6 号自由座车厢找位。" },
             { name: "KR Pass 须提前划位", status: "yes", desc: "外国人专用的 KORAIL 通票，最早可在乘车日 31 天前线上划位；旺季指定席很快售罄，定了行程就立刻划。" },
             { name: "SRT 私铁不互通", status: "no", desc: "水西 SRT 由私铁 SR 公司运营，与 KORAIL 系统互不相通，KR Pass 不能乘坐，需另行购票；首尔地铁也要用 T-money 卡另算。" }
         ],
         warnings: [
-            { title: "年龄即秩序", desc: "韩国社会以儒家年龄观运作：公共交通上要给 60 岁以上长辈、孕妇、残障人士让座；用餐时等桌上最年长者先动筷。一岁的差距都能改变社交规则。" },
-            { title: "优先席请留空", desc: "地铁老弱病孕优先席即使空着，年轻乘客一般也不坐 —— 站着是常态，坐上去会被侧目。" }
+            { title: "年龄即秩序", desc: "公共交通上主动给 60 岁以上长辈、孕妇、残障人士让座；聚餐时一般等桌上最年长者先动筷。" },
+            { title: "优先席请留空", desc: "地铁老弱病孕优先席即使空着，年轻乘客通常也不坐，站着是常态。" }
         ]
     },
     {
         id: 'thailand',
-        country: "泰国 (Thailand)",
+        country: "泰国",
+        enName: "Thailand",
         icon: "🇹🇭",
         subtitle: "夜班卧铺火车与双条车生存手册",
-        tag: "Active",
         rules: [
-            { name: "国铁提前 60 天售票", status: "yes", desc: "泰国火车票全国联网，任一车站可买全程方向车票；车种按速度分五档（普通/柴油/快车/特快/超级特快），座位按 1 等空调卧铺 / 2 等空调风扇卧铺 / 3 等风扇座分级。" },
-            { name: "夜班卧铺是移动酒店", status: "yes", desc: "曼谷辐射清迈、合艾等四条线路的夜班卧铺体验极佳，含毛毯提供；但空调开到极冷，务必带厚衣服 —— 多名旅客反馈'冷到怀疑人生'。" }
+            { name: "国铁提前 60 天售票", status: "yes", desc: "泰国火车票全国联网，任一车站可买全程方向车票；按 1 等空调卧铺 / 2 等空调风扇卧铺 / 3 等风扇座分级。" },
+            { name: "夜班卧铺是移动酒店", status: "yes", desc: "曼谷辐射清迈、合艾等线路的夜班卧铺体验极佳，提供毛毯；但空调开得非常冷，务必备厚外套。" }
         ],
         warnings: [
-            { title: "皇室神圣不可冒犯", desc: "泰国对皇室极尽尊崇：电影院放国歌时所有观众（含游客）必须起身站立；任何对皇室成员的不当言论都可能触犯刑法（冒犯君主罪），切勿开玩笑。" },
-            { title: "'大皇宫今天不开放'骗局", desc: "热门景点前若有人告诉你皇宫因节日关闭、可以便宜载你去别处，那是拉客去珠宝店的圈套 —— 直接拒绝，正规开放信息以官网为准。" }
+            { title: "尊重皇室法规", desc: "电影院放国歌时观众需起身致意；任何针对皇室成员的不当言论都可能触犯刑法，切勿拿来开玩笑。" },
+            { title: "警惕“景点今天关闭”拉客", desc: "热门景点前若陌生人称大皇宫关闭、可低价带去别处，多为珠宝/消费圈套，直接礼貌拒绝并以官网信息为准。" }
         ]
     },
     {
         id: 'europe',
-        country: "欧洲 (Europe)",
+        country: "欧洲",
+        enName: "Europe",
         icon: "🇪🇺",
-        subtitle: "Eurail 欧洲铁路通票与申根区跨国法则",
-        tag: "Coming Soon",
+        subtitle: "Eurail 通票与申根区跨国铁道",
         rules: [
-            { name: "跨国高铁 (TGV/Eurostar)", status: "no", desc: "通常需要强制提前订座并支付高额订座费。" },
-            { name: "区域慢车 (Regional)", status: "yes", desc: "随时上车，无需订座，是感受欧洲乡镇的最优解。" }
+            { name: "区域慢车 (Regional)", status: "yes", desc: "大多数区域慢车随时上车、无需订座，适合沿线慢游欧洲小镇。" },
+            { name: "跨国高铁 (TGV / Eurostar)", status: "no", desc: "即使持有 Eurail 通票，跨国高速列车通常仍强制提前订座并加收订座费，旺季需尽早锁定。" }
         ],
         warnings: [
-            { title: "车票打卡陷阱 (Validating)", desc: "在意大利或法国，即使买了纸质车票，上车前如果不找打卡机印上时间，遇到查票将被视为逃票并处以重罚（高达数十甚至上百欧元）。" },
-            { title: "严禁乱穿马路 (Jaywalking)", desc: "在德国等国家，红灯时哪怕街上完全没车也绝对不能过马路，不仅会被当地人鄙视，还可能面临高额罚款。" }
+            { title: "纸质票上车前务必打卡 (Validating)", desc: "在意大利、法国等地使用纸质区域车票时，上车前必须在站台打卡机印上时间，否则查票将按逃票重罚。" },
+            { title: "严格遵守交通信号", desc: "德国、瑞士等地红灯哪怕路上无车也不要闯行，可能面临当地罚款与严厉制止。" }
         ]
     },
     {
         id: 'uk',
-        country: "英国 (United Kingdom)",
+        country: "英国",
+        enName: "United Kingdom",
         icon: "🇬🇧",
-        subtitle: "全球最贵铁路网与 split ticketing 玄学",
-        tag: "Active",
+        subtitle: "高票价铁路网与拆分购票技巧",
         rules: [
-            { name: "拆分购票 (Split Ticketing) 完全合法", status: "yes", desc: "National Conditions of Carriage 第 14 条明文允许：同一趟车、拆成多段票（如伦敦→伯明翰→曼彻斯特）常省 30% 以上；列车公司不得拒载或加价。官方购票网站不提示此技巧，需要第三方工具或手动规划。" },
-            { name: "Advance 早鸟票抢法", status: "yes", desc: "行程确定就提前抢 Advance 票（最早约提前 12 周，每周固定时间释放新批次），叠 Railcard 折扣卡可再省 1/3；错峰选 Super Off-Peak（工作日 10:00-15:30 及周末）。" },
-            { name: "地铁进出站都要刷卡", status: "no", desc: "伦敦地铁进站出站都要 tap 卡（黄色读卡器），哪怕闸门开着不刷也会按最贵票价扣款；公交和电车只需进站刷一次。同一行程务必用同一张卡/设备，iPhone 进 Apple Watch 出会按两张卡计费。" }
+            { name: "拆分购票 (Split Ticketing) 合法", status: "yes", desc: "National Conditions of Carriage 第 14 条允许同一趟车拆成多段购票，常省 30% 以上，只要列车在分段站停靠即可。" },
+            { name: "Advance 早鸟票抢法", status: "yes", desc: "行程确定后尽早买 Advance 票（最早提前约 12 周放票），叠加 Railcard 折扣卡可再省 1/3；错峰可选 Super Off-Peak。" },
+            { name: "地铁进出站都要刷卡", status: "no", desc: "伦敦地铁进出站都须刷同一张实体卡或同一设备（iPhone 进 Apple Watch 出会按两张卡扣最高票价），公交只需上车刷一次。" }
         ],
         warnings: [
-            { title: "列车门不是自动的", desc: "英国老式列车的车门要自己按下把手/按钮才能开 —— 到站干等门不会开，司机看所有乘客上下完才发车；下车也别忘了提前按开门钮。" }
+            { title: "部分列车门需手动按开", desc: "英国不少列车的车门到站不会自动打开，看到开门灯亮起时需自己按下车门按钮或拉手。" }
         ]
     },
     {
         id: 'usa',
-        country: "美国 (United States)",
+        country: "美国",
+        enName: "United States",
         icon: "🇺🇸",
-        subtitle: "Amtrak 长途慢车与车轮上的国度",
-        tag: "Active",
+        subtitle: "Amtrak 长途观光列车与日常规则",
         rules: [
-            { name: "Amtrak 长途 = 移动酒店", status: "yes", desc: "卧铺车厢（Roomette/Bedroom/Family）票价约座位票 2-4 倍，含餐车三餐与贵宾休息室；不与陌生人拼房，一人也想独占包厢需付全额。" },
-            { name: "餐车要预约", status: "no", desc: "餐车用餐需要向乘务员订座（每天固定时段挨车厢走访登记），座位票乘客需另付费；没约上就去观景车厢下层 Cafe 买简餐，可带到上层透明穹顶区吃。" },
-            { name: "火车是观光不是通勤", status: "no", desc: "除东北走廊（波士顿-纽约-华盛顿）外，美国铁路速度慢、班次少，长途线路动辄 1-2 天 —— 把它当观光项目规划，而不是交通刚需。" }
+            { name: "Amtrak 长途 = 移动观光酒店", status: "yes", desc: "卧铺包厢（Roomette/Bedroom）含餐车三餐与休息室，适合加州微风号等景观线路。" },
+            { name: "餐车需预约", status: "no", desc: "餐车由乘务员按时段走访登记订座，座位票乘客也可前往观景车厢下层 Cafe 购买简餐。" },
+            { name: "慢节奏观光定位", status: "no", desc: "除东北走廊（波士顿-纽约-华盛顿）外，美国铁路速度偏慢、班次少，更适合作为景观体验而非刚性通勤。" }
         ],
         warnings: [
-            { title: "小费是工资不是奖励", desc: "餐厅服务员底薪极低，靠小费生活：午餐 15-18%、晚餐 18-20%（已成新常态）、高级餐厅至少 20%（税前账单计）；6 人以上团体账单常自动加 18% 服务费，付前先核对。酒吧单点每杯 1-2 美元。" }
+            { title: "小费是服务业基本工资", desc: "堂食餐厅午餐通常 15-18%、晚餐 18-20%（按税前账单算）；6 人以上常已含 18% 服务费，付款前先核对账单。" }
         ]
     },
     {
         id: 'singapore',
-        country: "新加坡 (Singapore)",
+        country: "新加坡",
+        enName: "Singapore",
         icon: "🇸🇬",
-        subtitle: "极度严苛的城市法典",
-        tag: "Active",
-        rules: [],
-        warnings: [
-            { title: "口香糖禁令", desc: "走私或销售口香糖是非法的，甚至携带过量入境都可能被罚款。乱吐口香糖更是会被重罚。" },
-            { title: "地铁内绝对禁食", desc: "在 MRT (地铁) 车厢甚至车站范围内，喝一口白开水或吃一口小零食，都可能面临高达 500 新币的罚款。" }
-        ]
-    },
-    {
-        id: 'japan',
-        country: "日本 (Japan)",
-        icon: "🇯🇵",
-        subtitle: "基于「青春18」与 JR 铁道网络的漫游法则",
-        tag: "Active",
+        subtitle: "高秩序城市公共交通与法规",
         rules: [
-            { name: "JR 青春 18 主干线", status: "yes", desc: "宗谷、函馆、东北、东海道、山阳、鹿儿岛本线等。可无限次乘坐。" },
-            { name: "JR 宫岛渡轮", status: "yes", desc: "唯一可使用的水上交通，直达广岛严岛神社。" },
-            { name: "跨海新干线/特急", status: "no", desc: "如北海道新干线 (函馆 - 新青森)。青春 18 绝对禁区，需另购特例票或乘船。" }
+            { name: "银行卡直接拍卡乘地铁", status: "yes", desc: "MRT 与公交全面支持 Visa/Mastercard 非接触式支付或 Apple Pay，无需特意购买交通卡。" }
         ],
         warnings: [
-            { title: "电车静音法则", desc: "在电车、公交内接打电话被视为严重违反礼仪，需将手机调至静音（Manner Mode）。" },
-            { title: "绝对的无小费文化", desc: "日本没有任何小费文化。如果你在桌上留下零钱，服务员大概率会追出一条街还给你。" },
-            { title: "街头禁烟与边走边吃", desc: "绝大多数城市街头严禁边走边吸烟（需在指定吸烟区），边走边吃也被视为极度不雅。" }
+            { title: "口香糖入境限制", desc: "销售或携带过量口香糖入境属于违法行为，切勿在公共场所乱吐。" },
+            { title: "地铁内严格禁食饮水", desc: "MRT 车厢及付费站区内喝白开水或吃零食都可能面临最高 500 新元罚款。" }
         ]
     }
 ];
 
-const RulesTab = ({ isActive }) => {
-    const [openSections, setOpenSections] = useState({ 'china': true });
-
-    const toggleSection = (id) => {
-        setOpenSections(prev => ({
-            ...prev,
-            [id]: !prev[id]
-        }));
-    };
+const RulesTab = ({ isActive, onLocateRegion }) => {
+    const [selectedId, setSelectedId] = useState('china');
+    const activeRegion = GLOBAL_RULES_CONFIG.find((r) => r.id === selectedId) || GLOBAL_RULES_CONFIG[0];
+    const linkedPack = activeRegion.regionPackId
+        ? REGION_REGISTRY.find((r) => r.id === activeRegion.regionPackId)
+        : null;
 
     return (
-        <div className={`${isActive ? 'block' : 'hidden'} space-y-6 animate-in slide-in-from-bottom duration-500 max-w-4xl mx-auto`}>
-            
-            <div className="bg-zinc-900 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                <div className="relative z-10">
-                    <h3 className="text-2xl font-black flex items-center mb-2">
-                        <Globe className="w-7 h-7 mr-3 text-cyan-400" /> 
-                        全球铁道与漫游生存法则
-                    </h3>
-                    <p className="text-zinc-400 text-sm">
-                        此终端不仅定义了交通系统的通行逻辑，更收录了各地极易触雷的隐性法规与文化禁忌。
-                    </p>
+        <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300 max-w-5xl mx-auto space-y-5`}>
+            {/* 顶部轻盈导览 + 国家胶囊切换条 */}
+            <div className="bg-paper-2/92 backdrop-blur-md rounded-3xl border border-line shadow-lift p-5 md:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h3 className="font-display text-2xl text-ink flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-sora" />
+                            全球铁道与出行指南
+                        </h3>
+                        <p className="text-xs text-ink-3 mt-1">
+                            收录各地区铁道票务逻辑与极易踩坑的当地隐性规则，点击国家快速切换。
+                        </p>
+                    </div>
+                    <span className="text-[11px] font-bold text-ink-3 bg-paper-3 px-3 py-1 rounded-full border border-line/70">
+                        已收录 {GLOBAL_RULES_CONFIG.length} 个国家/地区
+                    </span>
                 </div>
-                <Compass className="absolute -right-6 -bottom-8 w-40 h-40 text-zinc-800 opacity-50 rotate-12 pointer-events-none" />
+
+                {/* 国家胶囊选择器 */}
+                <div className="flex flex-wrap gap-2">
+                    {GLOBAL_RULES_CONFIG.map((region) => {
+                        const active = region.id === activeRegion.id;
+                        return (
+                            <button
+                                key={region.id}
+                                type="button"
+                                onClick={() => setSelectedId(region.id)}
+                                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                                    active
+                                        ? 'bg-sora text-sora-ink border-sora shadow-sm'
+                                        : 'bg-paper-3/70 text-ink-2 border-line/80 hover:bg-sora-soft/50 hover:text-ink'
+                                }`}
+                            >
+                                <span aria-hidden="true">{region.icon}</span>
+                                <span>{region.country}</span>
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
-            <div className="space-y-4">
-                {GLOBAL_RULES_CONFIG.map((region) => {
-                    const isOpen = openSections[region.id];
-                    const hasRules = region.rules && region.rules.length > 0;
-                    const hasWarnings = region.warnings && region.warnings.length > 0;
-                    const isEmpty = !hasRules && !hasWarnings;
+            {/* 当前选中地区的精读卡片（宽松双栏呼吸感） */}
+            <div className="bg-paper-2/95 backdrop-blur-md rounded-3xl border border-line shadow-lift p-6 md:p-8">
+                <div className="flex flex-wrap items-center justify-between gap-4 pb-5 mb-6 border-b border-line/80">
+                    <div className="flex items-center gap-3.5">
+                        <span className="text-4xl leading-none" aria-hidden="true">{activeRegion.icon}</span>
+                        <div>
+                            <div className="flex items-baseline gap-2">
+                                <h4 className="text-xl font-black text-ink">{activeRegion.country}</h4>
+                                <span className="text-xs font-mono text-ink-3">{activeRegion.enName}</span>
+                            </div>
+                            <p className="text-xs text-ink-2 mt-1">{activeRegion.subtitle}</p>
+                        </div>
+                    </div>
 
-                    return (
-                        <div key={region.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden transition-all duration-300">
-                            
-                            <button 
-                                onClick={() => toggleSection(region.id)}
-                                className={`w-full text-left p-5 flex items-center justify-between transition-colors ${isOpen ? 'bg-slate-50' : 'hover:bg-gray-50'}`}
-                            >
-                                <div className="flex items-center space-x-4">
-                                    <span className="text-3xl" aria-hidden="true">{region.icon}</span>
+                    {linkedPack && onLocateRegion && (
+                        <button
+                            type="button"
+                            onClick={() => onLocateRegion(linkedPack)}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-wakaba-soft text-ink border border-wakaba/40 hover:border-wakaba transition-colors"
+                        >
+                            <MapPin className="w-3.5 h-3.5 text-wakaba" />
+                            在地图查看{linkedPack.name}铁道骨架
+                        </button>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* 左栏：交通网络与票务逻辑 */}
+                    <div>
+                        <h5 className="flex items-center text-sm font-bold text-ink mb-3.5">
+                            <Train className="w-4 h-4 mr-2 text-sora" /> 交通网络与票务逻辑
+                        </h5>
+                        <div className="space-y-3">
+                            {activeRegion.rules.map((line, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`p-4 rounded-2xl border ${
+                                        line.status === 'yes'
+                                            ? 'bg-wakaba-soft/45 border-wakaba/25'
+                                            : 'bg-koi-soft/45 border-koi/25'
+                                    }`}
+                                >
+                                    <div className="flex items-center mb-1.5">
+                                        {line.status === 'yes'
+                                            ? <CheckCircle2 className="text-wakaba mr-2 w-4 h-4 shrink-0" />
+                                            : <XCircle className="text-koi mr-2 w-4 h-4 shrink-0" />}
+                                        <span className="font-bold text-sm text-ink">{line.name}</span>
+                                    </div>
+                                    <p className="text-xs text-ink-2 leading-relaxed pl-6">{line.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* 右栏：隐性法规与避坑提示 */}
+                    <div>
+                        <h5 className="flex items-center text-sm font-bold text-ink mb-3.5">
+                            <ShieldAlert className="w-4 h-4 mr-2 text-kouchou" /> 隐性法规与避坑提示
+                        </h5>
+                        <div className="space-y-3">
+                            {activeRegion.warnings.map((warn, idx) => (
+                                <div key={idx} className="flex p-4 rounded-2xl bg-kouchou-soft/55 border border-kouchou/30">
+                                    <AlertTriangle className="w-4 h-4 text-kouchou mr-2.5 shrink-0 mt-0.5" />
                                     <div>
-                                        <div className="flex items-center space-x-2">
-                                            <h4 className="text-lg font-bold text-gray-900">{region.country}</h4>
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
-                                                region.tag === 'Active' ? 'bg-green-100 text-green-700' :
-                                                region.tag === 'Coming Soon' ? 'bg-blue-100 text-blue-700' : 
-                                                'bg-gray-100 text-gray-500'
-                                            }`}>
-                                                {region.tag}
-                                            </span>
-                                        </div>
-                                        <p className="text-xs text-gray-500 mt-1">{region.subtitle}</p>
+                                        <span className="font-bold text-sm text-ink block mb-1">{warn.title}</span>
+                                        <p className="text-xs text-ink-2 leading-relaxed">{warn.desc}</p>
                                     </div>
                                 </div>
-                                <div className="text-gray-400">
-                                    {isOpen ? <ChevronUp className="w-6 h-6" /> : <ChevronDown className="w-6 h-6" />}
-                                </div>
-                            </button>
-
-                            {isOpen && (
-                                <div className="p-5 border-t border-gray-100 bg-white">
-                                    
-                                    {/* 交通通行法则区块 */}
-                                    {hasRules && (
-                                        <div className="mb-6">
-                                            <h5 className="flex items-center text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-gray-100">
-                                                <Train className="w-4 h-4 mr-2 text-cyan-600" /> 交通网络与票务逻辑
-                                            </h5>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                {region.rules.map((line, idx) => (
-                                                    <div key={idx} className={`p-3 rounded-xl border transition-colors ${line.status === 'yes' ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                                                        <div className="flex items-center mb-1.5">
-                                                            {line.status === 'yes' ? <CheckCircle2 className="text-green-600 mr-1.5 w-4 h-4 shrink-0" /> : <XCircle className="text-red-600 mr-1.5 w-4 h-4 shrink-0" />}
-                                                            <span className="font-bold text-sm text-gray-900">{line.name}</span>
-                                                        </div>
-                                                        <p className="text-xs text-gray-600 leading-relaxed pl-5">{line.desc}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* 高危警告与文化禁忌区块 */}
-                                    {hasWarnings && (
-                                        <div>
-                                            <h5 className="flex items-center text-sm font-bold text-gray-800 mb-3 pb-2 border-b border-gray-100">
-                                                <ShieldAlert className="w-4 h-4 mr-2 text-amber-500" /> 生存禁忌与隐性法规
-                                            </h5>
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {region.warnings.map((warn, idx) => (
-                                                    <div key={idx} className="flex p-3 rounded-xl bg-amber-50 border border-amber-100/50 hover:border-amber-200 transition-colors">
-                                                        <AlertTriangle className="w-5 h-5 text-amber-500 mr-3 shrink-0 mt-0.5" />
-                                                        <div>
-                                                            <span className="font-bold text-sm text-amber-900 block mb-1">{warn.title}</span>
-                                                            <p className="text-xs text-amber-700/80 leading-relaxed">{warn.desc}</p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* 无数据时的占位提示 */}
-                                    {isEmpty && (
-                                        <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                                            <Map className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                                            <p className="text-sm font-bold text-gray-500">该区域拓扑系统与法典正在构建中</p>
-                                            <p className="text-xs text-gray-400 mt-1">Data collection in progress...</p>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                            ))}
                         </div>
-                    );
-                })}
+                    </div>
+                </div>
             </div>
         </div>
     );

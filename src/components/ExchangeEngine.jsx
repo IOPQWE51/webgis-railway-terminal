@@ -185,7 +185,7 @@ const ExchangeEngine = ({ isActive }) => {
                                 placeholder="输入国家或地区名称 (如: 澳大利亚、越南)..." 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
-                                className="w-full bg-gray-100/80 border-none rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-ink focus:border-sora focus:bg-paper-2 outline-none transition-colors bg-paper-3 border border-line rounded-xl pl-10 pr-4 py-3"
+                                className="w-full bg-paper-3 border border-line rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-ink focus:border-sora focus:bg-paper-2 outline-none transition-colors"
                             />
                         </div>
                         <div className="overflow-y-auto p-2 flex-1 custom-scrollbar">
@@ -221,44 +221,97 @@ const ExchangeEngine = ({ isActive }) => {
             )}
             {/* ======================================================= */}
 
-            <div className="bg-white border border-gray-200 rounded-[2rem] p-4 sm:p-6 md:p-8 shadow-xl relative overflow-hidden">
-                <div className="flex justify-between items-center mb-8">
+            <div className="bg-paper-2/95 backdrop-blur-md border border-line rounded-3xl p-5 sm:p-6 md:p-8 shadow-lift relative overflow-hidden">
+                <div className="flex justify-between items-center mb-5">
                     <div>
                         <h3 className="font-display text-2xl text-ink flex items-center">
-                            <ShoppingBag className="w-6 h-6 mr-2 text-sora" />
-                            跨国结算与物价中枢
+                            <ShoppingBag className="w-5 h-5 mr-2 text-sora" />
+                            实时汇率与当地物价
                         </h3>
-                        <p className="hud-label text-xs text-ink-2 mt-1">Global Exchange Engine</p>
+                        <p className="text-xs text-ink-3 mt-1">输入任意一侧金额即可双向换算，附常见消费物价参考。</p>
                     </div>
                     <button 
                         onClick={fetchRates} 
                         disabled={isFetching} 
-                        className={`p-3 rounded-full bg-paper-3 hover:bg-sora-soft/60 text-ink-2 transition-colors border border-line ${isFetching ? 'animate-spin text-sora' : 'hover:rotate-180 hover:text-sora-deep'}`}
+                        className={`p-2.5 rounded-xl bg-paper-3 hover:bg-sora-soft/60 text-ink-2 transition-colors border border-line ${isFetching ? 'animate-spin text-sora' : 'hover:text-sora-deep'}`}
                         title="刷新实时汇率"
                     >
-                        <RefreshCw className="w-5 h-5" />
+                        <RefreshCw className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* 热门币种一键切换胶囊 */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-5">
+                    {Object.values(CURRENCY_CONFIG).map((cur) => {
+                        const active = targetCurrency === cur.code;
+                        return (
+                            <button
+                                key={cur.code}
+                                type="button"
+                                onClick={() => {
+                                    setTargetCurrency(cur.code);
+                                    if (cnyAmount && rates[cur.code]) {
+                                        const num = parseFloat(cnyAmount);
+                                        if (!isNaN(num)) setTargetAmount((num * rates[cur.code]).toFixed(2));
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors ${
+                                    active
+                                        ? 'bg-sora text-sora-ink border-sora shadow-sm'
+                                        : 'bg-paper-3/70 text-ink-2 border-line/80 hover:bg-sora-soft/60 hover:text-ink'
+                                }`}
+                            >
+                                {cur.name} {cur.code}
+                            </button>
+                        );
+                    })}
+                    <button
+                        type="button"
+                        onClick={() => setShowSearchModal(true)}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold border border-dashed border-line text-sora-deep hover:bg-sora-soft/50 transition-colors"
+                    >
+                        + 更多币种
                     </button>
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 bg-koi-soft border border-koi/30 rounded-xl text-sm text-ink flex items-center font-bold">
+                    <div className="mb-5 p-4 bg-koi-soft border border-koi/30 rounded-xl text-sm text-ink flex items-center font-bold">
                         <AlertCircle className="w-5 h-5 mr-2" /> {error}
                     </div>
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                    {/* 🌌 天の川：CNY 侧走 wakaba 绿（出发/本币），JPY 侧走 sora 蓝（抵达/外币），
-                        语义化"出发→抵达"而不是随机的绿/蓝装饰；数字开 tabular-nums 防跳宽 */}
-                    <div className="bg-wakaba-soft/60 p-4 md:p-6 rounded-2xl border border-line focus-within:border-wakaba focus-within:outline focus-within:outline-2 focus-within:outline-wakaba/50 transition-colors">
-                        <div className="flex justify-between items-center mb-4">
+                    <div className="bg-wakaba-soft/55 p-4 md:p-5 rounded-2xl border border-line focus-within:border-wakaba transition-colors">
+                        <div className="flex justify-between items-center mb-3">
                             <label className="text-sm font-bold text-ink flex items-center">
                                 <img src="https://flagcdn.com/w40/cn.png" alt="CN" className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" /> 人民币 (CNY)
                             </label>
-                            <span className="hud-label text-[10px] bg-wakaba-soft text-ink px-2 py-0.5 rounded font-bold">Base</span>
+                            <span className="text-[10px] font-bold bg-paper-2/80 text-ink-2 px-2 py-0.5 rounded-md border border-line/60">基准币</span>
                         </div>
                         <div className="flex items-center tnum text-2xl sm:text-3xl md:text-4xl font-black text-ink">
                             <span className="text-wakaba mr-2">¥</span>
                             <input type="text" inputMode="numeric" pattern="[0-9]*" autoComplete="off" value={cnyAmount} onChange={handleCnyChange} onFocus={(e) => e.target.select()} onBlur={(e) => { const v = e.target.value; if (v && v.endsWith('.')) setCnyAmount(v.replace(/\.$/, '')); }} className="bg-transparent border-none outline-none w-full appearance-none placeholder-ink-3/50" placeholder="0" />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mt-3 pt-2.5 border-t border-wakaba/20">
+                            {['100', '500', '1000', '5000', '10000'].map((preset) => (
+                                <button
+                                    key={preset}
+                                    type="button"
+                                    onClick={() => {
+                                        setCnyAmount(preset);
+                                        if (rates[targetCurrency]) {
+                                            setTargetAmount((parseFloat(preset) * rates[targetCurrency]).toFixed(2));
+                                        }
+                                    }}
+                                    className={`px-2 py-0.5 rounded-md text-[11px] font-mono font-bold transition-colors ${
+                                        cnyAmount === preset
+                                            ? 'bg-wakaba text-white'
+                                            : 'bg-paper-2/75 text-ink-2 hover:bg-paper-2'
+                                    }`}
+                                >
+                                    ¥{preset}
+                                </button>
+                            ))}
                         </div>
                     </div>
 

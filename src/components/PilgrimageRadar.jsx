@@ -136,22 +136,22 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
     const displayedPoints = allPoints || selected?.points || [];
 
     return (
-        <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500 max-w-4xl mx-auto`}>
-            <div className="bg-white border border-gray-200 rounded-[2rem] p-6 md:p-8 shadow-xl relative overflow-hidden">
+        <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300 max-w-5xl mx-auto`}>
+            <div className="bg-paper-2/95 backdrop-blur-md border border-line rounded-3xl p-6 md:p-8 shadow-lift relative overflow-hidden">
 
                 {/* ===== 标题栏 ===== */}
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h3 className="font-black text-2xl text-gray-900 flex items-center">
-                            <Camera className="w-6 h-6 mr-2 text-pink-500" />
-                            次元边界：圣地巡礼工作台
+                        <h3 className="font-display text-2xl text-ink flex items-center">
+                            <Camera className="w-5 h-5 mr-2 text-koi" />
+                            圣地巡礼工作台
                         </h3>
-                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest uppercase">Anime Pilgrimage Workbench</p>
+                        <p className="text-xs text-ink-3 mt-1">检索动画取景地，一键批量推送到地图收藏夹（日本区专题）。</p>
                     </div>
                     {view === 'detail' && (
                         <button
                             onClick={() => { setView('discover'); setSelected(null); setSearchResults(null); }}
-                            className="flex items-center text-sm font-bold text-gray-600 hover:text-pink-600 transition-colors active:scale-95"
+                            className="flex items-center text-xs font-bold text-ink-2 hover:text-koi px-3 py-1.5 rounded-xl bg-paper-3 transition-colors"
                         >
                             <ArrowLeft className="w-4 h-4 mr-1" /> 返回发现区
                         </button>
@@ -163,24 +163,24 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
                         {/* ===== 搜索 ===== */}
                         <div className="flex gap-2 mb-6">
                             <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-3" />
                                 <input
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     onKeyDown={(e) => {
-                                        if (e.key !== 'Enter' || e.nativeEvent.isComposing) return; // IME 组合中的 Enter 是确认候选词
+                                        if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
                                         handleSearch();
                                     }}
                                     placeholder="搜索番剧名（如：孤独摇滚、摇曳露营）"
-                                    className="w-full pl-9 pr-3 py-2.5 text-sm font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-pink-300 focus:ring-2 focus:ring-pink-100 transition-all"
+                                    className="w-full pl-9 pr-3 py-2.5 text-sm font-medium bg-paper-3/80 border border-line rounded-xl text-ink placeholder-ink-3 focus:outline-none focus:border-koi transition-all"
                                 />
                             </div>
                             <button
                                 onClick={handleSearch}
                                 disabled={searching || !searchQuery.trim()}
-                                className="bg-pink-500 hover:bg-pink-600 disabled:opacity-50 text-white font-bold px-5 rounded-xl shadow-md transition-all active:scale-95 flex items-center"
+                                className="bg-koi hover:opacity-90 disabled:opacity-45 text-white font-bold px-5 rounded-xl shadow-sm transition-all active:scale-95 flex items-center text-sm"
                             >
-                                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : '检索'}
+                                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : '搜索'}
                             </button>
                         </div>
 

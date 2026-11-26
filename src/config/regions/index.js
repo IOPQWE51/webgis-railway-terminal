@@ -6,9 +6,19 @@
 //
 // 设计契约见 specs/2026-09-07-regional-content-packs-design.md
 
+import * as china from './china.js';
 import * as japan from './japan.js';
 
 export const REGION_REGISTRY = [
+    {
+        id: china.CHINA_REGION.id,
+        name: china.CHINA_REGION.name,
+        icon: china.CHINA_REGION.icon,
+        center: china.CHINA_REGION.center,
+        zoom: china.CHINA_REGION.zoom,
+        description: china.CHINA_REGION.description,
+        data: china,
+    },
     {
         id: japan.JAPAN_REGION.id,
         name: japan.JAPAN_REGION.name,

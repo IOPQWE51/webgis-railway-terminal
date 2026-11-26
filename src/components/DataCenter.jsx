@@ -202,6 +202,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
     const [progress, setProgress] = useState(0);
     const [failedPoints, setFailedPoints] = useState([]);
     const [expandedGroup, setExpandedGroup] = useState(null);
+    const [pointFilter, setPointFilter] = useState('');
     const [manualData, setManualData] = useState({ name: '', lat: '', lon: '', type: 'spot' });
     const [searchData, setSearchData] = useState({ name: '', type: 'spot' });
     const [isSearching, setIsSearching] = useState(false);
@@ -389,13 +390,15 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
     }, []);
 
     const groupedPoints = useMemo(() => {
+        const q = pointFilter.trim().toLowerCase();
         const groups = {};
         customPoints.forEach(pt => {
-            // 🧭 v2 分组维度：group 优先（行程分组），source 兜底（旧数据语义不变）
             let source = (pt.group || pt.source || '未分类').replace(/^源：/, '');
-            // 🆕 去掉 .csv 后缀，显示更清爽
             if (source.endsWith('.csv')) {
                 source = source.slice(0, -4);
+            }
+            if (q && !String(pt.name || '').toLowerCase().includes(q) && !source.toLowerCase().includes(q)) {
+                return;
             }
             if (!groups[source]) groups[source] = { name: source, count: 0, lastImport: 0, points: [] };
             groups[source].count++;
@@ -403,7 +406,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
             if (pt.importedAt && pt.importedAt > groups[source].lastImport) groups[source].lastImport = pt.importedAt;
         });
         return Object.values(groups).sort((a, b) => b.lastImport - a.lastImport);
-    }, [customPoints]);
+    }, [customPoints, pointFilter]);
 
     // 🧳 v2 分组编辑：整组重命名 / 单点移入分组（prompt 式轻交互，贴合本页朴素风格）
     const renameGroup = useCallback((group) => {
@@ -432,43 +435,44 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
     const handlePointClick = useCallback((point) => { if (window.__locatePointOnMap) window.__locatePointOnMap(point.id); }, []);
 
     return (
-        <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500`}>
+        <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300 max-w-5xl mx-auto`}>
             {/* 🔐 账号与云端同步状态卡 */}
             {onOpenAuth && (
-            <div className="bg-white rounded-2xl p-4 border border-gray-200 mb-6">
+            <div className="bg-paper-2/95 backdrop-blur-md rounded-2xl p-4 md:px-6 border border-line shadow-lift mb-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center text-gray-500 font-bold text-xs tracking-wide">
-                        <ShieldCheck className="w-4 h-4 mr-2" /> 账号与云端同步
+                    <div className="flex items-center text-ink-2 font-bold text-xs tracking-wide">
+                        <ShieldCheck className="w-4 h-4 mr-2 text-sora" /> 账号与云端同步
                     </div>
                     {session ? (
                         <div className="flex items-center gap-2">
-                            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">已登录：{session}</span>
-                            <button onClick={onLogout} className="px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">退出登录</button>
+                            <span className="px-3 py-1 rounded-full bg-wakaba-soft text-ink border border-wakaba/30 text-xs font-bold">已登录：{session}</span>
+                            <button onClick={onLogout} className="px-3 py-1.5 rounded-xl text-xs font-bold border border-line text-ink-2 hover:bg-paper-3 transition-colors">退出登录</button>
                         </div>
                     ) : (
-                        <button onClick={onOpenAuth} className="px-4 py-1.5 rounded-xl text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-700 shadow-sm transition-colors">登录 / 开启云同步</button>
+                        <button onClick={onOpenAuth} className="px-4 py-1.5 rounded-xl text-xs font-bold bg-sora text-sora-ink hover:bg-sora-deep shadow-sm transition-colors">登录 / 开启云同步</button>
                     )}
                 </div>
-                <p className="text-xs text-gray-400 mt-2">
+                <p className="text-xs text-ink-3 mt-1.5">
                     {session ? '云端同步已就绪：收藏点位按账号独立保存，跨设备自动同步。' : '当前为未登录模式，收藏仅保存在本机浏览器。登录后可云端同步与跨设备访问。'}
                 </p>
             </div>
             )}
 
-            <div className="grid md:grid-cols-5 gap-6">
+            <div className="grid md:grid-cols-5 gap-5">
                 
-                {/* 左侧：CSV 批量导入 */}
-                <div className="md:col-span-3 bg-white rounded-[2rem] border border-gray-200 shadow-xl p-8">
-                    <div className="mb-6">
-                        <h2 className="text-2xl font-black text-gray-900 flex items-center">
-                            <UploadCloud className="w-6 h-6 mr-2 text-cyan-600" /> 批量导入地点 (CSV)
+                {/* 左侧：CSV 批量导入与我的收藏点位 */}
+                <div className="md:col-span-3 bg-paper-2/95 backdrop-blur-md rounded-3xl border border-line shadow-lift p-6 md:p-7">
+                    <div className="mb-5">
+                        <h2 className="font-display text-2xl text-ink flex items-center">
+                            <UploadCloud className="w-5 h-5 mr-2 text-sora" /> 批量导入地点 (CSV)
                         </h2>
+                        <p className="text-xs text-ink-3 mt-1">支持直接拖入 Google Maps 导出的收藏夹 CSV 文件。</p>
                     </div>
                     <div
-                        className={`relative border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer overflow-hidden transition-all ${
+                        className={`relative border-2 border-dashed rounded-2xl p-7 text-center cursor-pointer overflow-hidden transition-all ${
                             isProcessing
-                                ? 'border-indigo-300 bg-indigo-50'
-                                : 'border-cyan-300 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400'
+                                ? 'border-sora bg-sora-soft/50'
+                                : 'border-sora/35 bg-sora-soft/30 hover:bg-sora-soft/55 hover:border-sora/60'
                         }`}
                         onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('border-cyan-500', 'bg-cyan-200'); }}
                         onDragLeave={(e) => { e.preventDefault(); e.currentTarget.classList.remove('border-cyan-500', 'bg-cyan-200'); }}
@@ -556,22 +560,35 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                     )}
 
                     {/* 已存储收藏点位 */}
-                    <div className="mt-8">
-                        <div className="flex justify-between items-end mb-3 border-b pb-2">
-                            <h4 className="font-bold text-gray-700">我的收藏点位 ({customPoints.length})</h4>
+                    <div className="mt-7">
+                        <div className="flex flex-wrap justify-between items-center gap-2 mb-3 border-b border-line/80 pb-2.5">
+                            <h4 className="font-bold text-ink text-sm">我的收藏点位 ({customPoints.length})</h4>
                             <div className="flex items-center gap-3">
                                 {customPoints.length > 0 && (
-                                    <span className="flex items-center gap-2 text-xs text-cyan-600">
-                                        <button onClick={exportJSON} className="hover:text-cyan-800 flex items-center transition-colors font-bold" title="导出 JSON（完整字段）"><Download className="w-3 h-3 mr-0.5" /> JSON</button>
-                                        <span className="text-gray-300">|</span>
-                                        <button onClick={exportCSV} className="hover:text-cyan-800 flex items-center transition-colors font-bold" title="导出 CSV（Excel 直开）"><Download className="w-3 h-3 mr-0.5" /> CSV</button>
+                                    <span className="flex items-center gap-2 text-xs text-sora-deep">
+                                        <button onClick={exportJSON} className="hover:underline flex items-center transition-colors font-bold" title="导出 JSON（完整字段）"><Download className="w-3 h-3 mr-0.5" /> JSON</button>
+                                        <span className="text-line">|</span>
+                                        <button onClick={exportCSV} className="hover:underline flex items-center transition-colors font-bold" title="导出 CSV（Excel 直开）"><Download className="w-3 h-3 mr-0.5" /> CSV</button>
                                     </span>
                                 )}
-                                {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-red-500 hover:text-red-700 flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空全部</button>}
+                                {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-koi hover:underline flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空全部</button>}
                             </div>
                         </div>
+                        {customPoints.length > 0 && (
+                            <div className="relative mb-3">
+                                <Search className="w-3.5 h-3.5 text-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={pointFilter}
+                                    onChange={(e) => setPointFilter(e.target.value)}
+                                    placeholder="按名称或分组筛选收藏点位..."
+                                    className="w-full bg-paper-3/70 border border-line rounded-xl pl-8 pr-3 py-2 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora transition-colors"
+                                />
+                            </div>
+                        )}
                         <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                            {customPoints.length === 0 && <p className="text-sm text-gray-400 text-center py-8">暂无收藏点位，可在地图中点击地点收藏，或从上方导入 CSV。</p>}
+                            {customPoints.length === 0 && <p className="text-sm text-ink-3 text-center py-8">暂无收藏点位，可在地图中点击地点收藏，或从上方导入 CSV。</p>}
+                            {customPoints.length > 0 && groupedPoints.length === 0 && <p className="text-xs text-ink-3 text-center py-6">没有匹配“{pointFilter}”的点位。</p>}
                             {groupedPoints.map(group => (
                                 <div key={group.name} className="mb-2">
                                     <button onClick={() => setExpandedGroup(expandedGroup === group.name ? null : group.name)} className="w-full flex items-center justify-between bg-gradient-to-r from-slate-50 to-white p-3 rounded-xl border border-gray-200 hover:border-cyan-300 transition-all">
@@ -640,19 +657,18 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                         </div>
                     )}
 
-                    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl border border-indigo-100 p-6 shadow-xl relative overflow-hidden">
-                        <Search className="absolute -right-4 -bottom-4 w-24 h-24 text-indigo-500 opacity-5 pointer-events-none" />
-                        <h4 className="font-black text-indigo-900 mb-4 flex items-center border-b border-indigo-100 pb-2">
-                            <Search className="w-5 h-5 mr-2 text-indigo-500" /> 按地名查找并添加
+                    <div className="bg-paper-2/95 backdrop-blur-md rounded-3xl border border-line p-6 shadow-lift relative overflow-hidden">
+                        <h4 className="font-bold text-ink mb-3 flex items-center border-b border-line/70 pb-2.5 text-sm">
+                            <Search className="w-4 h-4 mr-2 text-sora" /> 按地名查找并添加
                         </h4>
                         <div className="space-y-3 relative z-10">
-                            <p className="text-[11px] text-indigo-600/80 font-bold mb-1">输入全球任意地名，自动解析经纬度并加入收藏：</p>
-                            <input type="text" value={searchData.name} onChange={e => setSearchData({ ...searchData, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleSmartSearch()} className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none shadow-sm" placeholder="如：Eiffel Tower / 伦敦国王十字车站..." />
+                            <p className="text-xs text-ink-3 mb-1">输入全球任意地名，自动解析经纬度并加入收藏：</p>
+                            <input type="text" value={searchData.name} onChange={e => setSearchData({ ...searchData, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleSmartSearch()} className="w-full bg-paper-3/80 border border-line rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder-ink-3 focus:border-sora outline-none transition-colors" placeholder="如：Eiffel Tower / 伦敦国王十字车站..." />
                             <div className="flex gap-2">
-                                <select value={searchData.type} onChange={e => setSearchData({ ...searchData, type: e.target.value })} className="w-1/3 bg-white border border-indigo-200 rounded-lg px-2 py-2 text-sm shadow-sm outline-none cursor-pointer">
+                                <select value={searchData.type} onChange={e => setSearchData({ ...searchData, type: e.target.value })} className="w-1/3 bg-paper-3/80 border border-line rounded-xl px-2 py-2 text-sm text-ink outline-none cursor-pointer">
                                     <option value="spot">📍 地标</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
                                 </select>
-                                <button onClick={handleSmartSearch} disabled={isSearching} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-2 rounded-lg shadow-md active:scale-95 transition-all flex items-center justify-center">
+                                <button onClick={handleSmartSearch} disabled={isSearching} className="flex-1 bg-sora hover:bg-sora-deep disabled:opacity-50 text-sora-ink font-bold py-2 rounded-xl shadow-sm active:scale-95 transition-all flex items-center justify-center text-sm">
                                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MapPin className="w-4 h-4 mr-2" />}
                                     {isSearching ? '正在查找...' : '查找并添加'}
                                 </button>
@@ -660,23 +676,23 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-md">
-                        <h4 className="font-bold text-gray-800 mb-4 flex items-center border-b pb-2">
-                            <Plus className="w-4 h-4 mr-2 text-cyan-600" /> 手动录入坐标
+                    <div className="bg-paper-2/95 backdrop-blur-md rounded-3xl border border-line p-6 shadow-lift">
+                        <h4 className="font-bold text-ink mb-3 flex items-center border-b border-line/70 pb-2.5 text-sm">
+                            <Plus className="w-4 h-4 mr-2 text-sora" /> 手动录入坐标
                         </h4>
                         <div className="space-y-3">
                             <div className="flex gap-2">
-                                <input type="text" value={manualData.name} onChange={e => setManualData({ ...manualData, name: e.target.value })} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="地点名称" />
+                                <input type="text" value={manualData.name} onChange={e => setManualData({ ...manualData, name: e.target.value })} className="flex-1 bg-paper-3/80 border border-line rounded-xl px-3.5 py-2 text-sm text-ink placeholder-ink-3 focus:border-sora outline-none" placeholder="地点名称" />
                             </div>
                             <div className="grid grid-cols-2 gap-2">
-                                <input type="number" value={manualData.lat} onChange={e => setManualData({ ...manualData, lat: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Lat (纬度)" />
-                                <input type="number" value={manualData.lon} onChange={e => setManualData({ ...manualData, lon: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Lon (经度)" />
+                                <input type="number" value={manualData.lat} onChange={e => setManualData({ ...manualData, lat: e.target.value })} className="w-full bg-paper-3/80 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder-ink-3 focus:border-sora outline-none" placeholder="Lat (纬度)" />
+                                <input type="number" value={manualData.lon} onChange={e => setManualData({ ...manualData, lon: e.target.value })} className="w-full bg-paper-3/80 border border-line rounded-xl px-3 py-2 text-sm text-ink placeholder-ink-3 focus:border-sora outline-none" placeholder="Lon (经度)" />
                             </div>
                             <div className="flex gap-2">
-                                <select value={manualData.type} onChange={e => setManualData({ ...manualData, type: e.target.value })} className="w-1/3 bg-gray-50 border border-gray-200 rounded-lg px-2 py-2 text-sm">
+                                <select value={manualData.type} onChange={e => setManualData({ ...manualData, type: e.target.value })} className="w-1/3 bg-paper-3/80 border border-line rounded-xl px-2 py-2 text-sm text-ink outline-none">
                                     <option value="spot">📍 地标</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
                                 </select>
-                                <button onClick={handleManualAdd} className="flex-1 bg-white border-2 border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white font-bold py-2 rounded-lg transition-colors">
+                                <button onClick={handleManualAdd} className="flex-1 bg-paper-3 hover:bg-sora-soft text-ink hover:text-sora-deep border border-line font-bold py-2 rounded-xl transition-colors text-sm">
                                     添加到收藏
                                 </button>
                             </div>

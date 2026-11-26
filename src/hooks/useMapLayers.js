@@ -106,6 +106,12 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
 
         let timer = null;
         const flyToTarget = () => {
+            // 🌍 viewOnly（例如从出行指南一键查看国家铁路骨架）：直接切换视角与缩放，不落单点准星
+            if (pt.viewOnly) {
+                map.setView([pt.lat, pt.lon], pt.zoom ?? 5, { animate: false });
+                if (onTargetHandled) onTargetHandled();
+                return;
+            }
             // 🏠 silent = 本机收藏视角恢复：只挪镜头画准星，不弹战术面板（自家视角无需仪式感）
             updateTargetBeacon(pt.lat, pt.lon);
             if (pt.silent) {

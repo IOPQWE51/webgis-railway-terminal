@@ -123,12 +123,12 @@ const App = () => {
                 </Suspense>
                 </ErrorBoundary>
             ) : (
-                <div className="min-h-screen px-3 py-3 md:px-6 md:py-4 text-ink">
-                    <div className="max-w-[1400px] mx-auto">
-                        {/* 🌌 单行轻盈顶栏：Logo + 导航胶囊 + 账号同步，把最大视野还给地图 */}
-                        <header className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="min-h-screen px-4 py-3.5 md:px-6 md:py-5 text-ink">
+                    <div className="max-w-[1380px] mx-auto">
+                        {/* 🌌 单行轻盈顶栏：留出充足留白与呼吸感 */}
+                        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-2.5 shrink-0">
-                                <h1 className="flex items-baseline gap-1.5 text-2xl md:text-[28px] leading-none select-none">
+                                <h1 className="flex items-baseline gap-1.5 text-2xl md:text-[26px] leading-none select-none">
                                     <span className="font-display text-sora-deep drop-shadow-[0_1.5px_0_oklch(0.94_0.045_5/0.6)]">Earth</span>
                                     <span className="font-display text-ink">Terminal</span>
                                 </h1>
@@ -141,7 +141,7 @@ const App = () => {
 
                             {/* 中央导航胶囊条：桌面端同行居中，小屏自动换行满宽 */}
                             <nav
-                                className="order-3 xl:order-2 w-full xl:w-auto flex overflow-x-auto flex-nowrap bg-paper-2/85 backdrop-blur-md p-1 rounded-2xl shadow-lift border border-line/80 gap-1 scrollbar-hide"
+                                className="order-3 xl:order-2 w-full xl:w-auto flex overflow-x-auto flex-nowrap bg-paper-2/85 backdrop-blur-md p-1 rounded-2xl shadow-lift border border-line/80 gap-0.5 scrollbar-hide"
                                 role="tablist"
                                 ref={(el) => { window.__tabNav = el; }}
                             >
@@ -158,7 +158,7 @@ const App = () => {
                                         onClick={() => setActiveTab(tab.id)}
                                         role="tab"
                                         aria-selected={activeTab === tab.id}
-                                        className={`shrink-0 flex items-center px-3.5 py-2 rounded-xl text-[13px] font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
+                                        className={`shrink-0 flex items-center px-3 py-1.5 rounded-xl text-[13px] font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
                                             activeTab === tab.id
                                                 ? 'bg-sora text-sora-ink shadow-sm'
                                                 : 'text-ink-2 hover:text-ink hover:bg-sora-soft/60'
@@ -232,7 +232,7 @@ const App = () => {
                     
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} />
                     
-                    <RulesTab isActive={activeTab === 'rules'} />
+                    <RulesTab isActive={activeTab === 'rules'} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: `${region.name}铁道骨架`, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
                     <AviationEngine isActive={activeTab === 'aviation'} />
 

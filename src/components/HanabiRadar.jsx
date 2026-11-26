@@ -39,44 +39,44 @@ const HanabiRadar = ({ isActive, onLocateOnMap }) => {
     }, [searchQuery, onlyUpcoming, todayStr]);
 
     return (
-        <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500 max-w-4xl mx-auto`}>
-            <div className="bg-white border border-gray-200 rounded-[2rem] p-8 shadow-xl relative overflow-hidden">
+        <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300 max-w-5xl mx-auto`}>
+            <div className="bg-paper-2/95 backdrop-blur-md border border-line rounded-3xl p-6 md:p-8 shadow-lift relative overflow-hidden">
                 
                 {/* 模块标题 */}
-                <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+                <div className="flex flex-wrap justify-between items-center gap-3 mb-5">
                     <div>
-                        <h3 className="font-black text-2xl text-gray-900 flex items-center">
-                            <Sparkles className="w-6 h-6 mr-2 text-rose-500" />
+                        <h3 className="font-display text-2xl text-ink flex items-center">
+                            <Sparkles className="w-5 h-5 mr-2 text-koi" />
                             花火大会日程（日本专题）
                         </h3>
-                        <p className="text-xs text-gray-500 font-bold mt-1 tracking-widest uppercase">Hanabi Schedule & Map Links</p>
+                        <p className="text-xs text-ink-3 mt-1">按日期自动标明举办状态，支持直接跳到地图查看燃放点。</p>
                     </div>
                     <a 
                         href="https://hanabi.cloud/" 
                         target="_blank" 
                         rel="noreferrer"
-                        className="flex items-center px-4 py-2 bg-rose-50 text-rose-600 rounded-full text-sm font-bold hover:bg-rose-100 transition-colors"
+                        className="flex items-center px-3.5 py-1.5 bg-koi-soft text-ink rounded-full text-xs font-bold hover:opacity-85 transition-opacity border border-koi/20"
                     >
-                        数据源: Hanabi.cloud <ExternalLink className="w-4 h-4 ml-1" />
+                        数据源: Hanabi.cloud <ExternalLink className="w-3.5 h-3.5 ml-1.5 text-koi" />
                     </a>
                 </div>
 
                 {/* 搜索与时间过滤 */}
-                <div className="mb-6 flex flex-col sm:flex-row gap-3">
+                <div className="mb-5 flex flex-col sm:flex-row gap-2.5">
                     <input 
                         type="text" 
                         placeholder="搜索花火大会名称或地点..." 
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:border-rose-300 focus:ring-2 focus:ring-rose-100 transition-all"
+                        className="flex-1 bg-paper-3/80 border border-line rounded-xl px-4 py-2.5 text-sm text-ink placeholder-ink-3 focus:outline-none focus:border-koi transition-all"
                     />
                     <button
                         type="button"
                         onClick={() => setOnlyUpcoming((v) => !v)}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-bold border transition-colors shrink-0 ${
+                        className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors shrink-0 ${
                             onlyUpcoming
-                                ? 'bg-rose-50 text-rose-600 border-rose-200'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                                ? 'bg-koi-soft text-ink border-koi/35'
+                                : 'bg-paper-3/70 text-ink-2 border-line hover:bg-paper-3'
                         }`}
                     >
                         {onlyUpcoming ? '✓ 仅看未开始' : '隐藏已结束'}
@@ -86,7 +86,7 @@ const HanabiRadar = ({ isActive, onLocateOnMap }) => {
                 {/* 数据列表 */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {filteredData.map((event) => (
-                        <div key={event.id} className={`bg-slate-50 p-5 rounded-2xl border border-slate-200 hover:border-rose-200 hover:shadow-md transition-all group ${event.timing.isPast ? 'opacity-75' : ''}`}>
+                        <div key={event.id} className={`bg-paper-3/60 p-5 rounded-2xl border border-line/80 hover:border-koi/40 transition-all group ${event.timing.isPast ? 'opacity-75' : ''}`}>
                             <div className="flex justify-between items-start gap-2 mb-3">
                                 <h4 className="font-bold text-gray-900 text-lg group-hover:text-rose-600 transition-colors">{event.name}</h4>
                                 <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded ${event.timing.cls}`}>
