@@ -5,6 +5,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import SunCalc from 'suncalc';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { computeShootingBrief } from '../utils/shootingBrief';
 import { buildTodayCard, formatLocalTimeByLon, formatUtcOffsetLabel, translateWeatherCondition } from '../utils/todayCard';
 import { convertToRuleFormat } from '../utils/ruleDataConverter';
@@ -18,7 +19,7 @@ const fmtCountdown = (at, now) => {
   if (mins < 60) return `${mins} 分钟后`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m ? `${h} 小时 ${m} 分后` : `${h} 小时后`;
+  return m ? `${h}h${m}m` : `${h}h`;
 };
 
 const KIND_BADGE = {
@@ -35,17 +36,19 @@ function pickRelevant(intervals) {
 }
 
 export default function TodayCard({ lat, lng, customPoints = [], basePoints = [], onFlyTo }) {
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return localStorage.getItem('earth_terminal_brief_collapsed') === '1'; }
+  // 默认收起为轻盈单行浅色胶囊，把视觉空间还给地图；用户主动展开后记住偏好
+  const [expanded, setExpanded] = useState(() => {
+    try { return localStorage.getItem('earth_terminal_today_expanded') === '1'; }
     catch { return false; }
   });
   const [weather, setWeather] = useState(null);
-  const [now, setNow] = useState(() => new Date()); // 每分钟跳动的"当前时刻"：倒计时/花火过滤/触发器共用
+  const [now, setNow] = useState(() => new Date());
 
-  const toggle = () => setCollapsed((c) => {
-    try { localStorage.setItem('earth_terminal_brief_collapsed', c ? '0' : '1'); }
+  const toggle = () => setExpanded((prev) => {
+    const next = !prev;
+    try { localStorage.setItem('earth_terminal_today_expanded', next ? '1' : '0'); }
     catch { /* 隐私模式等场景静默降级 */ }
-    return !c;
+    return next;
   });
 
   const latKey = Math.round(lat * 100) / 100;
@@ -92,16 +95,15 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
     return () => ctrl.abort();
   }, [latKey, lngKey]);
 
-  // 倒计时每分钟刷新（仅展开时）
+  // 倒计时每分钟刷新
   useEffect(() => {
-    if (collapsed) return undefined;
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
-  }, [collapsed]);
+  }, []);
 
-  // 今日触发器：本地天文 + 单路天气喂给决定性瞬间规则引擎，取最稀有的一条
+  // 今日触发器：仅展开时计算展示
   const trigger = useMemo(() => {
-    if (!weather) return null;
+    if (!expanded || !weather) return null;
     try {
       const altitude = SunCalc.getPosition(now, latKey, lngKey).altitude * (180 / Math.PI);
       const moonPhase = SunCalc.getMoonIllumination(now).fraction;
@@ -120,38 +122,104 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
     } catch {
       return null;
     }
-  }, [weather, latKey, lngKey, now]);
+  }, [expanded, weather, latKey, lngKey, now]);
 
   if (!brief) return null;
-
-  if (collapsed) {
-    return (
-      <button
-        onClick={toggle}
-        aria-label="展开今日去这卡"
-        className="absolute top-4 left-1/2 -translate-x-1/2 z-[1500] w-9 h-9 rounded-full bg-zinc-900/85 backdrop-blur-md border border-cyan-500/30 text-lg leading-none hover:border-cyan-400 transition-colors"
-      >
-        🌅
-      </button>
-    );
-  }
 
   const gold = pickRelevant(brief.goldenHours);
   const blue = pickRelevant(brief.blueHours);
   const isPolar = brief.sunrise === null && brief.sunset === null;
   const tzLabel = formatUtcOffsetLabel(lngKey);
   const fmtTime = (d) => formatLocalTimeByLon(d, lngKey);
+  const zhWeather = card?.weatherLine ? translateWeatherCondition(card.weatherLine.condition) : '';
 
+  // 🌤️ 默认态：轻盈单行浅色毛玻璃胶囊（融入天の川底色，不挡地图）
+  if (!expanded) {
+    return (
+      <div className="absolute top-[104px] left-3 lg:top-3.5 lg:left-1/2 lg:-translate-x-1/2 z-[1050] max-w-[calc(100%-84px)]">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded="false"
+          aria-label="展开当地天气与光影详情"
+          className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-paper-2/90 hover:bg-paper-2 backdrop-blur-md border border-line/90 shadow-lift text-xs text-ink transition-[background-color,box-shadow] duration-200 max-w-full"
+        >
+          {card?.weatherLine ? (
+            <span className="flex items-center gap-1 shrink-0 font-bold text-ink">
+              <span aria-hidden="true">{card.weatherLine.emoji}</span>
+              <span className="hidden sm:inline">{zhWeather}</span>
+              <span className="tnum font-mono text-sora-deep">{card.weatherLine.tempC}°C</span>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 shrink-0 font-bold text-ink">
+              <span aria-hidden="true">🌅</span>
+              <span className="tnum font-mono">{fmtTime(brief.sunrise)}</span>
+            </span>
+          )}
+
+          <span className="text-line" aria-hidden="true">·</span>
+
+          {isPolar ? (
+            <span className="truncate text-ink-2">❄️ 极昼/极夜</span>
+          ) : card?.nextAstro ? (
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span aria-hidden="true">{card.nextAstro.emoji}</span>
+              <span className="tnum font-mono font-bold text-ink">{fmtTime(card.nextAstro.at)}</span>
+              <span className="truncate text-ink-2 hidden sm:inline">{card.nextAstro.label}</span>
+              <span className="tnum shrink-0 px-1.5 py-0.5 rounded-full bg-kouchou-soft text-ink text-[11px] font-bold">
+                {fmtCountdown(card.nextAstro.at, now)}
+              </span>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 text-ink-2">
+              <span>🌇 {fmtTime(brief.sunset)}</span>
+              <span className="text-[10px] text-ink-3 font-mono">{tzLabel}</span>
+            </span>
+          )}
+
+          <ChevronDown className="w-3.5 h-3.5 text-ink-3 shrink-0 ml-0.5" />
+        </button>
+      </div>
+    );
+  }
+
+  // 📖 展开态：浅色毛玻璃信息卡（温和、清晰、不突兀）
   return (
     <div
       role="status"
-      aria-label="今日光影与附近"
-      className="absolute top-4 left-1/2 -translate-x-1/2 z-[1500] w-[min(92vw,360px)] rounded-2xl bg-zinc-950/85 backdrop-blur-md border border-cyan-400/25 shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-zinc-100 overflow-hidden"
+      aria-label="当地天气与光影详情"
+      className="absolute top-[104px] left-3 lg:top-3.5 lg:left-1/2 lg:-translate-x-1/2 z-[1150] w-[min(calc(100%-84px),340px)] rounded-2xl bg-paper-2/95 backdrop-blur-xl border border-line shadow-xl text-ink overflow-hidden"
     >
-      {/* 天文条（按地图当前坐标的当地时间展示，附时区标签消除跨区歧义） */}
-      <div className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-8 pt-3 pb-2 text-xs font-mono text-cyan-50 border-b border-white/5">
+      {/* 顶栏：当地天气 + 收起 */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-paper-3/60 border-b border-line/80">
+        <div className="flex items-center gap-2 text-xs font-bold text-ink">
+          {card?.weatherLine ? (
+            <>
+              <span className="text-base leading-none">{card.weatherLine.emoji}</span>
+              <span>{zhWeather}</span>
+              <span className="tnum font-mono text-sora-deep">{card.weatherLine.tempC}°C</span>
+              {card.weatherLine.cloud !== null && (
+                <span className="text-[11px] font-normal text-ink-3">云量 {card.weatherLine.cloud}%</span>
+              )}
+            </>
+          ) : (
+            <span>当地光影与附近</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          className="inline-flex items-center gap-0.5 px-2 py-1 rounded-lg text-[11px] font-bold text-ink-3 hover:text-sora-deep hover:bg-sora-soft/50 transition-colors"
+          aria-label="收起当地天气与光影详情"
+        >
+          收起 <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* 天文五要素 */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 text-xs font-mono text-ink-2 border-b border-line/60">
         {isPolar ? (
-          <span title="极地天象">❄️ 极昼或极夜，太阳今天不上班</span>
+          <span className="font-sans">❄️ 极昼或极夜</span>
         ) : (
           <>
             <span title={`日出（当地时间 ${tzLabel}）`}>🌅 {fmtTime(brief.sunrise)}</span>
@@ -161,52 +229,31 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
             <span title={`月相：${brief.moon.phaseName}`}>
               {brief.moon.emoji} {Math.round(brief.moon.fraction * 100)}%
             </span>
-            <span className="text-[10px] text-zinc-400" title="按当前地图中心经度估算的当地时间">
-              {tzLabel}
-            </span>
+            <span className="ml-auto text-[10px] text-ink-3 bg-paper-3 px-1.5 py-0.5 rounded">{tzLabel}</span>
           </>
         )}
-        <button
-          onClick={toggle}
-          className="absolute right-2.5 top-2.5 text-zinc-500 hover:text-cyan-300 transition-colors"
-          aria-label="收起今日去这卡"
-        >
-          ×
-        </button>
       </div>
 
       {/* 下一个天象倒计时 */}
       {card?.nextAstro && (
-        <div className="px-4 py-3 flex items-baseline gap-2 border-b border-white/5">
-          <span className="text-base">{card.nextAstro.emoji}</span>
-          <span className="font-mono text-sm text-cyan-300">{fmtTime(card.nextAstro.at)}</span>
-          <span className="text-xs text-zinc-300">{card.nextAstro.label}</span>
-          <span className="ml-auto text-xs font-mono text-amber-300">
+        <div className="px-4 py-2.5 flex items-center gap-2 text-xs border-b border-line/60">
+          <span>{card.nextAstro.emoji}</span>
+          <span className="tnum font-mono font-bold text-sora-deep">{fmtTime(card.nextAstro.at)}</span>
+          <span className="text-ink-2">{card.nextAstro.label}</span>
+          <span className="ml-auto tnum px-2 py-0.5 rounded-full bg-kouchou-soft text-ink text-[11px] font-bold">
             {fmtCountdown(card.nextAstro.at, now)}
           </span>
         </div>
       )}
 
-      {/* 天气行 */}
-      {card?.weatherLine && (
-        <div className="px-4 py-2.5 flex items-center gap-2 text-xs text-zinc-300 border-b border-white/5">
-          <span className="text-base leading-none">{card.weatherLine.emoji}</span>
-          <span>{translateWeatherCondition(card.weatherLine.condition)}</span>
-          <span className="font-mono">{card.weatherLine.tempC}°C</span>
-          {card.weatherLine.cloud !== null && (
-            <span className="ml-auto font-mono text-zinc-500">云量 {card.weatherLine.cloud}%</span>
-          )}
-        </div>
-      )}
-
-      {/* 今日触发器（决定性瞬间规则引擎最稀有的一条） */}
+      {/* 今日触发器 */}
       {trigger && (
         <div
-          className="mx-3 mt-3 rounded-xl bg-rose-500/10 border border-rose-400/20 px-3 py-2 text-xs text-rose-200 leading-relaxed"
+          className="mx-3 mt-2.5 rounded-xl bg-koi-soft/75 border border-koi/20 px-3 py-2 text-xs text-ink leading-relaxed"
           title={trigger.output}
         >
           {trigger.output.split('|')[0].trim()}
-          <span className="ml-1 opacity-70">{'⭐'.repeat(trigger.rarity || 3)}</span>
+          <span className="ml-1 opacity-80">{'⭐'.repeat(trigger.rarity || 3)}</span>
         </div>
       )}
 
@@ -220,15 +267,15 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
                 <li key={p.id}>
                   <button
                     onClick={() => onFlyTo?.(p.lat, p.lon)}
-                    className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 text-left text-xs hover:bg-white/5 transition-colors focus-visible:outline focus-visible:outline-cyan-400"
+                    className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 text-left text-xs hover:bg-sora-soft/50 transition-colors"
                     title={`${badge.title} · 点击定位`}
                   >
                     <span aria-hidden="true">{badge.emoji}</span>
-                    <span className="truncate text-zinc-200">{p.name}</span>
+                    <span className="truncate text-ink font-medium">{p.name}</span>
                     {p.date && p.date !== now.toISOString().slice(0, 10) && (
-                      <span className="font-mono text-[10px] text-rose-300/80">{p.date}</span>
+                      <span className="font-mono text-[10px] text-koi">{p.date}</span>
                     )}
-                    <span className="ml-auto shrink-0 font-mono text-cyan-300/80">
+                    <span className="ml-auto shrink-0 tnum font-mono text-sora-deep">
                       {p.distanceKm.toFixed(1)} km
                     </span>
                   </button>
@@ -237,15 +284,15 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
             })}
           </ul>
         ) : (
-          <div className="py-1 space-y-2">
-            <p className="text-xs text-zinc-400">
-              当前视野 50km 内暂无已收录节点，可点击地图任意位置分析或收藏
+          <div className="space-y-2">
+            <p className="text-xs text-ink-3">
+              当前视野 50km 内暂无已收录节点，点击地图任意位置可查看光影或收藏
             </p>
             <div className="flex flex-wrap gap-1.5">
               {customPoints[0] && (
                 <button
                   onClick={() => onFlyTo?.(customPoints[0].lat, customPoints[0].lon, 13)}
-                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] text-cyan-200 transition-colors"
+                  className="px-2.5 py-1 rounded-lg bg-sora-soft/70 hover:bg-sora-soft text-[11px] font-bold text-sora-deep transition-colors"
                 >
                   ⭐ 跳到我的收藏
                 </button>
@@ -255,9 +302,9 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
                   <button
                     key={r.id}
                     onClick={() => onFlyTo?.(r.center[0], r.center[1], r.zoom ?? 5.5)}
-                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] text-emerald-200 transition-colors"
+                    className="px-2.5 py-1 rounded-lg bg-wakaba-soft hover:bg-wakaba-soft/80 text-[11px] font-bold text-ink transition-colors"
                   >
-                    {r.icon || '🌍'} 浏览{r.name}铁道骨架
+                    {r.icon || '🌍'} 浏览{r.name}铁道
                   </button>
                 )
               ))}

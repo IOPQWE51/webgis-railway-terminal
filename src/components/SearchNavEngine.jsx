@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { Search, Loader2, Target } from 'lucide-react';
+import { Search, Loader2, Crosshair } from 'lucide-react';
 import { searchPlace } from '../utils/geocode';
 
-const SearchNavEngine = ({ onLocationFound }) => {
+const SearchNavEngine = ({ onLocationFound, onLocate, isLocating = false }) => {
     const [query, setQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
 
     const handleSearch = async (e) => {
-        // 允许回车或点击放大镜搜索
         if ((e.key === 'Enter' || e.type === 'click') && query.trim() !== '') {
             setIsSearching(true);
             const q = query.trim();
             try {
-                // 🛰️ 统一链路：自有代理（Mapbox 服务端）→ Nominatim 兜底（见 utils/geocode.js）
                 const located = await searchPlace(q);
                 if (located) {
                     onLocationFound(located.lat, located.lon, located.displayName, located.shortName);
@@ -28,29 +26,35 @@ const SearchNavEngine = ({ onLocationFound }) => {
     };
 
     return (
-        <div className="bg-zinc-900/90 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-zinc-700/50 group">
-            <div className="relative flex flex-col gap-2">
-                <div className="flex items-center justify-between text-cyan-400 font-bold text-xs tracking-wide mb-1">
-                    <div className="flex items-center">
-                        <Target className="w-3.5 h-3.5 mr-1.5" /> 全球地点搜索
-                    </div>
-                    <span className="text-zinc-500 font-mono text-[10px]">GLOBAL</span>
-                </div>
-                
-                <div className="relative flex items-center bg-black/60 border border-zinc-700/30 rounded-xl overflow-hidden focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/20 transition-all">
-                    <button onClick={handleSearch} aria-label="搜索地点" className="pl-3 text-zinc-500 hover:text-cyan-400 transition-colors">
-                        {isSearching ? <Loader2 className="w-4 h-4 animate-spin text-cyan-500" /> : <Search className="w-4 h-4" />}
-                    </button>
-                    <input 
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={handleSearch}
-                        placeholder="搜索全球城市、车站或地标..."
-                        className="w-full bg-transparent text-sm text-white placeholder-zinc-500 py-2.5 px-3 outline-none"
-                    />
-                </div>
-            </div>
+        <div className="flex items-center bg-paper-2/92 backdrop-blur-md rounded-2xl shadow-lift border border-line/90 focus-within:border-sora focus-within:ring-2 focus-within:ring-sora/20 transition-all overflow-hidden">
+            <button
+                type="button"
+                onClick={handleSearch}
+                aria-label="搜索地点"
+                className="pl-3.5 pr-1 text-ink-3 hover:text-sora-deep transition-colors shrink-0"
+            >
+                {isSearching ? <Loader2 className="w-4 h-4 animate-spin text-sora" /> : <Search className="w-4 h-4" />}
+            </button>
+            <input 
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleSearch}
+                placeholder="搜索全球城市、车站或地标..."
+                className="w-full bg-transparent text-[13px] text-ink placeholder-ink-3 py-2.5 px-2 outline-none"
+            />
+            {onLocate && (
+                <button
+                    type="button"
+                    onClick={onLocate}
+                    disabled={isLocating}
+                    title="定位到当前位置"
+                    aria-label="定位到当前位置"
+                    className="pr-3 pl-2.5 py-2 text-ink-2 hover:text-sora-deep border-l border-line/70 transition-colors shrink-0 disabled:opacity-50"
+                >
+                    {isLocating ? <Loader2 className="w-4 h-4 animate-spin text-sora" /> : <Crosshair className="w-4 h-4" />}
+                </button>
+            )}
         </div>
     );
 };

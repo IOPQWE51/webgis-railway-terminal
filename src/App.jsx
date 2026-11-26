@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-import { MapIcon, Database, Info, Calculator, Globe, Sparkles, PlaneTakeoff, CloudFog, User } from 'lucide-react';
+import { MapIcon, Database, Info, Calculator, Sparkles, PlaneTakeoff, CloudFog, User } from 'lucide-react';
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 import { BASE_POINTS_CONFIG } from './config/regions';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -123,23 +123,55 @@ const App = () => {
                 </Suspense>
                 </ErrorBoundary>
             ) : (
-                <div className="min-h-screen p-4 md:p-8 text-gray-800">
-                    <div className="max-w-6xl mx-auto">
-                        <header className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-                            <div>
-                                <h1 className="flex flex-wrap items-end gap-x-3 gap-y-1 text-3xl md:text-4xl lg:text-5xl">
-                                    <span className="font-display text-sora-deep drop-shadow-[0_2px_0_oklch(0.94_0.045_5/0.5)]">Earth</span>
+                <div className="min-h-screen px-3 py-3 md:px-6 md:py-4 text-ink">
+                    <div className="max-w-[1400px] mx-auto">
+                        {/* 🌌 单行轻盈顶栏：Logo + 导航胶囊 + 账号同步，把最大视野还给地图 */}
+                        <header className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+                            <div className="flex items-center gap-2.5 shrink-0">
+                                <h1 className="flex items-baseline gap-1.5 text-2xl md:text-[28px] leading-none select-none">
+                                    <span className="font-display text-sora-deep drop-shadow-[0_1.5px_0_oklch(0.94_0.045_5/0.6)]">Earth</span>
                                     <span className="font-display text-ink">Terminal</span>
                                 </h1>
-                                <p className="text-ink-2 mt-1.5 flex items-center text-sm md:text-base">
-                                    <Globe className="w-4 h-4 mr-1.5 shrink-0 text-sora" />
-                                    全球地理探索与出行工作台 · 天气光影、收藏同步与多国交通网络
-                                    {isCloudSyncing && <CloudFog className="w-4 h-4 ml-2 text-cyan-500 animate-pulse" title="云端同步中..." />}
-                                </p>
+                                {isCloudSyncing && (
+                                    <span className="inline-flex items-center gap-1 text-[11px] text-sora font-medium" title="云端同步中...">
+                                        <CloudFog className="w-3.5 h-3.5 animate-pulse" />
+                                    </span>
+                                )}
                             </div>
 
-                            {/* 🔐 账号登录与云同步入口（直观清晰） */}
-                            <div className="flex items-center shrink-0">
+                            {/* 中央导航胶囊条：桌面端同行居中，小屏自动换行满宽 */}
+                            <nav
+                                className="order-3 xl:order-2 w-full xl:w-auto flex overflow-x-auto flex-nowrap bg-paper-2/85 backdrop-blur-md p-1 rounded-2xl shadow-lift border border-line/80 gap-1 scrollbar-hide"
+                                role="tablist"
+                                ref={(el) => { window.__tabNav = el; }}
+                            >
+                                {[
+                                    { id: 'map', label: '探索地图', icon: MapIcon },
+                                    { id: 'data', label: '收藏与导入', icon: Database },
+                                    { id: 'rules', label: '出行指南', icon: Info },
+                                    { id: 'tools', label: '汇率换算', icon: Calculator },
+                                    { id: 'sub-culture', label: '巡礼与活动', icon: Sparkles },
+                                    { id: 'aviation', label: '机票航线', icon: PlaneTakeoff },
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        role="tab"
+                                        aria-selected={activeTab === tab.id}
+                                        className={`shrink-0 flex items-center px-3.5 py-2 rounded-xl text-[13px] font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
+                                            activeTab === tab.id
+                                                ? 'bg-sora text-sora-ink shadow-sm'
+                                                : 'text-ink-2 hover:text-ink hover:bg-sora-soft/60'
+                                        }`}
+                                    >
+                                        <tab.icon className="w-3.5 h-3.5 mr-1.5" />
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </nav>
+
+                            {/* 🔐 账号登录与云同步入口 */}
+                            <div className="order-2 xl:order-3 flex items-center shrink-0">
                                 {session ? (
                                     <span className="relative">
                                         <button
@@ -175,7 +207,7 @@ const App = () => {
                                     <button
                                         onClick={() => setAuthOverlayOpen(true)}
                                         title="登录后可在多设备间云端同步你的收藏地点"
-                                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-paper-2 text-sora-deep border border-sora/30 shadow-sm hover:bg-sora-soft/60 hover:border-sora transition-colors"
+                                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-paper-2/90 text-sora-deep border border-sora/30 shadow-sm hover:bg-sora-soft/70 hover:border-sora transition-colors"
                                     >
                                         <User className="w-3.5 h-3.5" />
                                         登录 / 云同步
@@ -183,37 +215,6 @@ const App = () => {
                                 )}
                             </div>
                         </header>
-
-                        <nav
-                            className="flex overflow-x-auto flex-nowrap bg-paper-2/90 backdrop-blur-sm p-2 rounded-2xl shadow-lift border border-line mb-4 gap-2 scrollbar-hide"
-                            role="tablist"
-                            ref={(el) => { window.__tabNav = el; }}
-                        >
-                    {[
-                        { id: 'map', label: '探索地图', icon: MapIcon },
-                        { id: 'data', label: '收藏与导入', icon: Database },
-                        { id: 'rules', label: '出行指南', icon: Info },
-                        { id: 'tools', label: '汇率换算', icon: Calculator },
-                        { id: 'sub-culture', label: '巡礼与活动', icon: Sparkles },
-                        { id: 'aviation', label: '机票航线', icon: PlaneTakeoff },
-                    ].map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            role="tab"
-                            aria-selected={activeTab === tab.id}
-                            /* 闸门 10：过渡只指定属性（bg/color/shadow），不动画 outline —— 焦点环即时出现 */
-                            className={`shrink-0 flex items-center px-5 py-2.5 rounded-xl text-sm font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
-                                activeTab === tab.id
-                                    ? 'bg-sora text-sora-ink shadow-lift'
-                                    : 'text-ink-2 hover:text-ink hover:bg-sora-soft/60'
-                            }`}
-                        >
-                            <tab.icon className="w-4 h-4 mr-2" />
-                            {tab.label}
-                        </button>
-                    ))}
-                </nav>
 
                 <main>
                   <ErrorBoundary label="主控台">

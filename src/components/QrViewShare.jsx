@@ -34,7 +34,7 @@ const PALETTES = {
   },
 };
 
-const QrViewShare = ({ variant = 'light', size = 180 }) => {
+const QrViewShare = ({ variant = 'light', size = 180, compact = false }) => {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   // 📍 fixed 定位锚点：打开瞬间按按钮视口坐标计算（absolute 会被面板
@@ -129,16 +129,21 @@ const QrViewShare = ({ variant = 'light', size = 180 }) => {
 
   return (
     <div>
-      {/* 触发按钮：与所在面板的按钮体系风格一致 */}
+      {/* 触发按钮：支持悬浮窄轨 compact 模式与常规全宽按钮 */}
       <button
         ref={btnRef}
+        type="button"
         onClick={toggle}
-        className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors ${pal.icon} ${variant === 'dark' ? 'border border-[rgba(251,191,36,0.3)] tracking-widest' : 'bg-white border border-gray-200 shadow-sm hover:shadow'}`}
+        className={
+          compact
+            ? `w-11 h-11 rounded-xl flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-colors ${open ? 'bg-sora text-sora-ink shadow-sm' : 'text-ink-2 hover:bg-sora-soft/60 hover:text-sora-deep'}`
+            : `w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-colors ${pal.icon} ${variant === 'dark' ? 'border border-[rgba(251,191,36,0.3)] tracking-widest' : 'bg-white border border-gray-200 shadow-sm hover:shadow'}`
+        }
         aria-expanded={open}
-        title="把当前视角变成二维码，手机扫码直达"
+        title="把当前视角生成二维码，手机扫码直达"
       >
         <QrCode className="w-4 h-4" />
-        {variant === 'dark' ? 'QR_SHARE' : '视角二维码'}
+        {compact ? <span>分享</span> : (variant === 'dark' ? 'QR_SHARE' : '视角二维码')}
       </button>
 
       {/* fixed 定位：逃出面板 overflow 裁剪，按打开时的按钮视口坐标锚定 */}

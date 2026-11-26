@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, X, ChevronUp, Trash2, Ruler } from 'lucide-react';
+import { Loader2, X, Trash2, Ruler, MapPin } from 'lucide-react';
 import TacticalBottomSheet from './TacticalBottomSheet'; // 引入底部详情抽屉
 
 // 导入外部依赖
 import ControlPanel from './ControlPanel';
+import SearchNavEngine from './SearchNavEngine';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
 import { serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
 import { getPositionByIP } from '../utils/performanceHelpers';
+import { REGION_REGISTRY } from '../config/regions';
 import TodayCard from './TodayCard';
 
 // 导入核心 Hooks
@@ -20,8 +22,8 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const ipLocateDoneRef = useRef(false);
     const userInteractedRef = useRef(false);
     const [leafletReady, setLeafletReady] = useState(false);
-    const [showDrawer, setShowDrawer] = useState(false); // 控制台抽屉
-    const [visitorCity, setVisitorCity] = useState(''); // 🌐 IP 自动识别到的访客城市
+    const [, setShowDrawer] = useState(false); // 兼容 useMapTools 签名
+    const [visitorGeo, setVisitorGeo] = useState(null); // 🌐 IP 自动识别到的访客城市与坐标
     
     // 💥 新增：地点详情的底部抽屉状态
     const [bottomSheetHtml, setBottomSheetHtml] = useState(null); 
@@ -134,13 +136,17 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         return () => window.removeEventListener('keydown', onKeyDown);
     }, []);
 
-    // 🌐 首次加载按访客网络 IP 自动定位（不覆盖分享链接视角，也不打断已手动拖图的用户）
+    // 🌐 首次加载按访客网络 IP 自动定位：
+    // - 仅监听真实用户指针/滚轮输入来判断"已手动交互"（避免初始化期 zoomstart 误伤）
+    // - 使用 animate: false 瞬移，避免 Leaflet 初始化窗口期吞掉平移/缩放动画
     useEffect(() => {
         if (!leafletReady || !mapRef.current || skipIpAutoLocate || ipLocateDoneRef.current) return;
         const map = mapRef.current;
+        const container = map.getContainer();
         const markInteracted = () => { userInteractedRef.current = true; };
-        map.once('dragstart', markInteracted);
-        map.once('zoomstart', markInteracted);
+        container.addEventListener('pointerdown', markInteracted, { once: true, passive: true });
+        container.addEventListener('wheel', markInteracted, { once: true, passive: true });
+        container.addEventListener('touchstart', markInteracted, { once: true, passive: true });
 
         let cancelled = false;
         ipLocateDoneRef.current = true;
@@ -148,10 +154,19 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         getPositionByIP()
             .then((pos) => {
                 if (cancelled || !pos || !Number.isFinite(pos.latitude) || !Number.isFinite(pos.longitude)) return;
-                const label = pos.city || pos.region || pos.country || '';
-                if (label) setVisitorCity(label);
+                const city = pos.city || pos.region || pos.country || '';
+                setVisitorGeo({ lat: pos.latitude, lon: pos.longitude, city });
                 if (userInteractedRef.current) return;
-                map.setView([pos.latitude, pos.longitude], 9, { animate: true });
+                const applyIpView = () => {
+                    if (cancelled || userInteractedRef.current) return;
+                    map.setView([pos.latitude, pos.longitude], 9, { animate: false });
+                    setMapView({ lat: pos.latitude, lng: pos.longitude });
+                };
+                if (map._loaded) {
+                    applyIpView();
+                } else {
+                    map.once('load', applyIpView);
+                }
             })
             .catch(() => {
                 // IP 定位不可用时静默保持全球概览视角
@@ -159,8 +174,9 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
         return () => {
             cancelled = true;
-            map.off('dragstart', markInteracted);
-            map.off('zoomstart', markInteracted);
+            container.removeEventListener('pointerdown', markInteracted);
+            container.removeEventListener('wheel', markInteracted);
+            container.removeEventListener('touchstart', markInteracted);
         };
     }, [leafletReady, skipIpAutoLocate]);
 
@@ -172,7 +188,6 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         if (!region?.center || !mapRef.current) return;
         userInteractedRef.current = true;
         mapRef.current.flyTo(region.center, region.zoom ?? 5.5, { duration: 1.5 });
-        if (window.innerWidth < 1024) setShowDrawer(false);
     };
 
     // 🌑 切入 Dark 2D 时把当前主图视角原样带过去
@@ -237,74 +252,105 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         }
     }, [leafletReady, tools.isMeasuring]);
 
-    // 5. 渲染视图层
+    // 5. 渲染视图层（全宽沉浸画布 + 天の川浅色毛玻璃悬浮控件）
     return (
-        <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500`}>
-            <div className="flex flex-col lg:flex-row gap-5 relative" style={{ height: 'calc(100vh - 180px)', minHeight: '600px' }}>
-                
-                {/* 左侧/全屏 地图容器 */}
-                <div className="flex-1 relative rounded-[2rem] overflow-hidden shadow-2xl border border-gray-200">
-                    <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#e5e5f7' }}></div>
+        <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300`}>
+            <div className="relative rounded-[1.75rem] overflow-hidden shadow-lift border border-line/90 bg-paper-2" style={{ height: 'calc(100dvh - 96px)', minHeight: '560px' }}>
+                <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#eef4fa' }}></div>
 
-                    {/* 📏 极简战术 HUD：测距模式专属顶部胶囊 */}
-                    {tools.isMeasuring && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[2000] flex items-center bg-zinc-900/90 backdrop-blur-md rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] border border-cyan-500/30 px-3 py-1.5 animate-in slide-in-from-top-2 whitespace-nowrap">
-                            <div className="flex items-center gap-2 pr-3">
-                                <Ruler className="w-4 h-4 text-cyan-400" />
-                                <span className="text-white font-mono font-bold text-sm min-w-[60px] text-center tracking-wider">
-                                    {tools.measureDistance || '0.00'} <span className="text-[10px] text-zinc-400 font-sans">km</span>
-                                </span>
-                            </div>
-                            <div className="w-[1px] h-4 bg-zinc-700 mx-1"></div>
-                            <div className="flex items-center gap-1 pl-2">
-                                <button
-                                    onClick={tools.clearMeasurement} 
-                                    className="p-1.5 rounded-full text-zinc-400 hover:text-cyan-400 hover:bg-zinc-800 transition-colors"
-                                    title="清除连线"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={tools.exitMeasurement} 
-                                    className="p-1.5 rounded-full text-red-400 hover:text-white hover:bg-red-500/80 transition-colors ml-1"
-                                    title="退出测距"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {mapView && leafletReady && (
-                        <TodayCard
-                            lat={mapView.lat}
-                            lng={mapView.lng}
-                            customPoints={customPoints}
-                            basePoints={basePoints}
-                            onFlyTo={handleTodayFlyTo}
+                {/* 🔍 左上角：轻盈浅色搜索框（内置定位）+ 一键快捷芯片 */}
+                <div className="absolute top-3 left-3 z-[1100] w-[min(calc(100%-84px),320px)] flex flex-col gap-2 pointer-events-none">
+                    <div className="pointer-events-auto">
+                        <SearchNavEngine
+                            onLocationFound={tools.handleSearchLocationFound}
+                            onLocate={tools.locatePlayer}
+                            isLocating={tools.isLocating}
                         />
-                    )}
-
-                    <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all">
-                        <ChevronUp className="w-4 h-4 text-cyan-400" /> 地图工具与图层
-                    </button>
-                    {!leafletReady && <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50"><Loader2 className="w-8 h-8 animate-spin text-cyan-600" /></div>}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5 pointer-events-auto">
+                        {visitorGeo?.city && (
+                            <button
+                                type="button"
+                                onClick={() => handleTodayFlyTo(visitorGeo.lat, visitorGeo.lon, 10)}
+                                title={`IP 识别城市：${visitorGeo.city}，点击回到附近`}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-paper-2/88 hover:bg-paper-2 backdrop-blur-md border border-line/80 shadow-sm text-ink-2 hover:text-sora-deep transition-colors"
+                            >
+                                <MapPin className="w-3 h-3 text-sora" />
+                                <span>{visitorGeo.city}</span>
+                            </button>
+                        )}
+                        {REGION_REGISTRY.map((region) => (
+                            region.center && (
+                                <button
+                                    key={region.id}
+                                    type="button"
+                                    onClick={() => handleJumpToRegion(region)}
+                                    title={region.description || `查看${region.name}铁道骨架`}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-paper-2/88 hover:bg-paper-2 backdrop-blur-md border border-line/80 shadow-sm text-ink-2 hover:text-ink transition-colors"
+                                >
+                                    <span>{region.icon || '🌍'}</span>
+                                    <span>{region.name}铁道</span>
+                                </button>
+                            )
+                        ))}
+                    </div>
                 </div>
 
-                {/* PC 右侧工具栏 */}
-                <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-300 relative z-0">
-                    <ControlPanel 
-                        baseMapType={baseMapType} setBaseMapType={setBaseMapType} 
-                        weatherType={weatherType} setWeatherType={setWeatherType} 
-                        filters={filters} toggleFilter={toggleFilter} 
-                        visitorCity={visitorCity}
+                {/* 📏 测距模式悬浮胶囊（浅色毛玻璃 + 暖琥珀提示） */}
+                {tools.isMeasuring && (
+                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[1200] flex items-center bg-paper-2/95 backdrop-blur-md rounded-full shadow-xl border border-kouchou/50 px-3.5 py-1.5 whitespace-nowrap">
+                        <div className="flex items-center gap-2 pr-3">
+                            <Ruler className="w-4 h-4 text-kouchou" />
+                            <span className="text-ink tnum font-mono font-bold text-sm min-w-[60px] text-center">
+                                {tools.measureDistance || '0.00'} <span className="text-[11px] text-ink-3 font-sans">km</span>
+                            </span>
+                        </div>
+                        <div className="w-[1px] h-4 bg-line mx-1"></div>
+                        <div className="flex items-center gap-1 pl-1.5">
+                            <button
+                                type="button"
+                                onClick={tools.clearMeasurement}
+                                className="p-1.5 rounded-full text-ink-3 hover:text-sora-deep hover:bg-sora-soft/50 transition-colors"
+                                title="清除连线"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={tools.exitMeasurement}
+                                className="p-1.5 rounded-full text-koi hover:bg-koi-soft transition-colors"
+                                title="退出测距"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* 🌤️ 顶部居中：浅色毛玻璃单行光影天气胶囊（默认极轻，点开才展详情） */}
+                {mapView && leafletReady && (
+                    <TodayCard
+                        lat={mapView.lat}
+                        lng={mapView.lng}
+                        customPoints={customPoints}
+                        basePoints={basePoints}
+                        onFlyTo={handleTodayFlyTo}
+                    />
+                )}
+
+                {/* 🧭 右侧悬浮窄轨工具条 */}
+                <div className="absolute top-3 right-3 z-[1100]">
+                    <ControlPanel
+                        baseMapType={baseMapType} setBaseMapType={setBaseMapType}
+                        weatherType={weatherType} setWeatherType={setWeatherType}
+                        filters={filters} toggleFilter={toggleFilter}
                         onJumpToRegion={handleJumpToRegion}
                         onEnterTactical={handleEnterTacticalWithView}
-                        {...tools} 
+                        {...tools}
                     />
                 </div>
 
-                {/* 💻 PC端：地点详情浮窗 (原生 DOM 渲染) */}
+                {/* 💻 PC端：右侧滑出地点详情面板（点地图/搜地点时按需出现，不常驻占地） */}
                 <div
                     id="cyber-panel"
                     className="cyber-panel cyber-panel--map-dock hidden"
@@ -319,7 +365,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                             onClick={() => closeCyberPanel()}
                             className="text-xs font-bold text-slate-500 hover:text-cyan-700 transition-colors"
                         >
-                            ← 返回地图工具
+                            ← 收起详情
                         </button>
                         <button type="button" className="cyber-panel-close !static !float-none !m-0 !w-7 !h-7 !text-lg" onClick={() => closeCyberPanel()} aria-label="关闭面板">
                             ×
@@ -328,33 +374,19 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     <div id="cyber-panel-content" />
                 </div>
 
-                {/* 📱 移动端：控制面板抽屉 */}
-                {showDrawer && (
-                    <div className="lg:hidden fixed inset-0 z-[2000] flex flex-col justify-end">
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowDrawer(false)}></div>
-                        <div className="relative bg-zinc-50 w-full rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom-full max-h-[85vh] overflow-y-auto pb-10">
-                            <div className="flex justify-between items-center mb-6"><h3 className="font-black text-xl">地图工具与图层</h3><button onClick={() => setShowDrawer(false)} className="bg-zinc-200 p-2 rounded-full"><X className="w-5 h-5" /></button></div>
-                            <ControlPanel 
-                                baseMapType={baseMapType} setBaseMapType={setBaseMapType} 
-                                weatherType={weatherType} setWeatherType={setWeatherType} 
-                                filters={filters} toggleFilter={toggleFilter} 
-                                visitorCity={visitorCity}
-                                onJumpToRegion={handleJumpToRegion}
-                                onEnterTactical={handleEnterTacticalWithView}
-                                {...tools} 
-                            />
-                        </div>
+                {!leafletReady && (
+                    <div className="absolute inset-0 bg-paper/80 backdrop-blur-sm flex items-center justify-center z-50">
+                        <Loader2 className="w-7 h-7 animate-spin text-sora" />
                     </div>
                 )}
             </div>
 
-            {/* 💥 核心装载：移动端地点详情底部战术抽屉 */}
-            <TacticalBottomSheet 
-                open={!!bottomSheetHtml} 
-                htmlContent={bottomSheetHtml} 
-                onDismiss={() => setBottomSheetHtml(null)} 
+            {/* 📱 移动端地点详情底部抽屉 */}
+            <TacticalBottomSheet
+                open={!!bottomSheetHtml}
+                htmlContent={bottomSheetHtml}
+                onDismiss={() => setBottomSheetHtml(null)}
             />
-            
         </div>
     );
 };
