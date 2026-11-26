@@ -501,7 +501,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         </div>
                     </div>
 
-                    {handleEnterTacticalWithView && (
+                    {onEnterTactical && (
                         <button
                             type="button"
                             onClick={handleEnterTacticalWithView}
