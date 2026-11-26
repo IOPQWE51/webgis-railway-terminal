@@ -86,23 +86,26 @@ export function extractVercelIpGeo(headers = {}) {
     };
 }
 
+// 🌐 访客网络 IP 定位：走独立 general 限流桶（60 次/分），不占用 Mapbox 10 次/分配额
+const handleIpGeo = withRateLimit('general')(async function ipGeoHandler(req, res) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+    res.setHeader('Cache-Control', 'private, no-store');
+
+    const geo = extractVercelIpGeo(req.headers);
+    if (!geo) {
+        return res.status(200).json({ ok: false, source: 'none' });
+    }
+    return res.status(200).json({ ok: true, ...geo });
+});
+
 // 🛡️ 应用速率限制：每个IP每分钟最多10次请求（rateLimiter.js 已改为 Redis 分布式限流）
-export default withRateLimit('mapbox')(async function handler(req, res) {
+const handleMapbox = withRateLimit('mapbox')(async function mapboxHandler(req, res) {
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
 
     const { lat, lon, type } = req.query;
-
-    // 🌐 访客网络 IP 定位：读取 Vercel Edge 注入的地理头，严格禁止 CDN 共享缓存
-    if (type === 'ip') {
-        res.setHeader('Cache-Control', 'private, no-store');
-        const geo = extractVercelIpGeo(req.headers);
-        if (!geo) {
-            return res.status(200).json({ ok: false, source: 'none' });
-        }
-        return res.status(200).json({ ok: true, ...geo });
-    }
 
     // 📌 Edge Cache 配置：15分钟缓存（交通数据实时变化）
     const isProduction = process.env.VERCEL_ENV === 'production';
@@ -249,4 +252,11 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
         console.error("❌ Mapbox API 调用失败:", error);
         res.status(500).json({ error: "Mapbox 数据获取失败", features: [], traffic: { level: 'unknown' } });
     }
-}); // 结束 withRateLimit 包装
+}); // 结束 withRateLimit('mapbox') 包装
+
+export default async function handler(req, res) {
+    if (req.query?.type === 'ip') {
+        return handleIpGeo(req, res);
+    }
+    return handleMapbox(req, res);
+}

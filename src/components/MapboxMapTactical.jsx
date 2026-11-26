@@ -61,8 +61,8 @@ const USER_LOCATION_HTML = `
 `;
 
 export default function MapboxMapTactical({
-  center = [139.6503, 35.6762], // 默认：东京
-  zoom = 12,
+  center = [15, 20], // 默认：全球中立视角
+  zoom = 3,
   customPoints = [],
   onMapClick = null,
   styleUrl = 'mapbox://styles/iopqwe51/cmnoq0jyc008501sg88f6en5z', // Dark 2D 样式
