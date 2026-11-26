@@ -41,7 +41,15 @@ const App = () => {
         if (!shouldRestoreSharedView(window.sessionStorage)) return;
         const view = parseViewHash(window.location.hash);
         if (!view) return;
+        // 消费完分享哈希后立即清理地址栏，保持域名干净
+        if (window.location.hash) {
+            window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
         if (view.mode === 'tactical') {
+            if (view.lat !== null && view.lon !== null) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- 启动恢复链：一次性传递战术深链接视角
+                setTacticalInitialView({ lat: view.lat, lon: view.lon, zoom: view.z ?? 12 });
+            }
             // eslint-disable-next-line react-hooks/set-state-in-effect -- 启动恢复链：一次性条件切模式，非级联渲染
             setIsTacticalMode(true);
             return;

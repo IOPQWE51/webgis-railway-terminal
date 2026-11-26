@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { QrCode, X, Copy, Check } from 'lucide-react';
 import { qrMatrix } from '../utils/qrEncode';
+import { serializeViewHash } from '../utils/urlState';
 
 const PALETTES = {
   light: {
@@ -34,7 +35,7 @@ const PALETTES = {
   },
 };
 
-const QrViewShare = ({ variant = 'light', size = 180, compact = false }) => {
+const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = null }) => {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   // 📍 fixed 定位锚点：打开瞬间按按钮视口坐标计算（absolute 会被面板
@@ -82,11 +83,14 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false }) => {
     };
   }, [open]);
 
-  // 当前完整 URL（含 hash）——打开面板时快照，拖图不会边扫边变
+  // 当前视角分享链接（按需拼装深链接哈希，平时保持浏览器地址栏干净）
   const shareUrl = useMemo(() => {
     if (!open) return '';
-    return window.location.origin + window.location.pathname + window.location.hash;
-  }, [open]);
+    const hash = view && Number.isFinite(view.lat) && Number.isFinite(view.lon)
+      ? serializeViewHash(view)
+      : window.location.hash;
+    return window.location.origin + window.location.pathname + hash;
+  }, [open, view]);
 
   // 矩阵只在打开且有 URL 时生成；渲染失败（超长等）回退提示
   const matrix = useMemo(() => {

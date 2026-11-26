@@ -8,7 +8,7 @@ import { REGION_REGISTRY } from '../config/regions';
  * 收起所有低频配置，点按才向左侧弹出轻量浮层，把最大面积还给地图。
  */
 const ControlPanel = ({
-    isMeasuring, baseMapType, weatherType, filters,
+    isMeasuring, baseMapType, weatherType, filters, shareView,
     setIsMeasuring, setMeasurePoints, setMeasureDistance, setBaseMapType, setWeatherType, toggleFilter, onEnterTactical, onJumpToRegion
 }) => {
     const [openPanel, setOpenPanel] = useState(null); // null | 'map' | 'layers'
@@ -155,7 +155,7 @@ const ControlPanel = ({
                     <span>测距</span>
                 </button>
 
-                <QrViewShare variant="light" compact={true} />
+                <QrViewShare variant="light" compact={true} view={shareView} />
 
                 {onEnterTactical && (
                     <>

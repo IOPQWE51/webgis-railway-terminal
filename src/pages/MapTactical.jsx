@@ -10,7 +10,7 @@ import { storage, debounce, getPositionByIP } from '../utils/performanceHelpers'
 import { searchPlace } from '../utils/geocode';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { TACTICAL_STYLES } from '../config/mapConstants';
-import { parseViewHash, serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
+import { parseViewHash } from '../utils/urlState';
 import QrViewShare from '../components/QrViewShare';
 import { usePoints } from '../hooks/usePoints';
 
@@ -112,20 +112,15 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
     setClickedCoord({ longitude, latitude });
   };
 
-  // 🔗 视角变化 → URL hash（mode=tactical，复制地址栏即可分享战术视角）
-  //  + 本机"上次视角"记忆（下次进入直接回到上次位置，与主地图同一套哲学）
-  //  + 视角指纹（自己收藏夹打开不弹分享面板——与 App.jsx 启动恢复逻辑共用判断）
-  // 防抖 600ms 与主地图对齐；注意这里的参数是 [lng, lat]（Mapbox 惯例），
-  // 序列化时翻转成 lat/lon（URL 惯例）
+  // 🏠 视角变化仅记录本机记忆与实时坐标状态（保持浏览器地址栏干净；分享时由 QrViewShare 按需生成深链接）
   const handleViewChange = ({ center, zoom }) => {
     if (!Array.isArray(center)) return;
     const [lng, lat] = center;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
 
-    const next = serializeViewHash({ lat, lon: lng, z: zoom, mode: 'tactical' });
-    if (window.location.hash !== next) window.history.replaceState(null, '', next);
+    setMapCenter([lng, lat]);
+    setMapZoom(Math.round(zoom));
     try {
-      window.localStorage.setItem(OWN_VIEW_FINGERPRINT, next);
       window.localStorage.setItem(TACTICAL_LAST_VIEW, JSON.stringify([lng, lat]));
       window.localStorage.setItem('et_tactical_last_zoom', String(Math.round(zoom)));
     } catch { /* 隐私模式忽略 */ }
@@ -450,7 +445,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
         <span style={{ wordBreak: 'break-all' }}>LAT: {mapCenter[1].toFixed(4)} // LNG: {mapCenter[0].toFixed(4)} // Z: {mapZoom}</span>
         {/* 🔳 战术视角二维码：向上弹出（琥珀暗色变体，战术 HUD 风格） */}
         <div style={{ width: '170px', flexShrink: 0 }}>
-          <QrViewShare variant="dark" size={170} />
+          <QrViewShare variant="dark" size={170} view={{ lat: mapCenter[1], lon: mapCenter[0], z: mapZoom, mode: 'tactical' }} />
         </div>
       </div>
 

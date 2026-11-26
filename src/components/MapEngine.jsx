@@ -7,7 +7,6 @@ import ControlPanel from './ControlPanel';
 import SearchNavEngine from './SearchNavEngine';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
-import { serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
 import { getPositionByIP } from '../utils/performanceHelpers';
 import { REGION_REGISTRY } from '../config/regions';
 import TodayCard from './TodayCard';
@@ -170,7 +169,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 const applyIpView = () => {
                     if (cancelled || userInteractedRef.current) return;
                     map.setView([pos.latitude, pos.longitude], 9, { animate: false });
-                    setMapView({ lat: pos.latitude, lng: pos.longitude });
+                    setMapView({ lat: pos.latitude, lng: pos.longitude, zoom: 9 });
                     if (city) setFocusLabel(city);
                 };
                 if (map._loaded) {
@@ -221,21 +220,16 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         }
         : null;
 
-    // 🔗 视角深链接：地图移动/缩放后把当前视角写进 URL 哈希
-    // 用 replaceState 不产生历史记录，直接复制地址栏即可分享当前视角
+    // 🧭 同步当前地图中心与缩放供顶部焦点条、今日光影与按需分享使用（保持浏览器地址栏干净）
     useEffect(() => {
         if (!leafletReady || !mapRef.current) return;
         const map = mapRef.current;
         let timer = null;
         const sync = () => {
             const c = map.getCenter();
-            setMapView({ lat: c.lat, lng: c.lng });
-            const next = serializeViewHash({ lat: c.lat, lon: c.lng, z: map.getZoom() });
-            if (window.location.hash !== next) window.history.replaceState(null, '', next);
-            // 🏠 同步记本机指纹：下次从收藏夹打开同哈希 = 自家视角，静默恢复不弹分享面板
-            try { window.localStorage.setItem(OWN_VIEW_FINGERPRINT, next); } catch { /* 隐私模式忽略 */ }
+            setMapView({ lat: c.lat, lng: c.lng, zoom: Math.round(map.getZoom()) });
         };
-        const debouncedSync = () => { clearTimeout(timer); timer = setTimeout(sync, 600); };
+        const debouncedSync = () => { clearTimeout(timer); timer = setTimeout(sync, 400); };
         map.on('moveend zoomend', debouncedSync);
         sync();
         return () => { clearTimeout(timer); map.off('moveend zoomend', debouncedSync); };
@@ -379,6 +373,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         baseMapType={baseMapType} setBaseMapType={setBaseMapType}
                         weatherType={weatherType} setWeatherType={setWeatherType}
                         filters={filters} toggleFilter={toggleFilter}
+                        shareView={mapView ? { lat: mapView.lat, lon: mapView.lng, z: mapView.zoom } : null}
                         onJumpToRegion={handleJumpToRegion}
                         onEnterTactical={handleEnterTacticalWithView}
                         {...tools}
