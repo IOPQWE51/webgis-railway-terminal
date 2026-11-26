@@ -41,21 +41,22 @@ describe('App 渲染冒烟（TDZ/首渲染崩溃防线）', () => {
     }
     expect(renderError).toBeNull();
 
-    // 站点标题 + 六个导航 tab 全部出现（标题 Earth/Terminal 拆分行内元素，逐词匹配）
+    // 站点标题 + 六个导航 tab + 登录入口全部出现
     expect(screen.getByText('Earth')).toBeTruthy();
     expect(screen.getByText('Terminal')).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /高精度地形终端/ })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /数据解析与管理/ })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: /跨国航线雷达/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /登录 \/ 云同步/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /探索地图/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /收藏与导入/ })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /机票航线/ })).toBeTruthy();
   });
 
-  it('切到数据管理 tab：星标库渲染（点位库 UI 在），无崩溃', async () => {
+  it('切到收藏与导入 tab：收藏点位 UI 正常渲染，无崩溃', async () => {
     storageMock.__reset();
     const { container } = render(<App />);
-    const dataTab = screen.getByRole('tab', { name: /数据解析与管理/ });
+    const dataTab = screen.getByRole('tab', { name: /收藏与导入/ });
     dataTab.click();
     await waitFor(() => {
-      expect(screen.getByText(/战术星标库/)).toBeTruthy();
+      expect(screen.getByText(/我的收藏点位/)).toBeTruthy();
     });
     expect(container).toBeTruthy();
   });

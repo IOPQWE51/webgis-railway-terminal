@@ -43,11 +43,11 @@ export const initPhotoEvalEngine = () => {
         
         if (btn) btn.style.display = 'none';
         
-        // 极客加载动画
+        // 加载动画
         resultDiv.innerHTML = `
             <div style="text-align:center; padding: 24px; background: rgba(255,255,255,0.6); border-radius: 16px; margin-top: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.02);">
                 <div style="font-size:24px; display:inline-block; animation:spin 1s linear infinite; margin-bottom:12px;">🛰️</div>
-                <div style="font-size:13px; color:#475569; font-weight:800; letter-spacing:1px;">双引擎雷达深度扫描中...</div>
+                <div style="font-size:13px; color:#475569; font-weight:800; letter-spacing:0.5px;">正在分析当地天气、光影与周边环境...</div>
             </div>
             <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
         `;
@@ -196,18 +196,21 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
 
     const evalId = Math.random().toString(36).substr(2, 9);
     const category = pt.category || 'spot';
+    const offsetH = Math.round(lon / 15);
+    const utcLabel = offsetH >= 0 ? `UTC+${offsetH}` : `UTC${offsetH}`;
+    const isInJapan = lat >= 24 && lat <= 46 && lon >= 122 && lon <= 146;
 
     // 🆕 新增：判断是否已经是本地收藏的点位（排除搜索结果）
     const isSaved = String(ptId).startsWith('custom_') || String(ptId).startsWith('csv_') || String(ptId).startsWith('manual_');
 
-    // 👇 下面是带有“收藏入库”面板的全新 HTML
+    // 👇 下面是带有“加入收藏”面板的详情 HTML
     return `
-        <div style="padding: 24px 20px; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column;">
+        <div style="padding: 16px 20px 24px; font-family: system-ui, -apple-system, sans-serif; display: flex; flex-direction: column;">
             
-            <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <b style="font-size: 22px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${name}</b>
-                    ${desc ? `<div style="font-size: 13px; color: #64748b; margin-top: 10px; line-height: 1.6; font-weight: 600;">${desc}</div>` : ''}
+                    <b style="font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${name}</b>
+                    ${desc ? `<div style="font-size: 13px; color: #64748b; margin-top: 8px; line-height: 1.6; font-weight: 600;">${desc}</div>` : ''}
                 </div>
                 
                 ${String(ptId).startsWith('custom_') ? `
@@ -216,17 +219,20 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
                     style="flex-shrink: 0; margin-left: 12px; background: rgba(239, 68, 68, 0.08); color: #ef4444; border: none; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; margin-top: 2px;"
                     onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'; this.style.transform='scale(1.05)'" 
                     onmouseout="this.style.background='rgba(239, 68, 68, 0.08)'; this.style.transform='scale(1)'"
-                    title="删除此坐标点"
+                    title="删除此收藏点"
                 >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                 </button>
                 ` : ''}
             </div>
             
-            <div style="background: linear-gradient(145deg, #0f172a, #1e293b); padding: 20px; border-radius: 16px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.2); margin-bottom: 20px; position: relative; overflow: hidden;">
+            <div style="background: linear-gradient(145deg, #0f172a, #1e293b); padding: 18px; border-radius: 16px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.2); margin-bottom: 18px; position: relative; overflow: hidden;">
                 <div style="position:absolute; top:-30px; right:-30px; width:100px; height:100px; background:#38bdf8; filter:blur(40px); opacity:0.2; border-radius:50%;"></div>
                 
-                <div style="font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 16px; letter-spacing: 1px; text-transform: uppercase;">🌞 Absolute Solar Time</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 14px; letter-spacing: 0.5px;">
+                    <span>🌞 当地日出与光影时刻</span>
+                    <span style="font-family: monospace; color: #38bdf8;">${utcLabel}</span>
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; font-weight: 700;">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <span style="color:#64748b; font-size: 11px;">日出 Sunrise</span> 
@@ -263,21 +269,24 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
                     onmouseup="this.style.transform='scale(1)'" 
                     onmouseleave="this.style.transform='scale(1)'"
                 >
-                    📥 锁定入库
+                    ⭐ 加入收藏
                 </button>
             </div>
             ` : ''}
 
             <div style="margin-bottom: 8px;">
-                <button id="btn-${evalId}" onclick="window.__evalPhotoCondition(event, ${pt.lat}, ${pt.lon}, '${evalId}', '${category}')" style="width: 100%; background: #0f172a; color: white; border: none; padding: 16px; border-radius: 14px; font-size: 15px; font-weight: 800; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25); display: flex; justify-content: center; align-items: center; gap: 8px;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
-                    <span style="font-size: 18px;">🔮</span> 启动全息雷达扫描
+                <button id="btn-${evalId}" onclick="window.__evalPhotoCondition(event, ${pt.lat}, ${pt.lon}, '${evalId}', '${category}')" style="width: 100%; background: #0f172a; color: white; border: none; padding: 14px; border-radius: 14px; font-size: 14px; font-weight: 800; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s; box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25); display: flex; justify-content: center; align-items: center; gap: 8px;" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='scale(1)'" onmouseleave="this.style.transform='scale(1)'">
+                    <span style="font-size: 16px;">📷</span> 评估当前拍摄条件
                 </button>
                 <div id="result-${evalId}"></div>
             </div>
 
             <div style="display: flex; gap: 12px; padding-top: 16px; border-top: 1px solid #e2e8f0; margin-top: 12px;">
-                <a href="https://www.google.com/maps/dir/?api=1&destination=${pt.lat},${pt.lon}" target="_blank" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">📍 Google 导航</a>
-                <a href="https://transit.yahoo.co.jp/search/result?to=${encodeURIComponent(name)}" target="_blank" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">🚃 Yahoo 乘换</a>
+                <a href="https://www.google.com/maps/dir/?api=1&destination=${pt.lat},${pt.lon}" target="_blank" rel="noreferrer" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">📍 Google 导航</a>
+                ${isInJapan
+                    ? `<a href="https://transit.yahoo.co.jp/search/result?to=${encodeURIComponent(name)}" target="_blank" rel="noreferrer" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">🚃 Yahoo 乘换</a>`
+                    : `<a href="https://www.google.com/maps/dir/?api=1&destination=${pt.lat},${pt.lon}&travelmode=transit" target="_blank" rel="noreferrer" style="flex: 1; text-align: center; background: white; color: #334155; padding: 12px 0; border-radius: 12px; font-size: 13px; font-weight: 800; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #cbd5e1;">🚆 公共交通路线</a>`
+                }
             </div>
         </div>
     `;

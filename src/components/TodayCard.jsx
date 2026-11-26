@@ -6,16 +6,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import SunCalc from 'suncalc';
 import { computeShootingBrief } from '../utils/shootingBrief';
-import { buildTodayCard } from '../utils/todayCard';
+import { buildTodayCard, formatLocalTimeByLon, formatUtcOffsetLabel, translateWeatherCondition } from '../utils/todayCard';
 import { convertToRuleFormat } from '../utils/ruleDataConverter';
 import { getTopSuggestions } from '../utils/ruleMatcher';
 import { getGlobalSeason } from '../utils/dataGateway';
-import { HANABI_DATA } from '../config/regions';
-
-const fmtTime = (d) =>
-  d instanceof Date && !Number.isNaN(d.getTime())
-    ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-    : '—';
+import { HANABI_DATA, REGION_REGISTRY } from '../config/regions';
 
 const fmtCountdown = (at, now) => {
   const mins = Math.round((at.getTime() - now.getTime()) / 60000);
@@ -144,25 +139,30 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
   const gold = pickRelevant(brief.goldenHours);
   const blue = pickRelevant(brief.blueHours);
   const isPolar = brief.sunrise === null && brief.sunset === null;
+  const tzLabel = formatUtcOffsetLabel(lngKey);
+  const fmtTime = (d) => formatLocalTimeByLon(d, lngKey);
 
   return (
     <div
       role="status"
-      aria-label="今日去这卡"
+      aria-label="今日光影与附近"
       className="absolute top-4 left-1/2 -translate-x-1/2 z-[1500] w-[min(92vw,360px)] rounded-2xl bg-zinc-950/85 backdrop-blur-md border border-cyan-400/25 shadow-[0_8px_32px_rgba(0,0,0,0.5)] text-zinc-100 overflow-hidden"
     >
-      {/* 天文条（原简报五要素作卡头） */}
+      {/* 天文条（按地图当前坐标的当地时间展示，附时区标签消除跨区歧义） */}
       <div className="relative flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-8 pt-3 pb-2 text-xs font-mono text-cyan-50 border-b border-white/5">
         {isPolar ? (
           <span title="极地天象">❄️ 极昼或极夜，太阳今天不上班</span>
         ) : (
           <>
-            <span title="日出">🌅 {fmtTime(brief.sunrise)}</span>
-            <span title="日落">🌇 {fmtTime(brief.sunset)}</span>
-            <span title="黄金时刻">✨ {fmtTime(gold?.start)}–{fmtTime(gold?.end)}</span>
-            <span title="蓝调时刻">🌌 {fmtTime(blue?.start)}–{fmtTime(blue?.end)}</span>
+            <span title={`日出（当地时间 ${tzLabel}）`}>🌅 {fmtTime(brief.sunrise)}</span>
+            <span title={`日落（当地时间 ${tzLabel}）`}>🌇 {fmtTime(brief.sunset)}</span>
+            <span title={`黄金时刻（当地时间 ${tzLabel}）`}>✨ {fmtTime(gold?.start)}–{fmtTime(gold?.end)}</span>
+            <span title={`蓝调时刻（当地时间 ${tzLabel}）`}>🌌 {fmtTime(blue?.start)}–{fmtTime(blue?.end)}</span>
             <span title={`月相：${brief.moon.phaseName}`}>
               {brief.moon.emoji} {Math.round(brief.moon.fraction * 100)}%
+            </span>
+            <span className="text-[10px] text-zinc-400" title="按当前地图中心经度估算的当地时间">
+              {tzLabel}
             </span>
           </>
         )}
@@ -191,7 +191,7 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
       {card?.weatherLine && (
         <div className="px-4 py-2.5 flex items-center gap-2 text-xs text-zinc-300 border-b border-white/5">
           <span className="text-base leading-none">{card.weatherLine.emoji}</span>
-          <span>{card.weatherLine.condition}</span>
+          <span>{translateWeatherCondition(card.weatherLine.condition)}</span>
           <span className="font-mono">{card.weatherLine.tempC}°C</span>
           {card.weatherLine.cloud !== null && (
             <span className="ml-auto font-mono text-zinc-500">云量 {card.weatherLine.cloud}%</span>
@@ -221,7 +221,7 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
                   <button
                     onClick={() => onFlyTo?.(p.lat, p.lon)}
                     className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 -mx-2 text-left text-xs hover:bg-white/5 transition-colors focus-visible:outline focus-visible:outline-cyan-400"
-                    title={`${badge.title} · 点击跃迁`}
+                    title={`${badge.title} · 点击定位`}
                   >
                     <span aria-hidden="true">{badge.emoji}</span>
                     <span className="truncate text-zinc-200">{p.name}</span>
@@ -237,9 +237,32 @@ export default function TodayCard({ lat, lng, customPoints = [], basePoints = []
             })}
           </ul>
         ) : (
-          <p className="py-1.5 text-xs text-zinc-500">
-            50km 内暂时空空如也 —— 拖动地图，去别处看看
-          </p>
+          <div className="py-1 space-y-2">
+            <p className="text-xs text-zinc-400">
+              当前视野 50km 内暂无已收录节点，可点击地图任意位置分析或收藏
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {customPoints[0] && (
+                <button
+                  onClick={() => onFlyTo?.(customPoints[0].lat, customPoints[0].lon, 13)}
+                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] text-cyan-200 transition-colors"
+                >
+                  ⭐ 跳到我的收藏
+                </button>
+              )}
+              {REGION_REGISTRY.map((r) => (
+                r.center && (
+                  <button
+                    key={r.id}
+                    onClick={() => onFlyTo?.(r.center[0], r.center[1], r.zoom ?? 5.5)}
+                    className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/15 text-[11px] text-emerald-200 transition-colors"
+                  >
+                    {r.icon || '🌍'} 浏览{r.name}铁道骨架
+                  </button>
+                )
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

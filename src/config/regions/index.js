@@ -9,10 +9,18 @@
 import * as japan from './japan.js';
 
 export const REGION_REGISTRY = [
-    { id: japan.JAPAN_REGION.id, name: japan.JAPAN_REGION.name, data: japan },
+    {
+        id: japan.JAPAN_REGION.id,
+        name: japan.JAPAN_REGION.name,
+        icon: japan.JAPAN_REGION.icon,
+        center: japan.JAPAN_REGION.center,
+        zoom: japan.JAPAN_REGION.zoom,
+        description: japan.JAPAN_REGION.description,
+        data: japan,
+    },
     // 🆕 新区域模板：
     // import * as europe from './europe.js';
-    // { id: europe.EUROPE_REGION.id, name: ..., data: europe },
+    // { id: europe.EUROPE_REGION.id, name: europe.EUROPE_REGION.name, icon: '🇪🇺', center: [48.85, 2.35], zoom: 5, description: '欧洲跨国铁路干线', data: europe },
 ];
 
 // ── 聚合导出：与迁移前的全局数组同形同名（消费方无感迁移）──

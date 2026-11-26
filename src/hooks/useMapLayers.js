@@ -79,12 +79,12 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         targetBeaconRef.current = L.marker([lat, lng], { icon: beaconIcon, zIndexOffset: 600 }).addTo(map);
     }, [mapRef]);
 
-    // 1. 初始化底图
+    // 1. 初始化底图（中立全球视角，具体落点由首次 IP 定位 / URL 分享链接接管）
     useEffect(() => {
         if (!leafletReady || !document.getElementById('real-map-container')) return;
         const L = window.L;
         if (!mapRef.current) {
-            mapRef.current = L.map('real-map-container', {zoomControl: false,worldCopyJump: true,minZoom: 3,maxBounds: [[-85, -Infinity], [85, Infinity]],maxBoundsViscosity: 1.0}).setView([37.5, 137.5], 4.5);
+            mapRef.current = L.map('real-map-container', {zoomControl: false,worldCopyJump: true,minZoom: 2,maxBounds: [[-85, -Infinity], [85, Infinity]],maxBoundsViscosity: 1.0}).setView([20, 15], 3);
             L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
         }
         if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
@@ -154,9 +154,9 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
                 generatePopupContent(
                     { lat, lon: lng, category: 'spot' },
                     'map_pick',
-                    '🎯', // 换了个更有锁定感的 Emoji
-                    '战术坐标锁定',
-                    `WGS84 · ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`
+                    '📍',
+                    '地图选点',
+                    `坐标 · ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`
                 )
             );
         };

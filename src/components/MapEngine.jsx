@@ -1,25 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, X, ChevronUp, Trash2, Ruler } from 'lucide-react';
-import TacticalBottomSheet from './TacticalBottomSheet'; // 引入战术抽屉
+import TacticalBottomSheet from './TacticalBottomSheet'; // 引入底部详情抽屉
 
 // 导入外部依赖
 import ControlPanel from './ControlPanel';
 import { initPhotoEvalEngine } from '../utils/photoEngine';
 import { closeCyberPanel } from '../utils/cyberPanel';
 import { serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils/urlState';
+import { getPositionByIP } from '../utils/performanceHelpers';
 import TodayCard from './TodayCard';
 
 // 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, skipIpAutoLocate = false }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
+    const ipLocateDoneRef = useRef(false);
+    const userInteractedRef = useRef(false);
     const [leafletReady, setLeafletReady] = useState(false);
     const [showDrawer, setShowDrawer] = useState(false); // 控制台抽屉
+    const [visitorCity, setVisitorCity] = useState(''); // 🌐 IP 自动识别到的访客城市
     
-    // 💥 新增：地点详情的底部战术抽屉状态
+    // 💥 新增：地点详情的底部抽屉状态
     const [bottomSheetHtml, setBottomSheetHtml] = useState(null); 
 
     const [mapView, setMapView] = useState(null); // 🌅 拍摄简报用的地图中心
@@ -121,8 +125,68 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     // 处理窗口尺寸变化
     useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);
 
-    // 🗓️ 今日去这卡：点击附近点位跃迁
-    const handleTodayFlyTo = (lat, lon) => mapRef.current?.flyTo([lat, lon], 13, { duration: 1.5 });
+    // ⌨️ 按 Escape 快速关闭右侧地点详情面板，方便回到地图工具栏
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape') closeCyberPanel();
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, []);
+
+    // 🌐 首次加载按访客网络 IP 自动定位（不覆盖分享链接视角，也不打断已手动拖图的用户）
+    useEffect(() => {
+        if (!leafletReady || !mapRef.current || skipIpAutoLocate || ipLocateDoneRef.current) return;
+        const map = mapRef.current;
+        const markInteracted = () => { userInteractedRef.current = true; };
+        map.once('dragstart', markInteracted);
+        map.once('zoomstart', markInteracted);
+
+        let cancelled = false;
+        ipLocateDoneRef.current = true;
+
+        getPositionByIP()
+            .then((pos) => {
+                if (cancelled || !pos || !Number.isFinite(pos.latitude) || !Number.isFinite(pos.longitude)) return;
+                const label = pos.city || pos.region || pos.country || '';
+                if (label) setVisitorCity(label);
+                if (userInteractedRef.current) return;
+                map.setView([pos.latitude, pos.longitude], 9, { animate: true });
+            })
+            .catch(() => {
+                // IP 定位不可用时静默保持全球概览视角
+            });
+
+        return () => {
+            cancelled = true;
+            map.off('dragstart', markInteracted);
+            map.off('zoomstart', markInteracted);
+        };
+    }, [leafletReady, skipIpAutoLocate]);
+
+    // 🗓️ 今日去这卡：点击附近点位或区域包快捷跳转
+    const handleTodayFlyTo = (lat, lon, zoom = 13) => mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.5 });
+
+    // 🧭 跳转到已接入的区域交通骨架包
+    const handleJumpToRegion = (region) => {
+        if (!region?.center || !mapRef.current) return;
+        userInteractedRef.current = true;
+        mapRef.current.flyTo(region.center, region.zoom ?? 5.5, { duration: 1.5 });
+        if (window.innerWidth < 1024) setShowDrawer(false);
+    };
+
+    // 🌑 切入 Dark 2D 时把当前主图视角原样带过去
+    const handleEnterTacticalWithView = onEnterTactical
+        ? () => {
+            const map = mapRef.current;
+            if (map) {
+                const c = map.getCenter();
+                onEnterTactical({ lat: c.lat, lon: c.lng, zoom: Math.round(map.getZoom()) });
+            } else {
+                onEnterTactical(null);
+            }
+        }
+        : null;
 
     // 🔗 视角深链接：地图移动/缩放后把当前视角写进 URL 哈希
     // 用 replaceState 不产生历史记录，直接复制地址栏即可分享当前视角
@@ -221,19 +285,21 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         />
                     )}
 
-                    <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all animate-bounce">
-                        <ChevronUp className="w-4 h-4 text-cyan-400" /> 呼出战术中枢
+                    <button onClick={() => setShowDrawer(true)} className="lg:hidden absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-zinc-900/90 backdrop-blur-sm text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 font-bold text-sm border border-zinc-700/50 hover:bg-black transition-all">
+                        <ChevronUp className="w-4 h-4 text-cyan-400" /> 地图工具与图层
                     </button>
                     {!leafletReady && <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-50"><Loader2 className="w-8 h-8 animate-spin text-cyan-600" /></div>}
                 </div>
 
-                {/* PC 右侧战术控制台 */}
+                {/* PC 右侧工具栏 */}
                 <div className="hidden lg:flex w-[340px] shrink-0 flex-col gap-4 overflow-y-auto pr-2 pb-4 scrollbar-thin scrollbar-thumb-gray-300 relative z-0">
                     <ControlPanel 
                         baseMapType={baseMapType} setBaseMapType={setBaseMapType} 
                         weatherType={weatherType} setWeatherType={setWeatherType} 
                         filters={filters} toggleFilter={toggleFilter} 
-                        onEnterTactical={onEnterTactical}
+                        visitorCity={visitorCity}
+                        onJumpToRegion={handleJumpToRegion}
+                        onEnterTactical={handleEnterTacticalWithView}
                         {...tools} 
                     />
                 </div>
@@ -247,9 +313,18 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     aria-hidden="true"
                     aria-label="地点详情"
                 >
-                    <button type="button" className="cyber-panel-close" onClick={() => closeCyberPanel()} aria-label="关闭面板">
-                        ×
-                    </button>
+                    <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-2.5 bg-white/90 backdrop-blur-md border-b border-slate-100">
+                        <button
+                            type="button"
+                            onClick={() => closeCyberPanel()}
+                            className="text-xs font-bold text-slate-500 hover:text-cyan-700 transition-colors"
+                        >
+                            ← 返回地图工具
+                        </button>
+                        <button type="button" className="cyber-panel-close !static !float-none !m-0 !w-7 !h-7 !text-lg" onClick={() => closeCyberPanel()} aria-label="关闭面板">
+                            ×
+                        </button>
+                    </div>
                     <div id="cyber-panel-content" />
                 </div>
 
@@ -258,12 +333,14 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     <div className="lg:hidden fixed inset-0 z-[2000] flex flex-col justify-end">
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowDrawer(false)}></div>
                         <div className="relative bg-zinc-50 w-full rounded-t-[2.5rem] p-6 shadow-2xl animate-in slide-in-from-bottom-full max-h-[85vh] overflow-y-auto pb-10">
-                            <div className="flex justify-between items-center mb-6"><h3 className="font-black text-xl">战术控制中心</h3><button onClick={() => setShowDrawer(false)} className="bg-zinc-200 p-2 rounded-full"><X className="w-5 h-5" /></button></div>
+                            <div className="flex justify-between items-center mb-6"><h3 className="font-black text-xl">地图工具与图层</h3><button onClick={() => setShowDrawer(false)} className="bg-zinc-200 p-2 rounded-full"><X className="w-5 h-5" /></button></div>
                             <ControlPanel 
                                 baseMapType={baseMapType} setBaseMapType={setBaseMapType} 
                                 weatherType={weatherType} setWeatherType={setWeatherType} 
                                 filters={filters} toggleFilter={toggleFilter} 
-                                onEnterTactical={onEnterTactical}
+                                visitorCity={visitorCity}
+                                onJumpToRegion={handleJumpToRegion}
+                                onEnterTactical={handleEnterTacticalWithView}
                                 {...tools} 
                             />
                         </div>

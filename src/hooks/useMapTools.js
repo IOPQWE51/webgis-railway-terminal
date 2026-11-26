@@ -21,7 +21,7 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         if (searchMarkerRef.current) map.removeLayer(searchMarkerRef.current);
         map.flyTo([lat, lon], 14, { duration: 1.5 });
         const targetIcon = L.divIcon({ className: 'search-target-pin', html: `<div style="background-color: #ef4444; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 3px solid white; box-shadow: 0 0 15px rgba(239,68,68,0.8); animation: pulse 1.5s infinite;">🎯</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
-        const showSearchPanel = () => openCyberPanel(generatePopupContent({ lat, lon }, 'search_target', '🎯', '目标锁定区', fullName));
+        const showSearchPanel = () => openCyberPanel(generatePopupContent({ lat, lon }, 'search_target', '📍', '搜索位置', fullName));
         showSearchPanel();
         searchMarkerRef.current = L.marker([lat, lon], { icon: targetIcon }).addTo(map);
         searchMarkerRef.current.on('click', (ev) => {
@@ -52,7 +52,7 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         if (userMarkerRef.current) map.removeLayer(userMarkerRef.current);
         const { lat, lon } = userLocation;
         const userIcon = L.divIcon({ className: 'user-pin', html: `<div style="background-color: #06b6d4; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 15px rgba(6, 182, 212, 0.8); animation: pulse 2s infinite;"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-        const showUserPanel = () => openCyberPanel(generatePopupContent({ lat, lon }, 'user_gps', '📍', '玩家坐标', `GPS: ${lat.toFixed(4)}, ${lon.toFixed(4)}`));
+        const showUserPanel = () => openCyberPanel(generatePopupContent({ lat, lon }, 'user_gps', '📍', '当前位置', `坐标: ${lat.toFixed(4)}, ${lon.toFixed(4)}`));
         showUserPanel();
         userMarkerRef.current = L.marker([lat, lon], { icon: userIcon }).addTo(map);
         userMarkerRef.current.on('click', (ev) => {

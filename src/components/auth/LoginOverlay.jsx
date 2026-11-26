@@ -153,8 +153,8 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                 setMessage({
                     type: 'ok',
                     text: mode === 'register'
-                        ? `节点 ${data.username} 已注册${email.trim() ? '，验证码已发往邮箱——切到「验证」完成绑定' : ''}`
-                        : 'ACCESS GRANTED — 上行链路已建立'
+                        ? `账号 ${data.username} 注册成功${email.trim() ? '，验证码已发往邮箱，请切到「验证」完成绑定' : ''}`
+                        : '登录成功，云端同步已开启'
                 });
                 // Fix 4：timer 存 ref，卸载时由 useEffect cleanup 兜底清除
                 successTimerRef.current = setTimeout(() => onAuthenticated(data.username), 1100);
@@ -170,7 +170,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
             setMessage({ type: 'error', text: data.message || data.error || '请求失败，请稍后再试' });
         } catch {
             dispatchCat({ type: 'SUBMIT_FAIL' });
-            setMessage({ type: 'error', text: '跃迁引擎链路异常，请检查网络连接' });
+            setMessage({ type: 'error', text: '网络连接异常，请稍后重试' });
         } finally {
             setBusy(false);
         }
@@ -186,17 +186,17 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
             className="fixed inset-0 z-[4000] flex items-center justify-center bg-gradient-to-br from-sora-soft/85 via-paper/85 to-koi-soft/70 backdrop-blur-xl p-4"
             role="dialog"
             aria-modal="true"
-            aria-label="身份认证"
+            aria-label="账号登录"
         >
             {/* 📐 卡片限高内部滚动：100% 缩放的 1080p 笔记本也要完整可见 */}
-            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-paper-2/95 border border-line rounded-3xl shadow-xl shadow-sora/5 p-6 sm:p-8 font-mono custom-scrollbar">
+            <div className="relative w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto bg-paper-2/95 border border-line rounded-3xl shadow-xl shadow-sora/5 p-6 sm:p-8 custom-scrollbar">
                 <button onClick={onClose} aria-label="关闭" className="absolute top-4 right-4 w-8 h-8 rounded-lg border border-line text-ink-3 hover:text-sora hover:border-sora transition-colors">
                     <X className="w-4 h-4 mx-auto" />
                 </button>
 
-                <p className="text-sora text-[10px] tracking-[0.35em] uppercase mb-1">UPLINK TERMINAL</p>
-                <h2 className="text-ink text-xl font-black tracking-widest mb-1">
-                    {mode === 'login' ? '建立上行链路' : mode === 'register' ? '注册新终端节点' : mode === 'reset' ? '找回通行密钥' : '验证绑定邮箱'}
+                <p className="text-sora text-[10px] font-mono tracking-[0.28em] uppercase mb-1">CLOUD ACCOUNT</p>
+                <h2 className="text-ink text-xl font-black tracking-wide mb-1">
+                    {mode === 'login' ? '登录账号' : mode === 'register' ? '注册账号' : mode === 'reset' ? '找回密码' : '验证绑定邮箱'}
                 </h2>
                 <p className="text-ink-3 text-xs mb-3">{MASCOT_TAGLINE}</p>
 
@@ -204,7 +204,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
                 <form onSubmit={submit} className="space-y-3 mt-2">
                     <label className="block">
-                        <span className="text-ink-2 text-[10px] tracking-[0.25em] uppercase">用户名 · 节点代号</span>
+                        <span className="text-ink-2 text-xs font-bold">用户名</span>
                         <input
                             ref={usernameRef}
                             type="text"
@@ -212,25 +212,25 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                             autoComplete="username"
                             spellCheck="false"
                             disabled={locked}
-                            placeholder={mode === 'reset' ? '节点代号（忘了就留空，填邮箱反查）' : '取个代号，如 tokyo_cat（3-24 位小写字母/数字/-/_）'}
+                            placeholder={mode === 'reset' ? '输入用户名（忘了可留空，填下方邮箱找回）' : '例如 traveler_01（3-24 位小写字母/数字/-/_）'}
                             onChange={(e) => { setUsername(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
                             onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: username.length })}
                             onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
                             className="mt-1 w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 text-ink text-sm outline-none transition-colors placeholder:text-ink-3/70"
                         />
                     </label>
-                    {/* 📧 邮箱：注册（选填找回通道）/ 找回（填了即按邮箱反查代号）*/}
+                    {/* 📧 邮箱：注册（选填找回通道）/ 找回（填了即按邮箱反查用户名）*/}
                     {(mode === 'register' || mode === 'reset') && (
                         <label className="block">
-                            <span className="text-ink-2 text-[10px] tracking-[0.25em] uppercase">
-                                {mode === 'register' ? '邮箱 · 找回通道（选填）' : '注册邮箱 · 代号忘了就填这个'}
+                            <span className="text-ink-2 text-xs font-bold">
+                                {mode === 'register' ? '邮箱（选填，用于找回密码）' : '注册邮箱（忘记用户名时填写）'}
                             </span>
                             <input
                                 type="email"
                                 value={email}
                                 autoComplete="email"
                                 disabled={locked}
-                                placeholder={mode === 'register' ? '忘记密码时收重置邮件用，不填也行' : '填注册邮箱可反查代号（与代号二选一）'}
+                                placeholder={mode === 'register' ? '用于接收密码重置邮件，也可不填' : '填写注册邮箱即可找回（与用户名二选一）'}
                                 onChange={(e) => { setEmail(e.target.value); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
                                 onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: email.length })}
                                 onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
@@ -241,25 +241,25 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                     {/* 🔢 验证码：verify 模式收码（重发态不显示）*/}
                     {mode === 'verify' && !wantResend && (
                         <label className="block">
-                            <span className="text-ink-2 text-[10px] tracking-[0.25em] uppercase">邮件验证码</span>
+                            <span className="text-ink-2 text-xs font-bold">邮件验证码</span>
                             <input
                                 type="text"
                                 inputMode="numeric"
                                 maxLength={6}
                                 value={verifyCode}
                                 disabled={locked}
-                                placeholder="注册后收到的 6 位数字"
+                                placeholder="输入邮件收到的 6 位数字"
                                 onChange={(e) => { setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6)); dispatchCat({ type: 'USERNAME_INPUT', inputLength: e.target.value.length }); }}
                                 onFocus={() => dispatchCat({ type: 'USERNAME_FOCUS', inputLength: verifyCode.length })}
                                 onBlur={() => dispatchCat({ type: 'USERNAME_BLUR' })}
-                                className="mt-1 w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 tracking-[0.5em] text-center text-ink text-sm outline-none transition-colors placeholder:text-ink-3/70 placeholder:tracking-normal"
+                                className="mt-1 w-full bg-paper-3 border border-line focus:border-sora rounded-xl px-4 py-2.5 tracking-[0.5em] text-center text-ink text-sm font-mono outline-none transition-colors placeholder:text-ink-3/70 placeholder:tracking-normal placeholder:font-sans"
                             />
                         </label>
                     )}
                     {/* 密码：login/register 用；reset/verify 不需要 */}
                     {(mode === 'login' || mode === 'register') && (
                     <label className="block">
-                        <span className="text-ink-2 text-[10px] tracking-[0.25em] uppercase">密码 · 访问密钥</span>
+                        <span className="text-ink-2 text-xs font-bold">密码</span>
                         <div className="relative mt-1">
                             <input
                                 type={showPassword ? 'text' : 'password'}
@@ -286,7 +286,7 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
 
                     {/* 🔁 verify 模式：收码 ⇄ 重发 切换（互斥小链接） */}
                     {mode === 'verify' && (
-                        <button type="button" onClick={() => { setWantResend(v => !v); setMessage(null); }} className="w-full text-center text-[10px] text-sora-deep hover:text-sora underline-offset-4" >
+                        <button type="button" onClick={() => { setWantResend(v => !v); setMessage(null); }} className="w-full text-center text-xs text-sora-deep hover:text-sora underline-offset-4" >
                             {wantResend ? '← 返回输入验证码' : '没收到验证码？点此重发 →'}
                         </button>
                     )}
@@ -299,33 +299,33 @@ export default function LoginOverlay({ onClose, onAuthenticated }) {
                         aria-live="polite"
                         className={`text-xs font-bold ${message?.type === 'error' ? 'text-koi' : 'text-wakaba'}`}
                     >
-                        {message ? `${message.type === 'error' ? '> SIGNAL LOST: ' : '> '}${message.text}` : '\u00A0'}
+                        {message ? message.text : '\u00A0'}
                     </p>
 
                     <button
                         type="submit"
                         disabled={locked || (mode !== 'reset' && !username) || (mode === 'reset' && !username && !email.trim()) || ((mode === 'login' || mode === 'register') && !password) || (mode === 'verify' && !wantResend && verifyCode.length !== 6) || (Boolean(TURNSTILE_SITE_KEY) && !turnstileToken)}
-                        className="w-full py-3 rounded-xl bg-sora text-sora-ink font-black tracking-[0.3em] text-sm shadow-lift hover:bg-sora-deep disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        className="w-full py-3 rounded-xl bg-sora text-sora-ink font-bold tracking-wide text-sm shadow-lift hover:bg-sora-deep disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
-                        {mode === 'login' ? '▶ 建立上行链路'
-                            : mode === 'register' ? '▸ 注册新节点'
-                            : mode === 'reset' ? '✉ 发送重置邮件'
-                            : wantResend ? '🔁 重发验证码' : '✓ 完成绑定'}
+                        {mode === 'login' ? '登录并开启云同步'
+                            : mode === 'register' ? '注册账号'
+                            : mode === 'reset' ? '发送重置邮件'
+                            : wantResend ? '重新发送验证码' : '完成邮箱验证'}
                     </button>
                 </form>
 
                 <div className="flex justify-center gap-2 mt-4">
-                    <button onClick={() => switchMode('login')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'login' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>登录</button>
-                    <button onClick={() => switchMode('register')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'register' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>注册</button>
-                    <button onClick={() => switchMode('reset')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'reset' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>找回</button>
-                    <button onClick={() => switchMode('verify')} className={`px-4 py-1.5 rounded-lg text-[10px] tracking-[0.25em] uppercase border transition-colors ${mode === 'verify' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>验证</button>
+                    <button onClick={() => switchMode('login')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'login' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>登录</button>
+                    <button onClick={() => switchMode('register')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'register' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>注册</button>
+                    <button onClick={() => switchMode('reset')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'reset' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>找回</button>
+                    <button onClick={() => switchMode('verify')} className={`px-4 py-1.5 rounded-lg text-xs font-bold border transition-colors ${mode === 'verify' ? 'border-sora text-sora-deep bg-sora-soft' : 'border-line text-ink-3 hover:text-ink-2'}`}>验证</button>
                 </div>
-                <p className="text-ink-3 text-[10px] text-center mt-4 tracking-wider">
+                <p className="text-ink-3 text-[11px] text-center mt-4">
                     {mode === 'reset'
-                        ? '代号与注册邮箱二选一 · 已验证邮箱才能收到重置邮件'
+                        ? '用户名与注册邮箱二选一 · 仅已验证邮箱可收到重置邮件'
                         : mode === 'verify'
-                            ? '输入注册时代号 + 邮件里的 6 位码 · 没收到可重发'
-                            : '匿名模式下数据仅保存在本机 · 建立链路后跨设备漫游'}
+                            ? '输入用户名与邮件里的 6 位验证码 · 未收到可重发'
+                            : '未登录时收藏仅保存在本机 · 登录后支持云端同步与跨设备访问'}
                 </p>
             </div>
         </div>

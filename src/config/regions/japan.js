@@ -114,5 +114,12 @@ export const HANABI_EVENTS = [
     { id: 4, name: "隅田川花火大会", date: "2026-07-25", location: "东京都墨田区", scale: "约20000发", status: "confirmed", lat: 35.7101, lon: 139.8016 },
 ];
 
-// ── 区域元数据（注册表用）──
-export const JAPAN_REGION = { id: 'jp', name: '日本' };
+// ── 区域元数据（注册表用：新增国家/地区包时保持同形，前端即可自动生成快捷跳转与图例）──
+export const JAPAN_REGION = {
+    id: 'jp',
+    name: '日本',
+    icon: '🇯🇵',
+    center: [35.6812, 139.7671],
+    zoom: 5.5,
+    description: 'JR 干线、新干线与主要铁道枢纽'
+};

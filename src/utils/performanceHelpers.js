@@ -335,19 +335,49 @@ export const geocodeRequest = async (query, provider = 'nominatim') => {
 };
 
 /**
- * 🌐 IP 地址定位（备用方案）
- * 通过 IP 地址获取大致位置，无需用户授权
- * @returns {Promise<{latitude: number, longitude: number, city: string, country: string}>}
+ * 🌐 IP 地址定位（优先自有 Vercel Edge Geo 头，其次 ipapi.co 兜底）
+ * 通过访客网络 IP 获取大致城市坐标，无需用户弹出 GPS 授权
+ * @returns {Promise<{latitude: number, longitude: number, city: string, country: string, region: string, timezone?: string, accuracy: string, method: string}>}
  */
 export const getPositionByIP = async () => {
-  console.log('🌐 使用 IP 地址定位...');
-
+  // 1. 优先走同源 Vercel Edge Geo 头（零第三方依赖、极快、不暴露到外部）
   try {
-    // 使用免费的 IP 定位 API
-    const response = await fetch('https://ipapi.co/json/', {
-      timeout: 10000,
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3500);
+    const res = await fetch('/api/mapbox?type=ip', {
+      signal: ctrl.signal,
       headers: { 'Accept': 'application/json' }
     });
+    clearTimeout(timer);
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.ok && Number.isFinite(data.lat) && Number.isFinite(data.lon)) {
+        return {
+          latitude: data.lat,
+          longitude: data.lon,
+          city: data.city || '',
+          country: data.country || '',
+          region: data.region || '',
+          timezone: data.timezone || '',
+          accuracy: 'low',
+          method: 'vercel-ip'
+        };
+      }
+    }
+  } catch {
+    // 本地开发或边缘头缺失时静默切到外部兜底
+  }
+
+  // 2. 兜底：外部 IP 地理服务（本地开发无 Vercel Edge 头时生效）
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const response = await fetch('https://ipapi.co/json/', {
+      signal: ctrl.signal,
+      headers: { 'Accept': 'application/json' }
+    });
+    clearTimeout(timer);
 
     if (!response.ok) {
       throw new Error(`IP 定位服务响应错误: ${response.status}`);
@@ -355,25 +385,21 @@ export const getPositionByIP = async () => {
 
     const data = await response.json();
 
-    if (data.error) {
+    if (data.error || !Number.isFinite(Number(data.latitude)) || !Number.isFinite(Number(data.longitude))) {
       throw new Error(data.reason || 'IP 定位失败');
     }
 
-    // ipapi.co 返回的字段
-    const position = {
-      latitude: data.latitude,
-      longitude: data.longitude,
-      city: data.city || '未知城市',
+    return {
+      latitude: Number(data.latitude),
+      longitude: Number(data.longitude),
+      city: data.city || '',
       country: data.country_name || data.country || '',
       region: data.region || '',
-      accuracy: 'low', // IP 定位精度较低
+      timezone: data.timezone || '',
+      accuracy: 'low',
       method: 'ip'
     };
-
-    console.log('✅ IP 定位成功:', position);
-    return position;
   } catch (error) {
-    console.error('❌ IP 定位失败:', error);
     throw new Error(`IP 定位失败: ${error.message}`);
   }
 };

@@ -58,11 +58,51 @@ export function compactNominatimReverse(data) {
     };
 }
 
+// 🌍 从 Vercel Edge Geo 请求头提取访客 IP 大致位置（零外部依赖、零配额消耗）
+export function extractVercelIpGeo(headers = {}) {
+    if (!headers || typeof headers !== 'object') return null;
+    const get = (key) => {
+        const val = headers[key] ?? headers[key.toLowerCase()];
+        return typeof val === 'string' ? val.trim() : '';
+    };
+    const safeDecode = (str) => {
+        if (!str) return '';
+        try { return decodeURIComponent(str); } catch { return str; }
+    };
+
+    const lat = Number.parseFloat(get('x-vercel-ip-latitude'));
+    const lon = Number.parseFloat(get('x-vercel-ip-longitude'));
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+
+    return {
+        lat,
+        lon,
+        city: safeDecode(get('x-vercel-ip-city')),
+        region: safeDecode(get('x-vercel-ip-country-region')),
+        country: get('x-vercel-ip-country').toUpperCase(),
+        timezone: safeDecode(get('x-vercel-ip-timezone')),
+        source: 'vercel-ip'
+    };
+}
+
 // 🛡️ 应用速率限制：每个IP每分钟最多10次请求（rateLimiter.js 已改为 Redis 分布式限流）
 export default withRateLimit('mapbox')(async function handler(req, res) {
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET');
+
+    const { lat, lon, type } = req.query;
+
+    // 🌐 访客网络 IP 定位：读取 Vercel Edge 注入的地理头，严格禁止 CDN 共享缓存
+    if (type === 'ip') {
+        res.setHeader('Cache-Control', 'private, no-store');
+        const geo = extractVercelIpGeo(req.headers);
+        if (!geo) {
+            return res.status(200).json({ ok: false, source: 'none' });
+        }
+        return res.status(200).json({ ok: true, ...geo });
+    }
 
     // 📌 Edge Cache 配置：15分钟缓存（交通数据实时变化）
     const isProduction = process.env.VERCEL_ENV === 'production';
@@ -71,8 +111,6 @@ export default withRateLimit('mapbox')(async function handler(req, res) {
     } else {
         res.setHeader('Cache-Control', 'no-cache');
     }
-
-    const { lat, lon, type } = req.query;
 
     // 🔧 根据环境自动选择 Token
     // 开发环境使用 DEV Token（允许 localhost）

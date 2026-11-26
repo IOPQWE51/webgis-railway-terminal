@@ -404,7 +404,7 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
                                 <span className="font-bold text-gray-900 text-sm">校园与住宅区的结界</span>
                             </div>
                             <p className="text-xs text-gray-600 leading-relaxed mb-2">
-                                绝大部分校园背景**禁止外部人员入内**。上课期间严禁在校门外徘徊拍照（极易被报警）。在住宅区取景时，请保持绝对安静，**绝对不可将相机镜头对准私人住宅的窗户或当地居民**。
+                                绝大部分校园背景<strong className="text-gray-900">禁止外部人员入内</strong>。上课期间严禁在校门外徘徊拍照（极易被报警）。在住宅区取景时，请保持绝对安静，<strong className="text-gray-900">绝对不可将相机镜头对准私人住宅的窗户或当地居民</strong>。
                             </p>
                         </div>
 
@@ -414,7 +414,7 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
                                 <span className="font-bold text-gray-900 text-sm">微小的在地回馈</span>
                             </div>
                             <p className="text-xs text-gray-600 leading-relaxed mb-2">
-                                如果巡礼点在当地的神社、商店或自动贩卖机附近，尽可能在当地**消费一点点**（买瓶水、投个赛钱、买个护身符）。这能极大地改善当地居民对阿宅群体的包容度，保护圣地不被封闭。
+                                如果巡礼点在当地的神社、商店或自动贩卖机附近，尽可能在当地<strong className="text-gray-900">消费一点点</strong>（买瓶水、投个赛钱、买个护身符）。这能极大地改善当地居民对阿宅群体的包容度，保护圣地不被封闭。
                             </p>
                         </div>
                     </div>

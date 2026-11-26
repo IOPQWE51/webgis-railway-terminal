@@ -1481,6 +1481,7 @@ export const decisiveMomentRules = [
             isNight: true,
             minMoonPhase: 0.9,
             maxMoonPhase: 1,
+            requiresMountainous: true,
             category: ['spot']
         },
         output: "🌕 月照山河：满月 + 夜晚 + 山景 → 月光打亮山峰 | 三脚架，长曝光30s | 稀有度: ⭐⭐⭐⭐⭐"

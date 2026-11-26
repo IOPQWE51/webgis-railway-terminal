@@ -1,14 +1,12 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-// 1. 新增了 PlaneTakeoff 图标
-import { MapIcon, Database, Info, Calculator, MapPin, Sparkles, PlaneTakeoff, CloudFog } from 'lucide-react';
-// 2. 新增了 AviationEngine 组件
+import { MapIcon, Database, Info, Calculator, Globe, Sparkles, PlaneTakeoff, CloudFog, User } from 'lucide-react';
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
 import { BASE_POINTS_CONFIG } from './config/regions';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginOverlay from './components/auth/LoginOverlay.jsx';
 
-// 🛫 战术地图整棵子树（MapTactical → MapboxMapTactical → mapbox-gl ≈ 1.7MB）
-// 按需加载：不进首屏 bundle，首次切入战术模式时才拉取异步块
+// 🛫 暗黑专业地图整棵子树（MapTactical → MapboxMapTactical → mapbox-gl ≈ 1.7MB）
+// 按需加载：不进首屏 bundle，首次切入 Dark 2D 模式时才拉取异步块
 const MapTactical = lazy(() => import('./pages/MapTactical'));
 // 🛠️ 导入工具函数
 import { parseViewHash, shouldRestoreSharedView, isOwnDeviceView } from './utils/urlState';
@@ -17,9 +15,15 @@ import { usePoints } from './hooks/usePoints';
 const App = () => {
     const [activeTab, setActiveTab] = useState('map');
     const [pendingMapTarget, setPendingMapTarget] = useState(null); // 🆕 待定位的地点
-    const [isTacticalMode, setIsTacticalMode] = useState(false); // 🎯 战术模式状态
-    const [nodeMenuOpen, setNodeMenuOpen] = useState(false); // 顶栏 NODE 徽章快捷菜单
+    const [isTacticalMode, setIsTacticalMode] = useState(false); // 🎯 暗黑专业地图模式状态
+    const [tacticalInitialView, setTacticalInitialView] = useState(null); // 切入 Dark 2D 时继承主图视角
+    const [accountMenuOpen, setAccountMenuOpen] = useState(false); // 顶栏账号快捷菜单
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
+    // 记录首屏是否携带坐标分享链接（若携带则优先还原链接视角，不被 IP 自动定位覆盖）
+    const [hasInitialHashView] = useState(() => {
+        const view = parseViewHash(window.location.hash);
+        return Boolean(view && view.lat !== null && view.lon !== null);
+    });
 
     // 🎯 主轨点位 + 会话全部走统一 hook（#9 usePoints）：
     // 会话探测/拉云 LWW 合并/写前盖戳/空库守卫/401 自愈/登出全在 hook 内
@@ -33,13 +37,6 @@ const App = () => {
     } = usePoints('main');
 
     // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..&mode=..
-    // 别人分享的链接打开后自动切页签、飞到目标坐标并弹出定位面板。
-    // 🧭 仅"首次到访"恢复（shouldRestoreSharedView 用 sessionStorage 区分）：
-    // 同标签页刷新时哈希只是被动跟随，不再绑架视角跳回旧位置
-    // 🏠 本机指纹（isOwnDeviceView 用 localStorage 区分）：从自己收藏夹打开的链接
-    //    静默摆到目标视角（不弹分享面板），朋友打开的真分享才走完整仪式感
-    // 🎯 mode=tactical（战术轨道链接）：直接拉起 dark2d 战术模式，视角由
-    //    MapTactical 自己从 hash 恢复（含本机"上次视角"记忆链），App 不越俎代庖
     useEffect(() => {
         if (!shouldRestoreSharedView(window.sessionStorage)) return;
         const view = parseViewHash(window.location.hash);
@@ -47,15 +44,14 @@ const App = () => {
         if (view.mode === 'tactical') {
             // eslint-disable-next-line react-hooks/set-state-in-effect -- 启动恢复链：一次性条件切模式，非级联渲染
             setIsTacticalMode(true);
-            return; // 战术轨道视角恢复全部由 MapTactical 内部处理
+            return;
         }
         if (view.tab) setActiveTab(view.tab);
         if (view.lat !== null) {
             if (isOwnDeviceView(window.location.hash, window.localStorage)) {
-                // 自家收藏视角：静默定位（仍走 pendingMapTarget 拿到坐标，但换"安静"来源标记）
                 setPendingMapTarget({
                     id: `own_${Date.now()}`,
-                    name: '上次视角',
+                    name: '上次浏览位置',
                     lat: view.lat,
                     lon: view.lon,
                     category: 'spot',
@@ -65,11 +61,11 @@ const App = () => {
             } else {
                 setPendingMapTarget({
                     id: `share_${Date.now()}`,
-                    name: '分享坐标',
+                    name: '分享位置',
                     lat: view.lat,
                     lon: view.lon,
                     category: 'spot',
-                    source: '视角分享链接',
+                    source: '分享链接',
                 });
             }
         }
@@ -90,26 +86,38 @@ const App = () => {
         };
     }, [customPoints]);
 
+    const handleLocateExternal = (pt) => {
+        if (!pt || !Number.isFinite(pt.lat) || !Number.isFinite(pt.lon)) return;
+        setPendingMapTarget(pt);
+        setActiveTab('map');
+    };
+
+    const handleEnterTactical = (view = null) => {
+        setTacticalInitialView(view);
+        setIsTacticalMode(true);
+    };
+
     return (
         <>
-            {/* 🎯 战术模式全屏覆盖 */}
+            {/* 🎯 暗黑专业地图全屏覆盖 */}
             {isTacticalMode ? (
-                <ErrorBoundary label="战术雷达" onReset={() => setIsTacticalMode(false)}>
+                <ErrorBoundary label="暗黑地图" onReset={() => setIsTacticalMode(false)}>
                 <Suspense
                     fallback={
                         <div
                             className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-cyan-300 font-mono"
                             role="status"
-                            aria-label="战术雷达启动中"
+                            aria-label="暗黑地图加载中"
                         >
                             <div className="w-12 h-12 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin"></div>
-                            <p className="text-sm tracking-[0.3em] animate-pulse">[ DARK_2D_RADAR 启动中... ]</p>
+                            <p className="text-sm tracking-[0.2em] animate-pulse">正在加载 Dark 2D 专业地图...</p>
                         </div>
                     }
                 >
                     <MapTactical
                         customPoints={customPoints}
-                        onPointsUpdate={handlePointsUpdate} // 👈 接入云端同步
+                        onPointsUpdate={handlePointsUpdate}
+                        initialView={tacticalInitialView}
                         onExit={() => setIsTacticalMode(false)}
                     />
                 </Suspense>
@@ -117,47 +125,63 @@ const App = () => {
             ) : (
                 <div className="min-h-screen p-4 md:p-8 text-gray-800">
                     <div className="max-w-6xl mx-auto">
-                        <header className="mb-4">
-                            <h1 className="flex flex-wrap items-end gap-x-3 gap-y-1 text-3xl md:text-4xl lg:text-5xl">
-                                {/* 🌌 天の川字体：站名用手写展示体，副标语保持正文脸 */}
-                                <span className="font-display text-sora-deep drop-shadow-[0_2px_0_oklch(0.94_0.045_5/0.5)]">Earth</span>
-                                <span className="font-display text-ink">Terminal</span>
-                            </h1>
-                            <p className="text-ink-2 mt-2 flex items-center text-sm md:text-base">
-                                <MapPin className="w-4 h-4 mr-1" /> 首站日本已接入 —— 铁道骨架自稚内延伸至鹿儿岛，下一块大陆正在加载
-                                {/* 选配：你可以加个云端状态小图标 */}
-                                {isCloudSyncing && <CloudFog className="w-4 h-4 ml-3 text-cyan-500 animate-pulse" title="云端同步中..." />}
-                                {session
-                                    ? (
-                                        // 🚪 顶栏 NODE 徽章 = 快捷菜单：退出不再藏在数据解析页深处
-                                        <span className="relative ml-3">
-                                            <button
-                                                onClick={() => setNodeMenuOpen(v => !v)}
-                                                aria-haspopup="menu"
-                                                aria-expanded={nodeMenuOpen}
-                                                title="节点菜单"
-                                                className="tnum hud-label px-2 py-0.5 rounded-md bg-kouchou-soft text-kouchou border border-kouchou/40 text-xs font-bold hover:border-kouchou transition-colors"
-                                            >
-                                                NODE: {session} ▾
-                                            </button>
-                                            {nodeMenuOpen && (
-                                                <>
-                                                    <div className="fixed inset-0 z-40" onClick={() => setNodeMenuOpen(false)} />
-                                                    <span role="menu" className="absolute right-0 top-8 z-50 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 px-1">
-                                                        <button
-                                                            onClick={() => { setNodeMenuOpen(false); handleLogout(); }}
-                                                            role="menuitem"
-                                                            className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
-                                                        >
-                                                            ⏏ 断开上行链路（退出）
-                                                        </button>
+                        <header className="mb-4 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                            <div>
+                                <h1 className="flex flex-wrap items-end gap-x-3 gap-y-1 text-3xl md:text-4xl lg:text-5xl">
+                                    <span className="font-display text-sora-deep drop-shadow-[0_2px_0_oklch(0.94_0.045_5/0.5)]">Earth</span>
+                                    <span className="font-display text-ink">Terminal</span>
+                                </h1>
+                                <p className="text-ink-2 mt-1.5 flex items-center text-sm md:text-base">
+                                    <Globe className="w-4 h-4 mr-1.5 shrink-0 text-sora" />
+                                    全球地理探索与出行工作台 · 天气光影、收藏同步与多国交通网络
+                                    {isCloudSyncing && <CloudFog className="w-4 h-4 ml-2 text-cyan-500 animate-pulse" title="云端同步中..." />}
+                                </p>
+                            </div>
+
+                            {/* 🔐 账号登录与云同步入口（直观清晰） */}
+                            <div className="flex items-center shrink-0">
+                                {session ? (
+                                    <span className="relative">
+                                        <button
+                                            onClick={() => setAccountMenuOpen(v => !v)}
+                                            aria-haspopup="menu"
+                                            aria-expanded={accountMenuOpen}
+                                            title="账号与云端同步"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-wakaba-soft text-ink border border-wakaba/40 text-xs font-bold hover:border-wakaba transition-colors"
+                                        >
+                                            <span className="w-2 h-2 rounded-full bg-wakaba" aria-hidden="true" />
+                                            <span>{session}</span>
+                                            <span className="opacity-60">▾</span>
+                                        </button>
+                                        {accountMenuOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-40" onClick={() => setAccountMenuOpen(false)} />
+                                                <span role="menu" className="absolute right-0 top-10 z-50 w-44 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 px-1">
+                                                    <span className="block px-3 py-1.5 text-[11px] text-slate-400 border-b border-slate-100 mb-1">
+                                                        云端同步已开启
                                                     </span>
-                                                </>
-                                            )}
-                                        </span>
-                                    )
-                                    : <button onClick={() => setAuthOverlayOpen(true)} className="ml-3 text-xs font-bold text-sora hover:text-sora-deep underline underline-offset-4 transition-colors">建立上行链路</button>}
-                            </p>
+                                                    <button
+                                                        onClick={() => { setAccountMenuOpen(false); handleLogout(); }}
+                                                        role="menuitem"
+                                                        className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                                    >
+                                                        退出登录
+                                                    </button>
+                                                </span>
+                                            </>
+                                        )}
+                                    </span>
+                                ) : (
+                                    <button
+                                        onClick={() => setAuthOverlayOpen(true)}
+                                        title="登录后可在多设备间云端同步你的收藏地点"
+                                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-paper-2 text-sora-deep border border-sora/30 shadow-sm hover:bg-sora-soft/60 hover:border-sora transition-colors"
+                                    >
+                                        <User className="w-3.5 h-3.5" />
+                                        登录 / 云同步
+                                    </button>
+                                )}
+                            </div>
                         </header>
 
                         <nav
@@ -166,12 +190,12 @@ const App = () => {
                             ref={(el) => { window.__tabNav = el; }}
                         >
                     {[
-                        { id: 'map', label: '高精度地形终端', icon: MapIcon },
-                        { id: 'data', label: '数据解析与管理', icon: Database },
-                        { id: 'rules', label: '系统生存法则', icon: Info },
-                        { id: 'tools', label: '双向汇率引擎', icon: Calculator },
-                        { id: 'sub-culture', label: '次元情报中心', icon: Sparkles },
-                        { id: 'aviation', label: '跨国航线雷达', icon: PlaneTakeoff },
+                        { id: 'map', label: '探索地图', icon: MapIcon },
+                        { id: 'data', label: '收藏与导入', icon: Database },
+                        { id: 'rules', label: '出行指南', icon: Info },
+                        { id: 'tools', label: '汇率换算', icon: Calculator },
+                        { id: 'sub-culture', label: '巡礼与活动', icon: Sparkles },
+                        { id: 'aviation', label: '机票航线', icon: PlaneTakeoff },
                     ].map((tab) => (
                         <button
                             key={tab.id}
@@ -179,7 +203,7 @@ const App = () => {
                             role="tab"
                             aria-selected={activeTab === tab.id}
                             /* 闸门 10：过渡只指定属性（bg/color/shadow），不动画 outline —— 焦点环即时出现 */
-                            className={`shrink-0 flex items-center px-6 py-2.5 rounded-xl text-sm font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
+                            className={`shrink-0 flex items-center px-5 py-2.5 rounded-xl text-sm font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
                                 activeTab === tab.id
                                     ? 'bg-sora text-sora-ink shadow-lift'
                                     : 'text-ink-2 hover:text-ink hover:bg-sora-soft/60'
@@ -197,34 +221,31 @@ const App = () => {
                         isActive={activeTab === 'map'}
                         customPoints={customPoints}
                         basePoints={BASE_POINTS_CONFIG}
-                        // 👈 删除操作也必须走 handlePointsUpdate，否则删了云端又会弹回来
                         onDeletePoint={(pointId) => handlePointsUpdate(customPoints.filter(p => p.id !== pointId))}
-                        onPointsUpdate={handlePointsUpdate} // 👈 接入云端同步
+                        onPointsUpdate={handlePointsUpdate}
                         pendingMapTarget={pendingMapTarget}
                         onTargetHandled={() => setPendingMapTarget(null)}
-                        onEnterTactical={() => setIsTacticalMode(true)}
+                        onEnterTactical={handleEnterTactical}
+                        skipIpAutoLocate={hasInitialHashView}
                     />
                     
-                    {/* 👈 接入云端同步 */}
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} />
                     
                     <RulesTab isActive={activeTab === 'rules'} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
-                    {/* 4. 挂载跨国航线雷达模块 */}
                     <AviationEngine isActive={activeTab === 'aviation'} />
 
                         {activeTab === 'sub-culture' && (
             <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
                 <PilgrimageRadar isActive={true} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} />
 
-                {/* 极简分割线，增加空间感 */}
                 <div className="flex items-center justify-center py-4">
                     <div className="h-px bg-line flex-1"></div>
-                    <div className="mx-4 hud-label text-ink-3 text-xs">Dimension Divider</div>
+                    <div className="mx-4 text-ink-3 text-xs font-bold tracking-wider">季节活动 · 地区专题</div>
                     <div className="h-px bg-line flex-1"></div>
                 </div>
 
-                <HanabiRadar isActive={true} />
+                <HanabiRadar isActive={true} onLocateOnMap={handleLocateExternal} />
             </div>
         )}
                   </ErrorBoundary>

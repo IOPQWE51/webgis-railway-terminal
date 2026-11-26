@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compactGeocodeResults } from '../api/mapbox.js';
+import { compactGeocodeResults, extractVercelIpGeo } from '../api/mapbox.js';
 
 const feature = (text, place_name, lon, lat) => ({ text, place_name, center: [lon, lat] });
 
@@ -36,5 +36,33 @@ describe('api/mapbox 顺向地理编码结果压缩', () => {
     expect(compactGeocodeResults(undefined)).toEqual([]);
     expect(compactGeocodeResults({})).toEqual([]);
     expect(compactGeocodeResults({ features: 'nope' })).toEqual([]);
+  });
+});
+
+describe('api/mapbox Vercel IP 地理头解析', () => {
+  it('正常提取并解码 URL 编码的城市名与时区', () => {
+    const geo = extractVercelIpGeo({
+      'x-vercel-ip-latitude': '31.2304',
+      'x-vercel-ip-longitude': '121.4737',
+      'x-vercel-ip-city': 'Shanghai%20City',
+      'x-vercel-ip-country': 'cn',
+      'x-vercel-ip-country-region': 'SH',
+      'x-vercel-ip-timezone': 'Asia%2FShanghai',
+    });
+    expect(geo).toEqual({
+      lat: 31.2304,
+      lon: 121.4737,
+      city: 'Shanghai City',
+      region: 'SH',
+      country: 'CN',
+      timezone: 'Asia/Shanghai',
+      source: 'vercel-ip',
+    });
+  });
+
+  it('缺失或越界坐标返回 null', () => {
+    expect(extractVercelIpGeo({})).toBeNull();
+    expect(extractVercelIpGeo({ 'x-vercel-ip-latitude': '95', 'x-vercel-ip-longitude': '10' })).toBeNull();
+    expect(extractVercelIpGeo({ 'x-vercel-ip-latitude': 'abc', 'x-vercel-ip-longitude': '10' })).toBeNull();
   });
 });

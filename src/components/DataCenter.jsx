@@ -433,38 +433,35 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
 
     return (
         <div className={`${isActive ? 'block' : 'hidden'} animate-in slide-in-from-bottom duration-500`}>
-            {/* 🔐 作战身份卡：上行链路状态 */}
-            {/* 条件渲染：onOpenAuth 缺省（战术模式内嵌 DataCenter 未接会话 props）时整卡隐藏，
-                避免恒渲染匿名分支造成"建立上行链路"死按钮与错误文案；
-                App 主入口照常传入 onOpenAuth，身份卡不受影响 */}
+            {/* 🔐 账号与云端同步状态卡 */}
             {onOpenAuth && (
             <div className="bg-white rounded-2xl p-4 border border-gray-200 mb-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center text-gray-500 font-bold text-xs uppercase tracking-wider">
-                        <ShieldCheck className="w-4 h-4 mr-2" /> 作战身份
+                    <div className="flex items-center text-gray-500 font-bold text-xs tracking-wide">
+                        <ShieldCheck className="w-4 h-4 mr-2" /> 账号与云端同步
                     </div>
                     {session ? (
                         <div className="flex items-center gap-2">
-                            <span className="px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold font-mono">NODE: {session}</span>
-                            <button onClick={onLogout} className="px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">断开链路</button>
+                            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">已登录：{session}</span>
+                            <button onClick={onLogout} className="px-3 py-1.5 rounded-xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">退出登录</button>
                         </div>
                     ) : (
-                        <button onClick={onOpenAuth} className="px-4 py-1.5 rounded-xl text-xs font-bold bg-amber-400 text-zinc-900 hover:bg-amber-300 shadow-sm transition-colors">⚡ 建立上行链路</button>
+                        <button onClick={onOpenAuth} className="px-4 py-1.5 rounded-xl text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-700 shadow-sm transition-colors">登录 / 开启云同步</button>
                     )}
                 </div>
                 <p className="text-xs text-gray-400 mt-2">
-                    {session ? '云端同步已就绪：点位库按用户隔离，跨设备保持一致。' : '匿名模式：数据仅保存在本机浏览器。建立上行链路后可云端同步与跨设备漫游。'}
+                    {session ? '云端同步已就绪：收藏点位按账号独立保存，跨设备自动同步。' : '当前为未登录模式，收藏仅保存在本机浏览器。登录后可云端同步与跨设备访问。'}
                 </p>
             </div>
             )}
 
             <div className="grid md:grid-cols-5 gap-6">
                 
-                {/* 左侧：CSV 批量解析舱 */}
+                {/* 左侧：CSV 批量导入 */}
                 <div className="md:col-span-3 bg-white rounded-[2rem] border border-gray-200 shadow-xl p-8">
                     <div className="mb-6">
                         <h2 className="text-2xl font-black text-gray-900 flex items-center">
-                            <UploadCloud className="w-6 h-6 mr-2 text-cyan-600" /> CSV 战术解析舱
+                            <UploadCloud className="w-6 h-6 mr-2 text-cyan-600" /> 批量导入地点 (CSV)
                         </h2>
                     </div>
                     <div
@@ -558,10 +555,10 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                         <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-sm font-bold text-green-800 flex items-center"><CheckCircle2 className="w-5 h-5 mr-2 text-green-600" /> {processStatus}</div>
                     )}
 
-                    {/* 已存储星标库 */}
+                    {/* 已存储收藏点位 */}
                     <div className="mt-8">
                         <div className="flex justify-between items-end mb-3 border-b pb-2">
-                            <h4 className="font-bold text-gray-700">战术星标库 ({customPoints.length})</h4>
+                            <h4 className="font-bold text-gray-700">我的收藏点位 ({customPoints.length})</h4>
                             <div className="flex items-center gap-3">
                                 {customPoints.length > 0 && (
                                     <span className="flex items-center gap-2 text-xs text-cyan-600">
@@ -570,11 +567,11 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                                         <button onClick={exportCSV} className="hover:text-cyan-800 flex items-center transition-colors font-bold" title="导出 CSV（Excel 直开）"><Download className="w-3 h-3 mr-0.5" /> CSV</button>
                                     </span>
                                 )}
-                                {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-red-500 hover:text-red-700 flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 格式化缓存</button>}
+                                {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-red-500 hover:text-red-700 flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空全部</button>}
                             </div>
                         </div>
                         <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                            {customPoints.length === 0 && <p className="text-sm text-gray-400 text-center py-8">雷达图当前为空，等待数据注入。</p>}
+                            {customPoints.length === 0 && <p className="text-sm text-gray-400 text-center py-8">暂无收藏点位，可在地图中点击地点收藏，或从上方导入 CSV。</p>}
                             {groupedPoints.map(group => (
                                 <div key={group.name} className="mb-2">
                                     <button onClick={() => setExpandedGroup(expandedGroup === group.name ? null : group.name)} className="w-full flex items-center justify-between bg-gradient-to-r from-slate-50 to-white p-3 rounded-xl border border-gray-200 hover:border-cyan-300 transition-all">
@@ -646,18 +643,18 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                     <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl border border-indigo-100 p-6 shadow-xl relative overflow-hidden">
                         <Search className="absolute -right-4 -bottom-4 w-24 h-24 text-indigo-500 opacity-5 pointer-events-none" />
                         <h4 className="font-black text-indigo-900 mb-4 flex items-center border-b border-indigo-100 pb-2">
-                            <Search className="w-5 h-5 mr-2 text-indigo-500" /> Google 战术雷达检索
+                            <Search className="w-5 h-5 mr-2 text-indigo-500" /> 按地名查找并添加
                         </h4>
                         <div className="space-y-3 relative z-10">
-                            <p className="text-[11px] text-indigo-600/80 font-bold mb-1">直连 Google 卫星获取最高精度 GPS：</p>
-                            <input type="text" value={searchData.name} onChange={e => setSearchData({ ...searchData, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleSmartSearch()} className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none shadow-sm" placeholder="如：清水寺 / Tokyo Tower..." />
+                            <p className="text-[11px] text-indigo-600/80 font-bold mb-1">输入全球任意地名，自动解析经纬度并加入收藏：</p>
+                            <input type="text" value={searchData.name} onChange={e => setSearchData({ ...searchData, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleSmartSearch()} className="w-full bg-white border border-indigo-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none shadow-sm" placeholder="如：Eiffel Tower / 伦敦国王十字车站..." />
                             <div className="flex gap-2">
                                 <select value={searchData.type} onChange={e => setSearchData({ ...searchData, type: e.target.value })} className="w-1/3 bg-white border border-indigo-200 rounded-lg px-2 py-2 text-sm shadow-sm outline-none cursor-pointer">
                                     <option value="spot">📍 地标</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
                                 </select>
                                 <button onClick={handleSmartSearch} disabled={isSearching} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-2 rounded-lg shadow-md active:scale-95 transition-all flex items-center justify-center">
                                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MapPin className="w-4 h-4 mr-2" />}
-                                    {isSearching ? '信号连接中...' : '锁定目标坐标'}
+                                    {isSearching ? '正在查找...' : '查找并添加'}
                                 </button>
                             </div>
                         </div>
@@ -665,11 +662,11 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
 
                     <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-md">
                         <h4 className="font-bold text-gray-800 mb-4 flex items-center border-b pb-2">
-                            <Plus className="w-4 h-4 mr-2 text-cyan-600" /> 手动坐标覆写
+                            <Plus className="w-4 h-4 mr-2 text-cyan-600" /> 手动录入坐标
                         </h4>
                         <div className="space-y-3">
                             <div className="flex gap-2">
-                                <input type="text" value={manualData.name} onChange={e => setManualData({ ...manualData, name: e.target.value })} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="信标代号" />
+                                <input type="text" value={manualData.name} onChange={e => setManualData({ ...manualData, name: e.target.value })} className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="地点名称" />
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                                 <input type="number" value={manualData.lat} onChange={e => setManualData({ ...manualData, lat: e.target.value })} className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm" placeholder="Lat (纬度)" />
@@ -680,7 +677,7 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                                     <option value="spot">📍 地标</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
                                 </select>
                                 <button onClick={handleManualAdd} className="flex-1 bg-white border-2 border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white font-bold py-2 rounded-lg transition-colors">
-                                    强制注入
+                                    添加到收藏
                                 </button>
                             </div>
                         </div>

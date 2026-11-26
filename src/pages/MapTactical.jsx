@@ -6,7 +6,7 @@ import MapboxMapTactical from '../components/MapboxMapTactical';
 import DataCenter from '../components/DataCenter';
 import TacticalBottomSheet from '../components/TacticalBottomSheet';
 import { Map, Database, Search, Crosshair, Loader2 } from 'lucide-react';
-import { storage, debounce } from '../utils/performanceHelpers';
+import { storage, debounce, getPositionByIP } from '../utils/performanceHelpers';
 import { searchPlace } from '../utils/geocode';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { TACTICAL_STYLES } from '../config/mapConstants';
@@ -14,28 +14,52 @@ import { parseViewHash, serializeViewHash, OWN_VIEW_FINGERPRINT } from '../utils
 import QrViewShare from '../components/QrViewShare';
 import { usePoints } from '../hooks/usePoints';
 
-// 🏠 记住上次战术视角（本机持久，与主地图的视角指纹同仓不同 key）
+// 🏠 记住上次暗黑地图视角（本机持久，与主地图的视角指纹同仓不同 key）
 const TACTICAL_LAST_VIEW = 'et_tactical_last_view';
 
-export default function MapTactical({ customPoints: _initialPoints = [], onPointsUpdate: _onPointsUpdate, onExit }) {
+export default function MapTactical({ customPoints: _initialPoints = [], onPointsUpdate: _onPointsUpdate, initialView = null, onExit }) {
   // 🎯 Dark 2D 点位走统一 hook（#9）：拉云合并/盖戳/三防御与主轨同款
   const { points: customPoints, updatePoints: handlePointsUpdate } = usePoints('dark2d');
   const [activeTab, setActiveTab] = useState('map'); // 'map' 或 'data'
-  // 🧭 默认视角三连：分享链接 hash（mode=tactical）> 上次战术视角（本机记住）> 东京湾
-  // （全球出行工具的"第一站"不应硬编码成单一城市——分享/上次视角命中时永远优先）
+  // 🧭 默认视角优先级：主图带入视角 > 分享链接 hash > 上次本机视角 > 全球中立概览（随后由 IP 自动定位接管）
+  const [hasExplicitInitialView] = useState(() => {
+    if (initialView && Number.isFinite(initialView.lat) && Number.isFinite(initialView.lon)) return true;
+    const fromHash = parseViewHash(window.location.hash);
+    if (fromHash?.lat !== null && fromHash?.lon !== null) return true;
+    const last = storage.load(TACTICAL_LAST_VIEW, null);
+    return Array.isArray(last) && Number.isFinite(last[0]) && Number.isFinite(last[1]);
+  });
   const [mapCenter, setMapCenter] = useState(() => {
+    if (initialView && Number.isFinite(initialView.lat) && Number.isFinite(initialView.lon)) {
+      return [initialView.lon, initialView.lat];
+    }
     const fromHash = parseViewHash(window.location.hash);
     if (fromHash?.lat !== null && fromHash?.lon !== null) return [fromHash.lon, fromHash.lat];
     const last = storage.load(TACTICAL_LAST_VIEW, null);
     if (Array.isArray(last) && Number.isFinite(last[0]) && Number.isFinite(last[1])) return last;
-    return [139.7671, 35.6812]; // 东京站（全球工具的第一站默认，非"某国第一城"叙事）
+    return [15, 20]; // 中立全球视角（不再硬编码单一国家城市）
   });
   const [mapZoom, setMapZoom] = useState(() => {
+    if (initialView && Number.isFinite(initialView.zoom)) return initialView.zoom;
     const fromHash = parseViewHash(window.location.hash);
     if (fromHash?.lat !== null && fromHash?.lon !== null && fromHash.z !== null) return fromHash.z;
     const last = storage.load('et_tactical_last_zoom', null);
-    return (typeof last === 'number' && Number.isFinite(last) && last >= 0) ? last : 4; // 全球概览级
+    return (typeof last === 'number' && Number.isFinite(last) && last >= 0) ? last : 3;
   });
+
+  // 🌐 冷启动且无显式视角时，按访客 IP 自动定位
+  useEffect(() => {
+    if (hasExplicitInitialView) return undefined;
+    let cancelled = false;
+    getPositionByIP()
+      .then((pos) => {
+        if (cancelled || !pos || !Number.isFinite(pos.latitude) || !Number.isFinite(pos.longitude)) return;
+        setMapCenter([pos.longitude, pos.latitude]);
+        setMapZoom(9);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [hasExplicitInitialView]);
   const [searchQuery, setSearchQuery] = useState(''); // 🔍 搜索关键词
   const [isSearching, setIsSearching] = useState(false); // 🔍 搜索状态
   const [isLocating, setIsLocating] = useState(false); // 📍 定位中状态
@@ -244,17 +268,17 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
             whiteSpace: 'nowrap'
           }}>
             <Map size={18} />
-            [ DARK_2D_RADAR ]
+            DARK 2D · 暗黑专业地图
           </h1>
 
-          {/* 雷达状态灯 + 退出按钮 */}
+          {/* 雷达状态灯 + 返回按钮 */}
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-            <div style={{ fontSize: '10px', color: TACTICAL_STYLES.colors.amber, display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+            <div style={{ fontSize: '11px', color: TACTICAL_STYLES.colors.amber, display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
               <div style={{ width: '6px', height: '6px', backgroundColor: TACTICAL_STYLES.colors.amber, borderRadius: '50%', boxShadow: `0 0 8px ${TACTICAL_STYLES.colors.amber}` }}></div>
-              SYS.ONLINE // TARGETS: {customPoints.length}
+              收藏点位: {customPoints.length}
             </div>
 
-            {/* 🚪 紧急脱出按钮 */}
+            {/* 🚪 返回标准地图按钮 */}
             {onExit && (
               <button
                 onClick={handleExit}
@@ -263,7 +287,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
                   ...TACTICAL_STYLES.button.danger
                 }}
               >
-                ⚠️ EXIT
+                ← 返回标准地图
               </button>
             )}
           </div>
@@ -274,7 +298,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
 
           {/* 位置搜索模块 */}
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ color: TACTICAL_STYLES.colors.grayText, fontSize: '10px', letterSpacing: '1px' }}>ZONE</span>
+            <span style={{ color: TACTICAL_STYLES.colors.grayText, fontSize: '11px', letterSpacing: '1px' }}>搜索</span>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
               <Search size={12} style={{ position: 'absolute', left: '8px', color: TACTICAL_STYLES.colors.grayText, pointerEvents: 'none' }} />
               <input
@@ -311,12 +335,12 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
             }}
           >
             {isLocating ? <Loader2 size={12} className="animate-spin" /> : <Crosshair size={12} />}
-            {isLocating ? 'LOCATING...' : 'LOCATE'}
+            {isLocating ? '定位中...' : '当前位置'}
           </button>
 
           {/* 样式选择模块 */}
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ color: '#64748b', fontSize: '10px', letterSpacing: '1px' }}>MODE</span>
+            <span style={{ color: '#64748b', fontSize: '11px', letterSpacing: '1px' }}>底图</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {Object.keys(mapStyles).map(style => (
                 <button
@@ -333,7 +357,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
                     textTransform: 'uppercase'
                   }}
                 >
-                  {style === 'dark2D' ? 'DARK_2D' : style.toUpperCase()}
+                  {style === 'dark2D' ? 'DARK_2D' : style === 'dark' ? '暗色' : style === 'light' ? '浅色' : '街道'}
                 </button>
               ))}
             </div>
@@ -351,7 +375,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
                 alignItems: 'center'
               }}
             >
-              <Map size={12} /> TACTICAL
+              <Map size={12} /> 地图视图
             </button>
             <button
               onClick={() => setActiveTab('data')}
@@ -363,7 +387,7 @@ export default function MapTactical({ customPoints: _initialPoints = [], onPoint
                 alignItems: 'center'
               }}
             >
-              <Database size={12} /> DATA
+              <Database size={12} /> 收藏点位
             </button>
           </div>
         </div>

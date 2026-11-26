@@ -4,7 +4,10 @@ import {
   nextAstroEvent,
   filterNearby,
   buildTodayCard,
-  mapWeatherEmoji
+  mapWeatherEmoji,
+  translateWeatherCondition,
+  formatLocalTimeByLon,
+  formatUtcOffsetLabel
 } from '../src/utils/todayCard';
 import { HANABI_DATA } from '../src/config/regions';
 
@@ -110,6 +113,38 @@ describe('mapWeatherEmoji 天气映射', () => {
   it('未知条件兜底 🌍', () => {
     expect(mapWeatherEmoji('Mystery')).toBe('🌍');
     expect(mapWeatherEmoji(undefined)).toBe('🌍');
+  });
+});
+
+describe('translateWeatherCondition 天气中文映射', () => {
+  it('常见 WeatherAPI 英文短语翻成中文', () => {
+    expect(translateWeatherCondition('Patchy rain nearby')).toBe('周边零星小雨');
+    expect(translateWeatherCondition('Partly cloudy')).toBe('局部多云');
+    expect(translateWeatherCondition('Overcast')).toBe('阴天');
+    expect(translateWeatherCondition('Clear')).toBe('晴朗');
+  });
+
+  it('未命中词典保留原文', () => {
+    expect(translateWeatherCondition('Volcanic ash')).toBe('Volcanic ash');
+    expect(translateWeatherCondition('')).toBe('');
+  });
+});
+
+describe('formatLocalTimeByLon / formatUtcOffsetLabel 经度当地时间', () => {
+  it('东京经度 (139.77°) 按 UTC+9 格式化，不受运行机时区干扰', () => {
+    const utc = new Date('2026-11-26T21:29:00Z');
+    expect(formatUtcOffsetLabel(139.77)).toBe('UTC+9');
+    expect(formatLocalTimeByLon(utc, 139.77)).toBe('06:29');
+  });
+
+  it('纽约经度 (-74.0°) 按 UTC-5 格式化', () => {
+    const utc = new Date('2026-11-26T12:00:00Z');
+    expect(formatUtcOffsetLabel(-74.0)).toBe('UTC-5');
+    expect(formatLocalTimeByLon(utc, -74.0)).toBe('07:00');
+  });
+
+  it('非法日期返回 —', () => {
+    expect(formatLocalTimeByLon(null, 120)).toBe('—');
   });
 });
 
