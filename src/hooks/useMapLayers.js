@@ -123,8 +123,8 @@ export const useMapLayers = (
         const cfg = BASE_MAPS[baseMapType] || BASE_MAPS.topo;
         const tileLayer = L.tileLayer(cfg.url, {
             maxZoom: 19,
-            keepBuffer: 6,
-            updateWhenIdle: false,
+            keepBuffer: 4,
+            updateWhenIdle: true,
             updateWhenZooming: false
         });
 
@@ -151,7 +151,9 @@ export const useMapLayers = (
         if (cfg.overlayUrl) {
             baseOverlayLayerRef.current = L.tileLayer(cfg.overlayUrl, {
                 maxZoom: 19,
-                keepBuffer: 6,
+                keepBuffer: 4,
+                updateWhenIdle: true,
+                updateWhenZooming: false,
                 zIndex: 4,
                 opacity: 0.92
             }).addTo(map);

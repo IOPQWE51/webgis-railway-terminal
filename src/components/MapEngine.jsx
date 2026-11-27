@@ -439,12 +439,12 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 </div>
             </div>
 
-            {/* ② 纯净通透的地图画布（清空左上/顶中/左下贴纸，把画面还给地图本身） */}
+            {/* ② 纯净通透的地图画布（网格底纹放在外层容器，严禁在 #real-map-container 上绑定动态 className，避免 React 覆盖 Leaflet 动态写入的 .leaflet-container 类） */}
             <div
-                className="relative rounded-3xl overflow-hidden shadow-lift border border-line/90 bg-paper-2"
+                className={`relative rounded-3xl overflow-hidden shadow-lift border border-line/90 ${baseMapType === 'dark' ? 'map-canvas-grid-dark' : 'map-canvas-grid'} ${tileLoading ? 'map-canvas-loading' : ''}`}
                 style={{ height: 'clamp(440px, 58dvh, 620px)' }}
             >
-                <div id="real-map-container" className={`w-full h-full z-10 ${baseMapType === 'dark' ? 'map-canvas-grid-dark' : 'map-canvas-grid'} ${tileLoading ? 'map-canvas-loading' : ''}`}></div>
+                <div id="real-map-container" className="w-full h-full z-10"></div>
 
                 {/* 🛰️ 左上角轻量瞬时状态胶囊（瓦片加载中 / 定位反馈 / 滚轮防误触提示，平时完全隐身） */}
                 {(tileLoading || tools.locateNotice || wheelHint) && (
