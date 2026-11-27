@@ -31,8 +31,9 @@ export const HANABI_EVENTS = [];
 export const UK_REGION = {
     id: 'uk',
     name: '英国',
+    centerLabel: '约克 · 英国',
     icon: '🇬🇧',
-    center: [54.2, -2.5],
+    center: [53.9580, -1.0932],
     zoom: 5.5,
     description: '东西海岸干线 + 大西部线 + 苏格兰西高地蒸汽火车观光线',
 };

@@ -53,8 +53,9 @@ export const HANABI_EVENTS = [];
 export const EUROPE_REGION = {
     id: 'eu',
     name: '欧洲',
+    centerLabel: '苏黎世 · 欧洲',
     icon: '🇪🇺',
-    center: [47.2, 9.5],
+    center: [47.3779, 8.5402],
     zoom: 4.5,
     description: 'Eurail 西中南欧高铁网 + 冰川/伯尔尼纳阿尔卑斯观景线',
 };

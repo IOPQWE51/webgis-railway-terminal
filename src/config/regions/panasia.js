@@ -36,8 +36,9 @@ export const HANABI_EVENTS = [];
 export const PANASIA_REGION = {
     id: 'sea',
     name: '泛亚东南亚',
+    centerLabel: '曼谷 · 泛亚东南亚',
     icon: '🌏',
-    center: [12.5, 101.5],
+    center: [13.8037, 100.5403],
     zoom: 4.5,
     description: '中老铁路 · 泰国夜班卧铺 · 马来半岛直抵新加坡陆路大动脉',
 };

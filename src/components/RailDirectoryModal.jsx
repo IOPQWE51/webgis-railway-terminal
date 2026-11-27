@@ -184,7 +184,7 @@ export default function RailDirectoryModal({ open, initialRegionId = 'jp', custo
                         </span>
                       )}
                     </div>
-                    <span className="text-[11px] font-mono text-ink-3 shrink-0">{line.stations.length} 站</span>
+                    <span className="text-xs font-bold text-ink-2 shrink-0 tabular-nums">共 {line.stations.length} 站</span>
                   </button>
 
                   {isOpen && (

@@ -214,19 +214,30 @@ body {
 /* 🚀 Leaflet 瓦片亚像素缝隙修复（保留原有机制） */
 .leaflet-tile-container img.leaflet-tile { scale: 1.01 !important; }
 
-/* 🗺️ 地图画布底纹：瓦片尚未就绪时呈现克制的经纬网格，避免突兀空白浅底 */
-.map-canvas-grid {
-    background-color: #e8f0f8;
+/* 🗺️ 地图画布底纹：用高优先级 !important 压过动态注入的 leaflet.css (.leaflet-container { background:#ddd })，瓦片尚未就绪时呈现克制的经纬网格与轻呼吸光效 */
+#real-map-container.map-canvas-grid,
+#real-map-container.leaflet-container.map-canvas-grid {
+    background-color: #e6eff8 !important;
     background-image:
-        linear-gradient(to right, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(148, 163, 184, 0.16) 1px, transparent 1px);
-    background-size: 40px 40px;
+        linear-gradient(to right, rgba(100, 116, 139, 0.16) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(100, 116, 139, 0.16) 1px, transparent 1px) !important;
+    background-size: 36px 36px !important;
 }
 
-.map-canvas-grid-dark {
-    background-color: #141820;
+#real-map-container.map-canvas-grid-dark,
+#real-map-container.leaflet-container.map-canvas-grid-dark {
+    background-color: #141923 !important;
     background-image:
-        linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-    background-size: 40px 40px;
+        linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px) !important;
+    background-size: 36px 36px !important;
+}
+
+@keyframes mapGridBreath {
+    0%, 100% { background-position: 0 0, 0 0; }
+    50% { background-position: 18px 18px, 18px 18px; }
+}
+
+#real-map-container.map-canvas-loading {
+    animation: mapGridBreath 2.6s ease-in-out infinite;
 }

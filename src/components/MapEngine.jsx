@@ -242,12 +242,12 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.2 });
     };
 
-    // 🧭 跳转到已接入的区域交通骨架包（顶部视野显示真实地理区域名，而非卡片标题）
+    // 🧭 跳转到已接入的区域交通骨架包（顶部视野精确对齐地图中心城市与天气/光影数据）
     const handleJumpToRegion = (region) => {
         if (!region?.center || !mapRef.current) return;
         userInteractedRef.current = true;
         const z = region.zoom ?? 5.5;
-        setFocusLabel(`${region.name}全境`);
+        setFocusLabel(region.centerLabel || region.name);
         setMapView({ lat: region.center[0], lng: region.center[1], zoom: Math.round(z) });
         mapRef.current.flyTo(region.center, z, { duration: 1.2 });
     };
@@ -444,7 +444,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 className="relative rounded-3xl overflow-hidden shadow-lift border border-line/90 bg-paper-2"
                 style={{ height: 'clamp(440px, 58dvh, 620px)' }}
             >
-                <div id="real-map-container" className={`w-full h-full z-10 ${baseMapType === 'dark' ? 'map-canvas-grid-dark' : 'map-canvas-grid'}`}></div>
+                <div id="real-map-container" className={`w-full h-full z-10 ${baseMapType === 'dark' ? 'map-canvas-grid-dark' : 'map-canvas-grid'} ${tileLoading ? 'map-canvas-loading' : ''}`}></div>
 
                 {/* 🛰️ 左上角轻量瞬时状态胶囊（瓦片加载中 / 定位反馈 / 滚轮防误触提示，平时完全隐身） */}
                 {(tileLoading || tools.locateNotice || wheelHint) && (

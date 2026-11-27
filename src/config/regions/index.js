@@ -17,6 +17,7 @@ export const REGION_REGISTRY = [
     {
         id: china.CHINA_REGION.id,
         name: china.CHINA_REGION.name,
+        centerLabel: china.CHINA_REGION.centerLabel,
         icon: china.CHINA_REGION.icon,
         center: china.CHINA_REGION.center,
         zoom: china.CHINA_REGION.zoom,
@@ -26,6 +27,7 @@ export const REGION_REGISTRY = [
     {
         id: japan.JAPAN_REGION.id,
         name: japan.JAPAN_REGION.name,
+        centerLabel: japan.JAPAN_REGION.centerLabel,
         icon: japan.JAPAN_REGION.icon,
         center: japan.JAPAN_REGION.center,
         zoom: japan.JAPAN_REGION.zoom,
@@ -35,6 +37,7 @@ export const REGION_REGISTRY = [
     {
         id: korea.KOREA_REGION.id,
         name: korea.KOREA_REGION.name,
+        centerLabel: korea.KOREA_REGION.centerLabel,
         icon: korea.KOREA_REGION.icon,
         center: korea.KOREA_REGION.center,
         zoom: korea.KOREA_REGION.zoom,
@@ -44,6 +47,7 @@ export const REGION_REGISTRY = [
     {
         id: europe.EUROPE_REGION.id,
         name: europe.EUROPE_REGION.name,
+        centerLabel: europe.EUROPE_REGION.centerLabel,
         icon: europe.EUROPE_REGION.icon,
         center: europe.EUROPE_REGION.center,
         zoom: europe.EUROPE_REGION.zoom,
@@ -53,6 +57,7 @@ export const REGION_REGISTRY = [
     {
         id: uk.UK_REGION.id,
         name: uk.UK_REGION.name,
+        centerLabel: uk.UK_REGION.centerLabel,
         icon: uk.UK_REGION.icon,
         center: uk.UK_REGION.center,
         zoom: uk.UK_REGION.zoom,
@@ -62,6 +67,7 @@ export const REGION_REGISTRY = [
     {
         id: panasia.PANASIA_REGION.id,
         name: panasia.PANASIA_REGION.name,
+        centerLabel: panasia.PANASIA_REGION.centerLabel,
         icon: panasia.PANASIA_REGION.icon,
         center: panasia.PANASIA_REGION.center,
         zoom: panasia.PANASIA_REGION.zoom,

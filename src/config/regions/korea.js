@@ -30,8 +30,9 @@ export const HANABI_EVENTS = [];
 export const KOREA_REGION = {
     id: 'kr',
     name: '韩国',
+    centerLabel: '大田 · 韩国',
     icon: '🇰🇷',
-    center: [36.35, 127.85],
+    center: [36.3325, 127.4342],
     zoom: 6.5,
     description: 'KTX 京釜 / 湖南 / 全罗 / 江陵东海海岸骨架',
 };

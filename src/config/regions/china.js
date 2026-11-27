@@ -57,8 +57,9 @@ export const HANABI_EVENTS = [];
 export const CHINA_REGION = {
     id: 'cn',
     name: '中国',
+    centerLabel: '西安 · 中国',
     icon: '🇨🇳',
-    center: [34.5, 108.5],
+    center: [34.3767, 108.9388],
     zoom: 4.5,
     description: '京沪/京广/沪昆/丝路与青藏铁路骨干网络',
 };

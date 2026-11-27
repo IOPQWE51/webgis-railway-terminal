@@ -118,6 +118,7 @@ export const HANABI_EVENTS = [
 export const JAPAN_REGION = {
     id: 'jp',
     name: '日本',
+    centerLabel: '东京 · 日本',
     icon: '🇯🇵',
     center: [35.6812, 139.7671],
     zoom: 5.5,
