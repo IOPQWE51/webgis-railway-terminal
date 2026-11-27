@@ -26,6 +26,25 @@ const ASTRO_EVENT_META = {
 };
 
 /**
+ * 当前正处于黄金或蓝调时刻内时，返回进行中的窗口信息（用于顶部状态栏显示“进行中 · 剩余 X 分钟”，避免与下方时段矛盾）
+ */
+export function currentAstroPhase(brief, now = new Date()) {
+  if (!brief || !(now instanceof Date) || Number.isNaN(now.getTime())) return null;
+  const t = now.getTime();
+  for (const seg of brief.goldenHours || []) {
+    if (seg?.start instanceof Date && seg?.end instanceof Date && t >= seg.start.getTime() && t < seg.end.getTime()) {
+      return { key: 'golden', ...ASTRO_EVENT_META.golden, start: seg.start, end: seg.end };
+    }
+  }
+  for (const seg of brief.blueHours || []) {
+    if (seg?.start instanceof Date && seg?.end instanceof Date && t >= seg.start.getTime() && t < seg.end.getTime()) {
+      return { key: 'blue', ...ASTRO_EVENT_META.blue, start: seg.start, end: seg.end };
+    }
+  }
+  return null;
+}
+
+/**
  * 下一个天象：候选为日出/日落/各黄金·蓝调段的起点，取 now 之后最近者。
  * 全部已过或简报为空 → null
  */

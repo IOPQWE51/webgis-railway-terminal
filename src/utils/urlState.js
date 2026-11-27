@@ -49,22 +49,48 @@ export function parseViewHash(hash) {
   const modeRaw = params.get('mode');
   const mode = modeRaw && VALID_MODES.has(modeRaw) ? modeRaw : null;
 
-  const hasView = lat !== null || tab !== null;
+  // 可选选中点位：plat + plon 同时合法才附带 point，保持无 point 时返回结构与旧契约 100% 一致
+  let plat = toFiniteNumber(params.get('plat'));
+  let plon = toFiniteNumber(params.get('plon'));
+  if (plat !== null && (plat < -90 || plat > 90)) plat = null;
+  if (plon !== null && (plon < -180 || plon > 180)) plon = null;
+  const pnameRaw = (params.get('pname') || '').trim().slice(0, 60);
+  const point = plat !== null && plon !== null
+    ? { lat: plat, lon: plon, name: pnameRaw || '分享点位' }
+    : null;
+
+  const hasView = lat !== null || tab !== null || point !== null;
   if (!hasView) return null;
 
-  return { lat, lon, z, tab, mode };
+  const parsed = { lat, lon, z, tab, mode };
+  if (point) parsed.point = point;
+  return parsed;
 }
 
 /**
  * 把视角对象序列化为 URL 哈希。
- * @param {{lat:number, lon:number, z?:number, mode?:string}} view
- * @returns {string} 形如 "#lat=..&lon=..&z=.."（mode=tactical 时追加轨道标记）
+ * @param {{lat:number, lon:number, z?:number, mode?:string, point?:{lat:number,lon:number,name?:string}|null}} view
+ * @returns {string} 形如 "#lat=..&lon=..&z=.."（可选附加 mode=tactical 或选中点 plat/plon/pname）
  */
-export function serializeViewHash({ lat, lon, z, mode }) {
+export function serializeViewHash({ lat, lon, z, mode, point }) {
   const fmt = (n) => (Math.round(n * 100000) / 100000).toString();
   const clampZoom = Math.max(0, Math.min(MAX_ZOOM, Math.round(z ?? 0)));
   const modeSuffix = mode && VALID_MODES.has(mode) ? `&mode=${mode}` : '';
-  return `#lat=${fmt(lat)}&lon=${fmt(lon)}&z=${clampZoom}${modeSuffix}`;
+  let pointSuffix = '';
+  if (
+    point &&
+    Number.isFinite(point.lat) &&
+    Number.isFinite(point.lon) &&
+    point.lat >= -90 && point.lat <= 90 &&
+    point.lon >= -180 && point.lon <= 180
+  ) {
+    pointSuffix = `&plat=${fmt(point.lat)}&plon=${fmt(point.lon)}`;
+    const cleanName = typeof point.name === 'string' ? point.name.trim().slice(0, 48) : '';
+    if (cleanName) {
+      pointSuffix += `&pname=${encodeURIComponent(cleanName)}`;
+    }
+  }
+  return `#lat=${fmt(lat)}&lon=${fmt(lon)}&z=${clampZoom}${modeSuffix}${pointSuffix}`;
 }
 
 // 🧭 视角恢复守卫：URL 哈希既是"分享载体"也是"被动跟随"（地图一动就写入），

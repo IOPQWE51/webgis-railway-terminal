@@ -458,39 +458,39 @@ export const getCurrentPosition = async (options = {}) => {
   const {
     preferGPS = true,
     fallbackToIP = true,
-    gpsTimeout = 15000
+    gpsTimeout = 5000
   } = options;
 
-  // 优先尝试 GPS 定位
+  let gpsReason = '';
+
+  // 优先尝试 GPS 定位（超时压缩至 5s，避免无 GPS 或忽略弹窗时卡死 15s）
   if (preferGPS && navigator.geolocation) {
     try {
-      console.log('📍 启动智能定位（优先 GPS）...');
       const position = await getPositionByGPS({ ...options, timeout: gpsTimeout });
       return position;
     } catch (error) {
-      console.warn('⚠️ GPS 定位失败:', error.message);
-
-      // 如果是权限被拒绝，不再尝试 IP 定位
-      if (error.message === 'PERMISSION_DENIED') {
-        throw new Error('定位权限被拒绝，请在浏览器设置中允许定位');
-      }
-
-      // 其他错误，尝试 IP 定位
+      gpsReason = error?.message || 'GPS_UNAVAILABLE';
       if (!fallbackToIP) {
-        throw error;
+        throw new Error(
+          gpsReason === 'PERMISSION_DENIED'
+            ? '定位权限被拒绝，请在浏览器设置中允许定位'
+            : `GPS 定位失败：${gpsReason}`
+        );
       }
     }
   }
 
-  // GPS 失败，尝试 IP 定位
+  // GPS 不可用/超时/未授权时自动降级到网络 IP 定位，保证点击定位按钮有清晰结果
   if (fallbackToIP) {
-    console.log('🔄 GPS 失败，降级到 IP 定位...');
     try {
       const position = await getPositionByIP();
-      position.warning = 'IP 定位精度较低，仅供参考';
+      position.warning =
+        gpsReason === 'PERMISSION_DENIED'
+          ? '浏览器未授予 GPS 权限，已自动使用网络 IP 定位'
+          : 'GPS 响应超时，已自动使用网络 IP 定位';
       return position;
     } catch (ipError) {
-      throw new Error(`所有定位方式均失败：${ipError.message}`);
+      throw new Error(`定位失败：${ipError.message}`);
     }
   }
 

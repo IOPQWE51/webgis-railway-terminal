@@ -106,12 +106,12 @@ export const PILGRIMAGE_PICKS = [
 ];
 
 // ── 花火大会（年度切换手册：docs/📚 项目文档/花火数据年度切换手册.md）──
-// 经纬度为河川敷燃放点的近似坐标
+// 2027 赛季日程：长冈固定 8/2-3，隅田川 7 月最后周六，大曲 8 月最后周六，土浦 11 月首个周六（出发前请以官方公告为准）
 export const HANABI_EVENTS = [
-    { id: 1, name: "长冈祭大花火大会", date: "2026-08-02", location: "新潟县长冈市信浓川河川敷", scale: "约20000发", status: "confirmed", lat: 37.4792, lon: 138.8543 },
-    { id: 2, name: "大曲之花火 (全国花火竞技大会)", date: "2026-08-29", location: "秋田县大仙市雄物川河畔", scale: "约18000发", status: "confirmed", lat: 39.5028, lon: 140.4889 },
-    { id: 3, name: "土浦全国花火竞技大会", date: "2026-11-07", location: "茨城县土浦市樱川畔", scale: "约20000发", status: "planned", lat: 36.0836, lon: 140.2000 },
-    { id: 4, name: "隅田川花火大会", date: "2026-07-25", location: "东京都墨田区", scale: "约20000发", status: "confirmed", lat: 35.7101, lon: 139.8016 },
+    { id: 1, name: "长冈祭大花火大会", date: "2027-08-02", location: "新潟县长冈市信浓川河川敷", scale: "约20000发", status: "planned", lat: 37.4792, lon: 138.8543 },
+    { id: 2, name: "大曲之花火 (全国花火竞技大会)", date: "2027-08-28", location: "秋田县大仙市雄物川河畔", scale: "约18000发", status: "planned", lat: 39.5028, lon: 140.4889 },
+    { id: 3, name: "土浦全国花火竞技大会", date: "2027-11-06", location: "茨城县土浦市樱川畔", scale: "约20000发", status: "planned", lat: 36.0836, lon: 140.2000 },
+    { id: 4, name: "隅田川花火大会", date: "2027-07-31", location: "东京都墨田区", scale: "约20000发", status: "planned", lat: 35.7101, lon: 139.8016 },
 ];
 
 // ── 区域元数据（注册表用：新增国家/地区包时保持同形，前端即可自动生成快捷跳转与图例）──

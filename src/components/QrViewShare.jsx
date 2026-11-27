@@ -6,6 +6,7 @@
 // 依赖：零。qrEncode 纯函数生成矩阵，SVG rect 逐格渲染（模块数 ≤57×57，rect 量可接受）
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { QrCode, X, Copy, Check } from 'lucide-react';
 import { qrMatrix } from '../utils/qrEncode';
 import { serializeViewHash } from '../utils/urlState';
@@ -41,6 +42,7 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = nu
   // 📍 fixed 定位锚点：打开瞬间按按钮视口坐标计算（absolute 会被面板
   // overflow 滚动容器裁顶——线上实测弹出卡上半截被吃掉的教训）
   const btnRef = useRef(null);
+  const dialogRef = useRef(null);
   const [anchor, setAnchor] = useState(null); // { left, bottom, upward }
   const btnCenterRef = useRef(null); // 打开瞬间的按钮视口中心（scroll 误伤过滤基准）
   const pal = PALETTES[variant];
@@ -49,23 +51,22 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = nu
     if (open) { setOpen(false); return; }
     const r = btnRef.current?.getBoundingClientRect();
     if (r) {
-      const popupH = size + 150; // 码 + 标题/按钮/提示的估算高度
+      const popupH = size + 170; // 码 + 标题/按钮/提示的估算高度
+      const popupW = 256;
       const upward = r.top > popupH + 16; // 上方放得下就向上弹，否则向下
       const cx = r.left + r.width / 2;
       const cy = upward ? r.top : r.bottom;
       btnCenterRef.current = { x: cx, y: cy };
       setAnchor({
-        left: Math.min(Math.max(cx, 140), window.innerWidth - 140),
-        bottom: window.innerHeight - cy + (upward ? 8 : -8),
+        left: Math.min(Math.max(cx, popupW / 2 + 12), window.innerWidth - popupW / 2 - 12),
+        bottom: window.innerHeight - cy + (upward ? 10 : -10),
         upward,
       });
     }
     setOpen(true);
   };
 
-  // 滚动/缩放时若按钮真的位移了才收起（防错位）。
-  // ⚠️ 不能见 scroll 就关：Leaflet 地图内部会异步发 scroll 事件，
-  //    capture 捕获后误杀弹窗（线上实测弹出不到一秒即消失的教训）
+  // 滚动/缩放/点外侧/Esc 自动关闭
   useEffect(() => {
     if (!open) return undefined;
     const maybeClose = () => {
@@ -75,11 +76,22 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = nu
       const moved = Math.abs(r.left + r.width / 2 - c.x) > 4 || Math.abs((r.top + r.bottom) / 2 - c.y) > 4;
       if (moved) setOpen(false);
     };
+    const onPointerDown = (e) => {
+      if (dialogRef.current?.contains(e.target) || btnRef.current?.contains(e.target)) return;
+      setOpen(false);
+    };
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
     window.addEventListener('scroll', maybeClose, true);
     window.addEventListener('resize', maybeClose);
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKeyDown);
     return () => {
       window.removeEventListener('scroll', maybeClose, true);
       window.removeEventListener('resize', maybeClose);
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKeyDown);
     };
   }, [open]);
 
@@ -150,13 +162,14 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = nu
         {compact ? <span>分享</span> : (variant === 'dark' ? 'QR_SHARE' : '视角二维码')}
       </button>
 
-      {/* fixed 定位：逃出面板 overflow 裁剪，按打开时的按钮视口坐标锚定 */}
-      {open && anchor && (
+      {/* Portal 到 document.body：彻底逃离父级 backdrop-blur 劫持 position:fixed 与地图容器 overflow-hidden 裁剪 */}
+      {open && anchor && typeof document !== 'undefined' && createPortal(
         <div
-          className={`fixed z-[3000] rounded-2xl p-4 w-max max-w-[260px] flex flex-col items-center gap-3 animate-in fade-in duration-200 ${pal.card}`}
+          ref={dialogRef}
+          className={`fixed z-[9500] rounded-2xl p-4 w-[256px] flex flex-col items-center gap-3 animate-in fade-in duration-200 border ${pal.card}`}
           style={{
             left: anchor.left,
-            transform: 'translateX(-50%)', // anchor.left 是中心点：不回中会把码面铺出右屏（战术页实测扫不上）
+            transform: 'translateX(-50%)',
             ...(anchor.upward
               ? { bottom: anchor.bottom }
               : { top: window.innerHeight - anchor.bottom }),
@@ -165,6 +178,7 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = nu
           aria-label="视角分享二维码"
         >
           <button
+            type="button"
             onClick={() => setOpen(false)}
             className="absolute top-2 right-2 p-1 rounded-full text-current opacity-40 hover:opacity-100 transition-opacity"
             aria-label="关闭二维码"
@@ -175,26 +189,37 @@ const QrViewShare = ({ variant = 'light', size = 180, compact = false, view = nu
           {qrSvg ? (
             <>
               <div className={`text-[11px] font-bold tracking-widest ${pal.text}`}>
-                {variant === 'dark' ? '◉ SCAN TO SYNC VIEW' : '扫码同步此视角'}
+                {variant === 'dark' ? '◉ SCAN TO SYNC VIEW' : '扫码或复制分享'}
               </div>
+              {view?.point?.name && (
+                <div className={`text-[11px] font-bold truncate max-w-[210px] px-2.5 py-0.5 rounded-full bg-slate-100/80 ${pal.label}`}>
+                  📍 含选中点：{view.point.name}
+                </div>
+              )}
               <div className="rounded-xl overflow-hidden border" style={{ borderColor: variant === 'dark' ? 'rgba(251,191,36,0.25)' : '#e5e7eb' }}>
                 {qrSvg}
               </div>
               <button
+                type="button"
                 onClick={copyLink}
-                className={`text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${pal.copyBtn}`}
+                className={`text-xs font-bold px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors ${pal.copyBtn}`}
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? '已复制' : '复制链接'}
+                {copied ? '已复制分享链接' : '复制链接'}
               </button>
               <div className={`text-[10px] leading-relaxed text-center ${pal.hint}`}>
-                {variant === 'dark' ? '同一战术视角直达对方设备' : '手机扫码打开同一视角，电脑规划 → 手机带走'}
+                {variant === 'dark'
+                  ? '同一战术视角直达对方设备'
+                  : view?.point
+                    ? '对方打开即可直达当前视野与标记点位'
+                    : '手机扫码打开同一视角，电脑规划 → 手机带走'}
               </div>
             </>
           ) : (
-            <div className={`text-xs ${pal.hint}`}>当前地址过长，无法生成二维码，请复制地址栏分享</div>
+            <div className={`text-xs ${pal.hint}`}>当前地址过长，无法生成二维码，请点击下方复制链接</div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

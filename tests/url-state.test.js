@@ -101,6 +101,18 @@ describe('mode=tactical（战术轨道视角）', () => {
     const back = parseViewHash(serializeViewHash({ lat: 1.5, lon: 2.5, z: 8, mode: 'tactical' }));
     expect(back).toEqual({ lat: 1.5, lon: 2.5, z: 8, tab: null, mode: 'tactical' });
   });
+
+  it('往返：携带选中点位（含中文名）序列化与解析完整还原', () => {
+    const hash = serializeViewHash({
+      lat: 34.985,
+      lon: 135.758,
+      z: 14,
+      point: { lat: 34.98585, lon: 135.75877, name: '京都站' },
+    });
+    expect(hash).toContain('&plat=34.98585&plon=135.75877&pname=');
+    const back = parseViewHash(hash);
+    expect(back.point).toEqual({ lat: 34.98585, lon: 135.75877, name: '京都站' });
+  });
 });
 
 describe('shouldRestoreSharedView（区分刷新 vs 分享打开）', () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon } from 'lucide-react';
 import TacticalBottomSheet from './TacticalBottomSheet'; // 引入底部详情抽屉
 
@@ -14,17 +14,22 @@ import TodayCard from './TodayCard';
 // 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
-import { useTodaySnapshot, fmtCountdown } from '../hooks/useTodaySnapshot';
+import { useTodaySnapshot, fmtCountdown, fmtRemaining } from '../hooks/useTodaySnapshot';
 
 const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, skipIpAutoLocate = false }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const ipLocateDoneRef = useRef(false);
     const userInteractedRef = useRef(false);
+    const wheelHintTimerRef = useRef(null);
     const [leafletReady, setLeafletReady] = useState(false);
     const [, setShowDrawer] = useState(false); // 兼容 useMapTools 签名
     const [visitorGeo, setVisitorGeo] = useState(null); // 🌐 IP 自动识别到的访客城市与坐标
     const [focusLabel, setFocusLabel] = useState('全球视野'); // 顶部焦点条当前区域名称
+    const [selectedDate, setSelectedDate] = useState(''); // 🗓️ 光影规划日期（空串 = 当地今天）
+    const [selectedPoint, setSelectedPoint] = useState(null); // 📍 当前选中点位（用于分享链接附带机位）
+    const [tileLoading, setTileLoading] = useState(false); // 🗺️ 瓦片加载指示
+    const [wheelHint, setWheelHint] = useState(false); // 🖱️ 滚轮防误触轻提示
     
     // 💥 新增：地点详情的底部抽屉状态
     const [bottomSheetHtml, setBottomSheetHtml] = useState(null); 
@@ -35,10 +40,25 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [filters, setFilters] = useState({ framework: true, station: true, airport: true, anime: true, hotel: true, spot: true });
     const toggleFilter = (key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }));
 
+    // 同步当前光影规划日期给地点弹窗（保证底部光影卡与右侧详情卡日期 100% 同源）
+    useEffect(() => {
+        window.__etSelectedDate = selectedDate;
+    }, [selectedDate]);
+
+    const handlePointSelect = useCallback((pt) => {
+        setSelectedPoint(pt || null);
+        if (pt?.name && !pt.name.startsWith('地图选点')) {
+            setFocusLabel(pt.name);
+        }
+    }, []);
+
     // 💥 新增：全息雷达监听网络 (接收 cyberPanel 发来的抽屉开启指令)
     useEffect(() => {
         const handleOpenSheet = (e) => setBottomSheetHtml(e.detail);
-        const handleCloseSheet = () => setBottomSheetHtml(null);
+        const handleCloseSheet = () => {
+            setBottomSheetHtml(null);
+            setSelectedPoint(null);
+        };
 
         window.addEventListener('openTacticalBottomSheet', handleOpenSheet);
         window.addEventListener('closeTacticalBottomSheet', handleCloseSheet);
@@ -122,13 +142,26 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     }, []);
 
     // 4. 🪝 启动抽离出的核心 Hooks
-    const tools = useMapTools(leafletReady, mapRef, setShowDrawer);
-    useMapLayers(leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, tools.isMeasuring, pendingMapTarget, onTargetHandled);
+    const tools = useMapTools(leafletReady, mapRef, setShowDrawer, { onPointSelect: handlePointSelect });
+    useMapLayers(
+        leafletReady,
+        mapRef,
+        baseMapType,
+        weatherType,
+        filters,
+        customPoints,
+        basePoints,
+        tools.isMeasuring,
+        pendingMapTarget,
+        onTargetHandled,
+        { onTileLoadingChange: setTileLoading, onPointSelect: handlePointSelect }
+    );
 
     // 🌅 共享当地天气/天象/附近点位状态（顶部焦点条 + 底部三栏左卡共用单路请求）
     const todaySnapshot = useTodaySnapshot({
         lat: mapView?.lat,
         lng: mapView?.lng,
+        selectedDate,
         customPoints,
         basePoints,
     });
@@ -191,19 +224,26 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     }, [leafletReady, skipIpAutoLocate]);
 
     // 🗓️ 今日去这卡：点击附近点位或区域包快捷跳转
-    const handleTodayFlyTo = (lat, lon, zoom = 13) => mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.5 });
+    const handleTodayFlyTo = (lat, lon, label = '', zoom = 13) => {
+        if (label) setFocusLabel(label);
+        setMapView({ lat, lng: lon, zoom });
+        mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.2 });
+    };
 
     // 🧭 跳转到已接入的区域交通骨架包
     const handleJumpToRegion = (region) => {
         if (!region?.center || !mapRef.current) return;
         userInteractedRef.current = true;
+        const z = region.zoom ?? 5.5;
         setFocusLabel(`${region.name}铁道骨架`);
-        mapRef.current.flyTo(region.center, region.zoom ?? 5.5, { duration: 1.4 });
+        setMapView({ lat: region.center[0], lng: region.center[1], zoom: Math.round(z) });
+        mapRef.current.flyTo(region.center, z, { duration: 1.2 });
     };
 
-    // 搜索命中时同步更新顶部焦点地名
+    // 搜索命中时立即同步顶部焦点地名与坐标（不等 1.2s 飞行动画结束，消除短暂显示上一城数据的滞后）
     const handleSearchWithLabel = (lat, lon, fullName, shortName) => {
         setFocusLabel(shortName || fullName?.split(',')[0] || '搜索位置');
+        setMapView({ lat, lng: lon, zoom: 14 });
         tools.handleSearchLocationFound(lat, lon, fullName, shortName);
     };
 
@@ -220,7 +260,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         }
         : null;
 
-    // 🧭 同步当前地图中心与缩放供顶部焦点条、今日光影与按需分享使用（保持浏览器地址栏干净）
+    // 🧭 同步当前地图中心与缩放供顶部焦点条、今日光影与按需分享使用；手动拖动时清空陈旧的焦点地名
     useEffect(() => {
         if (!leafletReady || !mapRef.current) return;
         const map = mapRef.current;
@@ -229,10 +269,42 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
             const c = map.getCenter();
             setMapView({ lat: c.lat, lng: c.lng, zoom: Math.round(map.getZoom()) });
         };
-        const debouncedSync = () => { clearTimeout(timer); timer = setTimeout(sync, 400); };
+        const debouncedSync = () => { clearTimeout(timer); timer = setTimeout(sync, 220); };
+        const onDragEnd = () => {
+            setFocusLabel('当前地图中心');
+            sync();
+        };
         map.on('moveend zoomend', debouncedSync);
+        map.on('dragend', onDragEnd);
         sync();
-        return () => { clearTimeout(timer); map.off('moveend zoomend', debouncedSync); };
+        return () => {
+            clearTimeout(timer);
+            map.off('moveend zoomend', debouncedSync);
+            map.off('dragend', onDragEnd);
+        };
+    }, [leafletReady]);
+
+    // 🖱️ Google Maps 式滚轮保护：裸滚轮正常滚动页面不误缩地图，按住 Ctrl / ⌘ + 滚轮缩放地图
+    useEffect(() => {
+        if (!leafletReady || !mapRef.current) return;
+        const map = mapRef.current;
+        const container = map.getContainer();
+        const onWheel = (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                if (e.deltaY < 0) map.zoomIn(1);
+                else if (e.deltaY > 0) map.zoomOut(1);
+                return;
+            }
+            setWheelHint(true);
+            clearTimeout(wheelHintTimerRef.current);
+            wheelHintTimerRef.current = setTimeout(() => setWheelHint(false), 1800);
+        };
+        container.addEventListener('wheel', onWheel, { passive: false });
+        return () => {
+            clearTimeout(wheelHintTimerRef.current);
+            container.removeEventListener('wheel', onWheel);
+        };
     }, [leafletReady]);
 
     // 🌌 动态光标引擎
@@ -282,7 +354,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         {visitorGeo?.city && focusLabel !== visitorGeo.city && (
                             <button
                                 type="button"
-                                onClick={() => { setFocusLabel(visitorGeo.city); handleTodayFlyTo(visitorGeo.lat, visitorGeo.lon, 10); }}
+                                onClick={() => handleTodayFlyTo(visitorGeo.lat, visitorGeo.lon, visitorGeo.city, 10)}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-paper-3 text-ink-2 hover:text-sora-deep transition-colors"
                                 title={`回到 IP 识别城市 ${visitorGeo.city}`}
                             >
@@ -293,9 +365,13 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
                     <span className="hidden sm:inline text-line" aria-hidden="true">|</span>
 
-                    {/* 实时天气 + 下一光影焦点摘要 */}
+                    {/* 实时天气 + 当前/下一光影焦点摘要 */}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-2">
-                        {todaySnapshot.card?.weatherLine ? (
+                        {todaySnapshot.isWeatherLoading ? (
+                            <span className="inline-flex items-center gap-1.5 text-[11px] text-ink-3 font-medium">
+                                <Loader2 className="w-3 h-3 animate-spin text-sora" /> 同步当地天气…
+                            </span>
+                        ) : todaySnapshot.card?.weatherLine ? (
                             <span className="inline-flex items-center gap-1.5 font-bold text-ink">
                                 <span aria-hidden="true">{todaySnapshot.card.weatherLine.emoji}</span>
                                 <span>{todaySnapshot.zhWeather}</span>
@@ -305,7 +381,26 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                             <span className="font-mono text-[11px] text-ink-3">{coordText}</span>
                         )}
 
-                        {!todaySnapshot.isPolar && todaySnapshot.card?.nextAstro && (
+                        {!todaySnapshot.isPolar && todaySnapshot.isCustomDate && todaySnapshot.brief ? (
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="text-line" aria-hidden="true">·</span>
+                                <span className="px-2 py-0.5 rounded-full bg-sora-soft/80 text-sora-deep font-mono text-[11px] font-bold">
+                                    📅 {todaySnapshot.activeDateKey}
+                                </span>
+                                <span className="tnum font-mono text-[11px] text-ink">
+                                    🌅 {todaySnapshot.fmtTime(todaySnapshot.brief.sunrise)} / 🌇 {todaySnapshot.fmtTime(todaySnapshot.brief.sunset)}
+                                </span>
+                            </span>
+                        ) : !todaySnapshot.isPolar && todaySnapshot.activeAstro ? (
+                            <span className="inline-flex items-center gap-1.5">
+                                <span className="text-line" aria-hidden="true">·</span>
+                                <span aria-hidden="true">{todaySnapshot.activeAstro.emoji}</span>
+                                <span className="font-bold text-ink">{todaySnapshot.activeAstro.label}进行中</span>
+                                <span className="tnum px-2 py-0.5 rounded-full bg-kouchou-soft text-ink text-[11px] font-bold">
+                                    {fmtRemaining(todaySnapshot.activeAstro.end, todaySnapshot.now)}
+                                </span>
+                            </span>
+                        ) : !todaySnapshot.isPolar && todaySnapshot.card?.nextAstro && (
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-line" aria-hidden="true">·</span>
                                 <span aria-hidden="true">{todaySnapshot.card.nextAstro.emoji}</span>
@@ -335,6 +430,27 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 style={{ height: 'clamp(440px, 58dvh, 620px)' }}
             >
                 <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#eef4fa' }}></div>
+
+                {/* 🛰️ 左上角轻量瞬时状态胶囊（瓦片加载中 / 定位反馈 / 滚轮防误触提示，平时完全隐身） */}
+                {(tileLoading || tools.locateNotice || wheelHint) && (
+                    <div className="absolute top-3.5 left-3.5 z-[1050] flex flex-col items-start gap-1.5 pointer-events-none">
+                        {tileLoading && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-paper-2/92 backdrop-blur-md border border-line shadow-sm text-[11px] font-bold text-ink-2">
+                                <Loader2 className="w-3 h-3 animate-spin text-sora" /> 地图瓦片加载中…
+                            </div>
+                        )}
+                        {tools.locateNotice && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-paper-2/95 backdrop-blur-md border border-sora/35 shadow-sm text-[11px] font-bold text-ink">
+                                <MapPin className="w-3 h-3 text-sora" /> {tools.locateNotice}
+                            </div>
+                        )}
+                        {wheelHint && (
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-ink/82 backdrop-blur-md text-[11px] font-bold text-white shadow-sm">
+                                按住 Ctrl + 滚轮缩放地图，或用右下角 +/−
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* 📏 测距模式悬浮胶囊（仅开启测距时出现） */}
                 {tools.isMeasuring && (
@@ -373,7 +489,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         baseMapType={baseMapType} setBaseMapType={setBaseMapType}
                         weatherType={weatherType} setWeatherType={setWeatherType}
                         filters={filters} toggleFilter={toggleFilter}
-                        shareView={mapView ? { lat: mapView.lat, lon: mapView.lng, z: mapView.zoom } : null}
+                        shareView={mapView ? { lat: mapView.lat, lon: mapView.lng, z: mapView.zoom, point: selectedPoint } : null}
                         onJumpToRegion={handleJumpToRegion}
                         onEnterTactical={handleEnterTacticalWithView}
                         {...tools}
@@ -413,8 +529,13 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
             {/* ③ 底部三栏平衡中和带：稳住页面重心，让光影、铁道骨架与工作台自然衔接 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* 左卡：今日光影与附近 */}
-                <TodayCard snapshot={todaySnapshot} onFlyTo={handleTodayFlyTo} />
+                {/* 左卡：光影时刻与附近（支持任意日期规划） */}
+                <TodayCard
+                    snapshot={todaySnapshot}
+                    selectedDate={selectedDate}
+                    onDateChange={setSelectedDate}
+                    onFlyTo={handleTodayFlyTo}
+                />
 
                 {/* 中卡：全球铁道骨架包切换 */}
                 <section className="bg-paper-2/92 backdrop-blur-md border border-line rounded-3xl p-5 shadow-lift flex flex-col justify-between gap-3.5">

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   haversineKm,
+  currentAstroPhase,
   nextAstroEvent,
   filterNearby,
   buildTodayCard,
@@ -69,6 +70,14 @@ describe('nextAstroEvent 下一个天象', () => {
   it('空区间/缺字段的简报安全返回 null', () => {
     expect(nextAstroEvent({}, mk(12, 0))).toBeNull();
     expect(nextAstroEvent(null)).toBeNull();
+  });
+
+  it('身处黄金时刻区间内时，currentAstroPhase 命中进行中窗口', () => {
+    const active = currentAstroPhase(brief, mk(17, 40));
+    expect(active).not.toBeNull();
+    expect(active.key).toBe('golden');
+    expect(active.end.getTime()).toBe(mk(18, 40).getTime());
+    expect(currentAstroPhase(brief, mk(12, 0))).toBeNull();
   });
 });
 

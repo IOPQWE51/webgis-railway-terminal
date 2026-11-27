@@ -40,18 +40,31 @@ const EXTENDED_CURRENCIES = {
     TRY: { code: 'TRY', name: '里拉', country: '土耳其', flag: 'tr', symbol: '₺' }
 };
 
-/** 汇率 API 服务 */
+/** 汇率 API 服务（优先 open.er-api.com v6 六位小数高精度源，失败兜底 v4） */
 const exchangeRateService = {
     async fetchRatesBaseCNY() {
-        try {
-            const response = await fetch('https://api.exchangerate-api.com/v4/latest/CNY');
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            return data.rates;
-        } catch (error) {
-            console.error("汇率获取失败", error);
-            throw error;
+        const endpoints = [
+            'https://open.er-api.com/v6/latest/CNY',
+            'https://api.exchangerate-api.com/v4/latest/CNY',
+        ];
+        let lastErr = null;
+        for (const url of endpoints) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (data?.rates && Object.keys(data.rates).length > 0) {
+                    const updatedDate = data.time_last_update_utc
+                        ? new Date(data.time_last_update_utc).toISOString().slice(0, 10)
+                        : (data.date || '');
+                    return { rates: data.rates, updatedDate };
+                }
+            } catch (error) {
+                lastErr = error;
+            }
         }
+        console.error("汇率获取失败", lastErr);
+        throw lastErr || new Error('汇率接口不可用');
     }
 };
 
@@ -74,14 +87,16 @@ const ExchangeEngine = ({ isActive }) => {
 
     const [isFetching, setIsFetching] = useState(false);
     const [lastUpdate, setLastUpdate] = useState('');
+    const [rateDate, setRateDate] = useState('');
     const [error, setError] = useState(null);
 
     const fetchRates = useCallback(async () => {
         setIsFetching(true);
         setError(null);
         try {
-            const newRates = await exchangeRateService.fetchRatesBaseCNY();
+            const { rates: newRates, updatedDate } = await exchangeRateService.fetchRatesBaseCNY();
             setRates(newRates);
+            if (updatedDate) setRateDate(updatedDate);
             setLastUpdate(formatTime(new Date()));
             // 汇率刷新后，以人民币为基准重算外币金额
             const currentCny = cnyAmountRef.current;
@@ -226,15 +241,15 @@ const ExchangeEngine = ({ isActive }) => {
                     <div>
                         <h3 className="font-display text-2xl text-ink flex items-center">
                             <ShoppingBag className="w-5 h-5 mr-2 text-sora" />
-                            实时汇率与当地物价
+                            参考汇率与当地物价
                         </h3>
-                        <p className="text-xs text-ink-3 mt-1">输入任意一侧金额即可双向换算，附常见消费物价参考。</p>
+                        <p className="text-xs text-ink-3 mt-1">每日更新的国际中间参考汇率（非银行实时牌价），输入任意一侧金额即可双向换算。</p>
                     </div>
                     <button 
                         onClick={fetchRates} 
                         disabled={isFetching} 
                         className={`p-2.5 rounded-xl bg-paper-3 hover:bg-sora-soft/60 text-ink-2 transition-colors border border-line ${isFetching ? 'animate-spin text-sora' : 'hover:text-sora-deep'}`}
-                        title="刷新实时汇率"
+                        title="重新同步每日参考汇率"
                     >
                         <RefreshCw className="w-4 h-4" />
                     </button>
@@ -381,9 +396,9 @@ const ExchangeEngine = ({ isActive }) => {
                         1 CNY = {currentRate.toFixed(4)} {targetCurrency}
                         {currentRate > 0 && targetCurrency !== 'CNY' ? ` (100 ${targetCurrency} = ${(100 / currentRate).toFixed(2)} CNY)` : ''}
                     </span>
-                    <span className="flex items-center">
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isFetching ? 'bg-kouchou animate-pulse' : 'bg-wakaba'}`}></span>
-                        SYNC: {lastUpdate || '--:--:--'}
+                    <span className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${isFetching ? 'bg-kouchou animate-pulse' : 'bg-wakaba'}`}></span>
+                        {rateDate ? `基准日 ${rateDate} UTC · ` : ''}已同步 {lastUpdate || '--:--:--'}
                     </span>
                 </div>
             </div>

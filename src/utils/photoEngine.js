@@ -1,36 +1,29 @@
 // src/utils/photoEngine.js
 // 🎬 摄影引擎 v4.0 - 全局宽面板 SaaS 级定制版
 
-import SunCalc from 'suncalc';
 import { fetchGlobalEnvironmentData } from './dataGateway'; 
 import { convertToRuleFormat } from './ruleDataConverter';
 import { getTopSuggestions } from './ruleMatcher';
+import { computeShootingBrief, formatLocalDateKey } from './shootingBrief';
+import { formatLocalTimeByLon, formatUtcOffsetLabel } from './todayCard';
 
-const formatLocalTimeByLon = (date, lon) => {
-    if (!date || isNaN(date.getTime())) return '--:--';
-    const offsetHours = Math.round(lon / 15);
-    const offsetMs = offsetHours * 60 * 60 * 1000;
-    const localDate = new Date(date.getTime() + offsetMs);
-    const h = String(localDate.getUTCHours()).padStart(2, '0');
-    const m = String(localDate.getUTCMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
+/**
+ * 格式化单个区间为 HH:MM–HH:MM；极区或缺失时返回优雅兜底
+ */
+const formatIntervalRange = (seg, lon) => {
+    if (!seg?.start || !seg?.end) return '—';
+    return `${formatLocalTimeByLon(seg.start, lon)}–${formatLocalTimeByLon(seg.end, lon)}`;
 };
 
 /**
- * SunCalc 在高纬/极区可能返回 Invalid Date，或跨日时刻导致格式化失败。
- * 数据层降级：无效则显示固定文案，避免 UI 出现 --:--。
+ * SunCalc 在高纬/极区可能返回 null，数据层降级避免 UI 出现 --:--
  */
-const formatLocalTimeByLonSafe = (date, lon, lat) => {
-    if (date == null || !(date instanceof Date) || Number.isNaN(date.getTime())) {
+const formatLocalTimeSafe = (date, lon, lat) => {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
         const a = Math.abs(Number(lat) || 0);
-        return a >= 62 ? '极昼无终点' : '持续至次日';
+        return a >= 62 ? '极昼/极夜' : '—';
     }
-    const s = formatLocalTimeByLon(date, lon);
-    if (s === '--:--') {
-        const a = Math.abs(Number(lat) || 0);
-        return a >= 62 ? '极昼无终点' : '持续至次日';
-    }
-    return s;
+    return formatLocalTimeByLon(date, lon);
 };
 
 export const initPhotoEvalEngine = () => {
@@ -65,7 +58,7 @@ export const initPhotoEvalEngine = () => {
             }
 
             const evalNow = new Date(rawEnvData.astronomy.now);
-            const scTimes = SunCalc.getTimes(evalNow, lat, lon);
+            const evalBrief = computeShootingBrief({ lat, lon, date: evalNow });
 
             const { season } = rawEnvData.climate;
             const weather = rawEnvData.weather;
@@ -97,9 +90,11 @@ export const initPhotoEvalEngine = () => {
             tags.push(makeTag('#f1f5f9', '#475569', seasonLabels[season] || '🌍 当前季'));
             if (temp !== undefined) tags.push(makeTag('#fef2f2', '#ef4444', `🌡️ ${temp}°C`));
 
-            if (evalNow >= scTimes.goldenHour && evalNow <= scTimes.sunset) {
+            const inGoldenNow = (evalBrief?.goldenHours || []).some((s) => evalNow >= s.start && evalNow <= s.end);
+            const inBlueNow = (evalBrief?.blueHours || []).some((s) => evalNow >= s.start && evalNow <= s.end);
+            if (inGoldenNow) {
                 score += 25; tags.push(makeTag('#fffbeb', '#d97706', '🌅 黄金时刻 (+25)'));
-            } else if (evalNow >= scTimes.sunset && evalNow <= scTimes.night) {
+            } else if (inBlueNow) {
                 score += 20; tags.push(makeTag('#eff6ff', '#2563eb', '🌌 蓝调时刻 (+20)'));
             } else if (clouds > 70 && !isRaining) {
                 score += 15; tags.push(makeTag('#f8fafc', '#64748b', '☁️ 阴天柔光 (+15)'));
@@ -182,22 +177,24 @@ export const initPhotoEvalEngine = () => {
     };
 };
 
-// 替换掉文件最下方的整个 generatePopupContent 函数
-export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
-    const times = SunCalc.getTimes(new Date(), pt.lat, pt.lon);
+// 地点详情面板 HTML（与「今日光影」100% 复用同一套 computeShootingBrief 计算源，展示朝/晚双场并同步日期选择器）
+export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride = '') => {
     const lat = pt.lat;
     const lon = pt.lon;
+    const activeDate = dateOverride || (typeof window !== 'undefined' && window.__etSelectedDate) || formatLocalDateKey(new Date(), lon);
+    const brief = computeShootingBrief({ lat, lon, date: activeDate });
 
-    // 日出/日落/黄金：防御性格式化
-    const sunrise = formatLocalTimeByLonSafe(times.sunrise, lon, lat);
-    const sunset = formatLocalTimeByLonSafe(times.sunset, lon, lat);
-    const goldenHour = formatLocalTimeByLonSafe(times.goldenHour, lon, lat);
-    const blueHourEnd = formatLocalTimeByLonSafe(times.dusk, lon, lat);
+    const sunrise = formatLocalTimeSafe(brief?.sunrise, lon, lat);
+    const sunset = formatLocalTimeSafe(brief?.sunset, lon, lat);
+    const morningGold = formatIntervalRange(brief?.morningGolden, lon);
+    const eveningGold = formatIntervalRange(brief?.eveningGolden, lon);
+    const morningBlue = formatIntervalRange(brief?.morningBlue, lon);
+    const eveningBlue = formatIntervalRange(brief?.eveningBlue, lon);
 
     const evalId = Math.random().toString(36).substr(2, 9);
     const category = pt.category || 'spot';
-    const offsetH = Math.round(lon / 15);
-    const utcLabel = offsetH >= 0 ? `UTC+${offsetH}` : `UTC${offsetH}`;
+    const utcLabel = formatUtcOffsetLabel(lon);
+    const dateLabel = brief?.dateKey || activeDate;
     const isInJapan = lat >= 24 && lat <= 46 && lon >= 122 && lon <= 146;
 
     // 🆕 新增：判断是否已经是本地收藏的点位（排除搜索结果）
@@ -230,25 +227,31 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc) => {
                 <div style="position:absolute; top:-30px; right:-30px; width:100px; height:100px; background:#38bdf8; filter:blur(40px); opacity:0.2; border-radius:50%;"></div>
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; font-weight: 800; color: #94a3b8; margin-bottom: 14px; letter-spacing: 0.5px;">
-                    <span>🌞 当地日出与光影时刻</span>
-                    <span style="font-family: monospace; color: #38bdf8;">${utcLabel}</span>
+                    <span>🌞 当地光影时刻</span>
+                    <span style="font-family: monospace; color: #38bdf8;">${dateLabel} · ${utcLabel}</span>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; font-weight: 700;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; font-weight: 700;">
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <span style="color:#64748b; font-size: 11px;">日出 Sunrise</span> 
-                        <span style="color:#f8fafc; font-size: 16px;">${sunrise}</span>
+                        <span style="color:#f8fafc; font-size: 16px; font-variant-numeric: tabular-nums;">${sunrise}</span>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <span style="color:#64748b; font-size: 11px;">日落 Sunset</span> 
-                        <span style="color:#f8fafc; font-size: 16px;">${sunset}</span>
+                        <span style="color:#f8fafc; font-size: 16px; font-variant-numeric: tabular-nums;">${sunset}</span>
                     </div>
-                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 10px 12px; border-radius: 10px; grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color:#fbbf24; font-size: 13px;">✨ 黄金时刻</span> 
-                        <span style="color:#fde68a; font-size: 14px;">${goldenHour} - ${sunset}</span>
+                    <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 10px 12px; border-radius: 10px; grid-column: span 2; display: flex; flex-direction: column; gap: 6px;">
+                        <span style="color:#fbbf24; font-size: 12px;">✨ 黄金时刻 (-4° ~ +6°)</span> 
+                        <div style="display: flex; justify-content: space-between; gap: 8px; font-family: monospace; font-size: 13px; color:#fde68a;">
+                            <span><em style="font-style:normal; color:#94a3b8; font-family:sans-serif; font-size:11px; margin-right:4px;">朝</em>${morningGold}</span>
+                            <span><em style="font-style:normal; color:#94a3b8; font-family:sans-serif; font-size:11px; margin-right:4px;">晚</em>${eveningGold}</span>
+                        </div>
                     </div>
-                    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 10px 12px; border-radius: 10px; grid-column: span 2; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color:#38bdf8; font-size: 13px;">🌌 蓝调时刻</span> 
-                        <span style="color:#bae6fd; font-size: 14px;">${sunset} - ${blueHourEnd}</span>
+                    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); padding: 10px 12px; border-radius: 10px; grid-column: span 2; display: flex; flex-direction: column; gap: 6px;">
+                        <span style="color:#38bdf8; font-size: 12px;">🌌 蓝调时刻 (-6° ~ -4°)</span> 
+                        <div style="display: flex; justify-content: space-between; gap: 8px; font-family: monospace; font-size: 13px; color:#bae6fd;">
+                            <span><em style="font-style:normal; color:#94a3b8; font-family:sans-serif; font-size:11px; margin-right:4px;">朝</em>${morningBlue}</span>
+                            <span><em style="font-style:normal; color:#94a3b8; font-family:sans-serif; font-size:11px; margin-right:4px;">晚</em>${eveningBlue}</span>
+                        </div>
                     </div>
                 </div>
             </div>

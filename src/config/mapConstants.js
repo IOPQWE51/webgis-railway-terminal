@@ -20,9 +20,20 @@ export const GLOBAL_WEATHER_NODES = [
 
 export const BASE_MAPS = {
     topo: { name: 'Esri 拓扑', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', attribution: 'Esri' },
-    satellite: { name: '高清卫星', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attribution: 'Esri' },
+    satellite: {
+        name: '高清卫星',
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        // 混合卫星注记层：保留城市、道路与国界地名，避免切到卫星图后变成纯无字航拍
+        overlayUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+        attribution: 'Esri'
+    },
     // Carto 老端点自 2025 起对匿名请求下发 "API KEY REQUIRED" 占位瓦片，故暗黑底图迁移至同族的 Esri 免 key 服务
-    dark: { name: '暗黑终端', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', attribution: 'Esri' }
+    dark: {
+        name: '暗黑终端',
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+        overlayUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+        attribution: 'Esri'
+    }
 };
 
 export const getPointFilterType = (pt) => {

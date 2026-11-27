@@ -43,7 +43,8 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState(null); // null | 'NO_DATA' | 'UPSTREAM'
 
-    const [pickCovers, setPickCovers] = useState({}); // { [id]: { cover, color } }
+    const [pickCovers, setPickCovers] = useState({}); // { [id]: { cover, color, failed? } }
+    const [failedImages, setFailedImages] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState(null); // null | []
     const [searching, setSearching] = useState(false);
@@ -56,13 +57,27 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
     const openSeqRef = useRef(0);      // 请求序号：丢弃过期响应，防慢请求覆盖新视图
     const [lastOpenedId, setLastOpenedId] = useState(null); // 供错误态"重试"使用
 
-    // 精选墙封面预热（各自独立失败不互相拖垮；生产命中边缘缓存）
+    // 精选墙封面预热（带单次自动重试，避免偶发超时导致海报卡在空白）
     useEffect(() => {
-        PILGRIMAGE_PICKS.forEach((p) => {
-            fetchLite(p.id)
-                .then((vm) => setPickCovers((prev) => ({ ...prev, [p.id]: { cover: vm.cover, color: vm.color } })))
-                .catch(() => {});
-        });
+        let cancelled = false;
+        const loadCover = async (p) => {
+            for (let attempt = 0; attempt < 2; attempt += 1) {
+                try {
+                    const vm = await fetchLite(p.id);
+                    if (!cancelled) {
+                        setPickCovers((prev) => ({ ...prev, [p.id]: { cover: vm.cover, color: vm.color } }));
+                    }
+                    return;
+                } catch {
+                    if (attempt === 0) await new Promise((r) => setTimeout(r, 700));
+                }
+            }
+            if (!cancelled) {
+                setPickCovers((prev) => ({ ...prev, [p.id]: { cover: '', color: p.color, failed: true } }));
+            }
+        };
+        PILGRIMAGE_PICKS.forEach((p) => { loadCover(p); });
+        return () => { cancelled = true; };
     }, []);
 
     const openDetail = async (id) => {
@@ -226,18 +241,27 @@ const PilgrimageRadar = ({ isActive, customPoints = [], onPointsUpdate }) => {
                             <div className="flex gap-3 overflow-x-auto pb-2">
                                 {PILGRIMAGE_PICKS.map((p) => {
                                     const meta = pickCovers[p.id];
+                                    const showImg = Boolean(meta?.cover && !failedImages[p.id]);
                                     return (
                                         <button key={p.id} onClick={() => openDetail(p.id)} className="shrink-0 w-40 text-left group">
                                             <div
                                                 className="w-40 h-56 rounded-xl overflow-hidden border border-slate-200 shadow-sm group-hover:border-pink-300 group-hover:shadow-lg group-hover:-translate-y-0.5 transition-all"
-                                                style={!meta ? { background: `linear-gradient(135deg, ${p.color}22, ${p.color}55)` } : undefined}
+                                                style={!showImg ? { background: `linear-gradient(135deg, ${p.color}22, ${p.color}55)` } : undefined}
                                             >
-                                                {meta?.cover ? (
-                                                    <img src={meta.cover} alt={p.name} loading="lazy" className="w-full h-full object-cover" />
+                                                {showImg ? (
+                                                    <img
+                                                        src={meta.cover}
+                                                        alt={p.name}
+                                                        referrerPolicy="no-referrer"
+                                                        onError={() => setFailedImages((prev) => ({ ...prev, [p.id]: true }))}
+                                                        className="w-full h-full object-cover"
+                                                    />
                                                 ) : (
-                                                    <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                                                        <Camera className="w-8 h-8 opacity-40" style={{ color: p.color }} />
-                                                        <span className="text-[10px] font-bold text-gray-500">巡礼加载中…</span>
+                                                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 px-3 text-center">
+                                                        <Camera className="w-8 h-8 opacity-45" style={{ color: p.color }} />
+                                                        <span className="text-[11px] font-bold text-gray-600 line-clamp-2">
+                                                            {meta?.failed || failedImages[p.id] ? p.name : '封面加载中…'}
+                                                        </span>
                                                     </div>
                                                 )}
                                             </div>

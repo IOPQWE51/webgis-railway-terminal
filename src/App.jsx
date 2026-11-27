@@ -36,13 +36,14 @@ const App = () => {
         logout: handleLogout,
     } = usePoints('main');
 
-    // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..&mode=..
+    // 🔗 视角深链接：启动时读取 #lat=..&lon=..&z=..&tab=..&mode=..（可选含选中点 plat/plon/pname）
     useEffect(() => {
         if (!shouldRestoreSharedView(window.sessionStorage)) return;
-        const view = parseViewHash(window.location.hash);
+        const rawHash = window.location.hash;
+        const view = parseViewHash(rawHash);
         if (!view) return;
         // 消费完分享哈希后立即清理地址栏，保持域名干净
-        if (window.location.hash) {
+        if (rawHash) {
             window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
         if (view.mode === 'tactical') {
@@ -54,13 +55,24 @@ const App = () => {
             return;
         }
         if (view.tab) setActiveTab(view.tab);
-        if (view.lat !== null) {
-            if (isOwnDeviceView(window.location.hash, window.localStorage)) {
+        if (view.point) {
+            setPendingMapTarget({
+                id: `share_pt_${Date.now()}`,
+                name: view.point.name || '分享点位',
+                lat: view.point.lat,
+                lon: view.point.lon,
+                zoom: view.z ?? 13,
+                category: 'spot',
+                source: '分享链接点位',
+            });
+        } else if (view.lat !== null) {
+            if (isOwnDeviceView(rawHash, window.localStorage)) {
                 setPendingMapTarget({
                     id: `own_${Date.now()}`,
                     name: '上次浏览位置',
                     lat: view.lat,
                     lon: view.lon,
+                    zoom: view.z ?? undefined,
                     category: 'spot',
                     source: '本机视角恢复',
                     silent: true,
@@ -71,6 +83,7 @@ const App = () => {
                     name: '分享位置',
                     lat: view.lat,
                     lon: view.lon,
+                    zoom: view.z ?? undefined,
                     category: 'spot',
                     source: '分享链接',
                 });

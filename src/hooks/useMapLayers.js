@@ -34,14 +34,33 @@ const TARGET_BEACON_HTML = `
     </div>
 `;
 
-export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, filters, customPoints, basePoints, isMeasuring = false, pendingMapTarget = null, onTargetHandled = null) => {
+export const useMapLayers = (
+    leafletReady,
+    mapRef,
+    baseMapType,
+    weatherType,
+    filters,
+    customPoints,
+    basePoints,
+    isMeasuring = false,
+    pendingMapTarget = null,
+    onTargetHandled = null,
+    { onTileLoadingChange = null, onPointSelect = null } = {}
+) => {
     const baseMapLayerRef = useRef(null);
+    const baseOverlayLayerRef = useRef(null);
     const baseLayerRef = useRef(null);
     const clusterGroupsRef = useRef({});
     const weatherLayerRef = useRef(null);
     const cityWeatherNodesRef = useRef(null);
     // 🎯 用于存放并管理”战术锁定信标”的引用，保证每次只有一个准星
     const targetBeaconRef = useRef(null);
+    const tileLoadingCbRef = useRef(onTileLoadingChange);
+    const pointSelectCbRef = useRef(onPointSelect);
+    useEffect(() => {
+        tileLoadingCbRef.current = onTileLoadingChange;
+        pointSelectCbRef.current = onPointSelect;
+    }, [onTileLoadingChange, onPointSelect]);
 
     /** 将准星移动到指定经纬度并智能偏移镜头（避开移动端底部面板） */
     const updateTargetBeacon = useCallback((lat, lng) => {
@@ -79,16 +98,49 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
         targetBeaconRef.current = L.marker([lat, lng], { icon: beaconIcon, zIndexOffset: 600 }).addTo(map);
     }, [mapRef]);
 
-    // 1. 初始化底图（中立全球视角，具体落点由首次 IP 定位 / URL 分享链接接管）
+    // 1. 初始化底图（默认关闭裸滚轮缩放防页面滚动误触，改由 MapEngine 监听 Ctrl/⌘ + 滚轮缩放；卫星/暗黑底图自动叠地名注记层）
     useEffect(() => {
         if (!leafletReady || !document.getElementById('real-map-container')) return;
         const L = window.L;
         if (!mapRef.current) {
-            mapRef.current = L.map('real-map-container', {zoomControl: false,worldCopyJump: true,minZoom: 2,maxBounds: [[-85, -Infinity], [85, Infinity]],maxBoundsViscosity: 1.0}).setView([20, 15], 3);
+            mapRef.current = L.map('real-map-container', {
+                zoomControl: false,
+                scrollWheelZoom: false,
+                worldCopyJump: true,
+                minZoom: 2,
+                maxBounds: [[-85, -Infinity], [85, Infinity]],
+                maxBoundsViscosity: 1.0
+            }).setView([20, 15], 3);
             L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
         }
-        if (baseMapLayerRef.current) mapRef.current.removeLayer(baseMapLayerRef.current);
-        baseMapLayerRef.current = L.tileLayer(BASE_MAPS[baseMapType].url, { maxZoom: 19}).addTo(mapRef.current);
+        const map = mapRef.current;
+        if (baseMapLayerRef.current) map.removeLayer(baseMapLayerRef.current);
+        if (baseOverlayLayerRef.current) {
+            map.removeLayer(baseOverlayLayerRef.current);
+            baseOverlayLayerRef.current = null;
+        }
+
+        const cfg = BASE_MAPS[baseMapType] || BASE_MAPS.topo;
+        const tileLayer = L.tileLayer(cfg.url, {
+            maxZoom: 19,
+            keepBuffer: 4,
+            updateWhenIdle: false,
+            updateWhenZooming: false
+        });
+        tileLayer.on('loading', () => tileLoadingCbRef.current?.(true));
+        tileLayer.on('load', () => tileLoadingCbRef.current?.(false));
+        tileLayer.on('tileerror', () => tileLoadingCbRef.current?.(false));
+        tileLayer.addTo(map);
+        baseMapLayerRef.current = tileLayer;
+
+        if (cfg.overlayUrl) {
+            baseOverlayLayerRef.current = L.tileLayer(cfg.overlayUrl, {
+                maxZoom: 19,
+                keepBuffer: 4,
+                zIndex: 4,
+                opacity: 0.92
+            }).addTo(map);
+        }
     }, [leafletReady, baseMapType, mapRef]);
 
     // 🆕 外部触发定位：当收到 pendingMapTarget 时定位并弹出面板
@@ -112,12 +164,16 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
                 if (onTargetHandled) onTargetHandled();
                 return;
             }
+            if (Number.isFinite(pt.zoom)) {
+                map.setView([pt.lat, pt.lon], pt.zoom, { animate: false });
+            }
             // 🏠 silent = 本机收藏视角恢复：只挪镜头画准星，不弹战术面板（自家视角无需仪式感）
             updateTargetBeacon(pt.lat, pt.lon);
             if (pt.silent) {
                 if (onTargetHandled) onTargetHandled();
                 return;
             }
+            pointSelectCbRef.current?.({ lat: pt.lat, lon: pt.lon, name: pt.name });
             openCyberPanel(
                 generatePopupContent(
                     pt,
@@ -155,6 +211,7 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             const lng = e.latlng.lng;
 
             updateTargetBeacon(lat, lng);
+            pointSelectCbRef.current?.({ lat, lon: lng, name: `地图选点 (${lat.toFixed(3)}, ${lng.toFixed(3)})` });
 
             openCyberPanel(
                 generatePopupContent(
@@ -195,6 +252,7 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
                 const openBasePanel = (ev) => {
                     L.DomEvent.stop(ev);
                     updateTargetBeacon(pt.lat, pt.lon);
+                    pointSelectCbRef.current?.({ lat: pt.lat, lon: pt.lon, name: pt.name });
                     openCyberPanel(generatePopupContent(pt, `base_${idx}`, '🛤️', pt.name, pt.desc));
                 };
                 L.circleMarker([pt.lat, pt.lon], { radius: 10, fillColor: color, color: 'transparent', fillOpacity: 0.2 }).on('click', openBasePanel).addTo(baseLayerRef.current);
@@ -242,6 +300,7 @@ export const useMapLayers = (leafletReady, mapRef, baseMapType, weatherType, fil
             mk.on('click', (ev) => {
                 if (ev.originalEvent) L.DomEvent.stopPropagation(ev.originalEvent);
                 updateTargetBeacon(pt.lat, pt.lon);
+                pointSelectCbRef.current?.({ lat: pt.lat, lon: pt.lon, name: pt.name });
                 openCyberPanel(generatePopupContent(pt, `custom_${pt.id}`, style.icon, pt.name, pt.source));
             });
             markersByType[filterType].push(mk);

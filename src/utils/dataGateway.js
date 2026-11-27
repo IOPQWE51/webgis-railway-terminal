@@ -85,6 +85,17 @@ const trimTerrainPayload = (osmData) => {
     return [...new Set(terrainTags)]; // 去重
 };
 
+/** 带硬超时的 fetch 包装：防止单一慢上游（如 overpass-api.de）拖死整次拍摄评估 */
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 3500) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: ctrl.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
 /**
  * 📌 策略一：并发请求优化 - 使用 Promise.all 同时发出多个请求
  */
@@ -92,14 +103,12 @@ const fetchWeatherConcurrently = async (lat, lon) => {
     let weatherUrl = '';
     if (isLocalDev) {
         weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${lat},${lon}&aqi=no`;
-        console.log("🛠️ 本地开发模式：直连 WeatherAPI");
     } else {
         weatherUrl = `/api/weather?lat=${lat}&lon=${lon}`;
-        console.log("☁️ 生产模式：通过 Serverless 后端获取气象");
     }
 
     try {
-        const res = await fetch(weatherUrl);
+        const res = await fetchWithTimeout(weatherUrl, {}, 4000);
         if (res.ok) {
             const fullData = await res.json();
             return trimWeatherPayload(fullData);
@@ -112,7 +121,7 @@ const fetchWeatherConcurrently = async (lat, lon) => {
 
 const fetchTerrainConcurrently = async (lat, lon) => {
     const overpassQuery = `
-        [out:json][timeout:5];
+        [out:json][timeout:3];
         (
           node["natural"~"water|beach|wood|peak"](around:500,${lat},${lon});
           way["natural"~"water|beach|wood"](around:500,${lat},${lon});
@@ -126,17 +135,18 @@ const fetchTerrainConcurrently = async (lat, lon) => {
     `;
 
     try {
-        const res = await fetch('https://overpass-api.de/api/interpreter', {
+        // Overpass 公共节点经常排队 6-10s，客户端设 2.5s 硬上限：超时立即降级为空标签，不拖慢整次评估
+        const res = await fetchWithTimeout('https://overpass-api.de/api/interpreter', {
             method: 'POST',
             body: overpassQuery
-        });
+        }, 2500);
         
         if (res.ok) {
             const osmData = await res.json();
             return trimTerrainPayload(osmData);
         }
     } catch (error) {
-        console.warn("⚠️ 地形获取失败:", error);
+        console.warn("⚠️ 地形获取超时或失败（已自动降级）:", error?.name || error);
     }
     return [];
 };
@@ -146,16 +156,12 @@ const fetchTerrainConcurrently = async (lat, lon) => {
  */
 const fetchPhenologyConcurrently = async (lat, lon) => {
     try {
-        // 与生产一致走同源 /api（本地请用 `vercel dev`，或为 Vite 配置 proxy）
-        const phenologyUrl = `/api/phenology?lat=${lat}&lon=${lon}`;
-
-        const res = await fetch(phenologyUrl);
+        const res = await fetchWithTimeout(`/api/phenology?lat=${lat}&lon=${lon}`, {}, 3200);
         if (res.ok) {
-            const data = await res.json();
-            return data;
+            return await res.json();
         }
     } catch (error) {
-        console.warn("⚠️ 物候数据获取失败:", error);
+        console.warn("⚠️ 物候数据获取失败:", error?.name || error);
     }
     return null;
 };
@@ -163,7 +169,7 @@ const fetchPhenologyConcurrently = async (lat, lon) => {
 // 🌌 新增：极光数据并发获取函数 (带错误降级)
 const fetchAuroraConcurrently = async (lat, lon) => {
     try {
-        const res = await fetch(`/api/aurora?lat=${lat}&lon=${lon}`);
+        const res = await fetchWithTimeout(`/api/aurora?lat=${lat}&lon=${lon}`, {}, 3000);
         if (!res.ok) return { probability: 0 };
         return await res.json();
     } catch {
@@ -174,7 +180,7 @@ const fetchAuroraConcurrently = async (lat, lon) => {
 // 🏔️ 新增：海拔数据并发获取函数 (Open-Meteo，无需注册)
 const fetchElevationConcurrently = async (lat, lon) => {
     try {
-        const res = await fetch(`/api/elevation?lat=${lat}&lon=${lon}`);
+        const res = await fetchWithTimeout(`/api/elevation?lat=${lat}&lon=${lon}`, {}, 3000);
         if (!res.ok) return { elevation: 0 };
         return await res.json();
     } catch {
@@ -185,14 +191,13 @@ const fetchElevationConcurrently = async (lat, lon) => {
 // 🚗 新增：Mapbox 数据并发获取函数 (地点特征 + 交通流量)
 const fetchMapboxConcurrently = async (lat, lon) => {
     try {
-        // 并发获取地理特征和交通数据
         const [featuresRes, trafficRes] = await Promise.all([
-            fetch(`/api/mapbox?lat=${lat}&lon=${lon}&type=geocoding`),
-            fetch(`/api/mapbox?lat=${lat}&lon=${lon}&type=traffic`)
+            fetchWithTimeout(`/api/mapbox?lat=${lat}&lon=${lon}&type=geocoding`, {}, 3000).catch(() => null),
+            fetchWithTimeout(`/api/mapbox?lat=${lat}&lon=${lon}&type=traffic`, {}, 3000).catch(() => null)
         ]);
 
-        const features = featuresRes.ok ? await featuresRes.json() : { features: [] };
-        const traffic = trafficRes.ok ? await trafficRes.json() : { traffic: { level: 'unknown' } };
+        const features = featuresRes?.ok ? await featuresRes.json() : { features: [] };
+        const traffic = trafficRes?.ok ? await trafficRes.json() : { traffic: { level: 'unknown' } };
 
         return {
             features: features.features || [],

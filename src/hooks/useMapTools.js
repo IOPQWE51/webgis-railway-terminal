@@ -4,7 +4,7 @@ import { generatePopupContent } from '../utils/photoEngine';
 import { openCyberPanel } from '../utils/cyberPanel';
 import { getCurrentPosition } from '../utils/performanceHelpers';
 
-export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
+export const useMapTools = (leafletReady, mapRef, setShowDrawer, { onPointSelect = null } = {}) => {
     const [isMeasuring, setIsMeasuring] = useState(false);
     const [measurePoints, setMeasurePoints] = useState([]);
     const [measureDistance, setMeasureDistance] = useState(0);
@@ -12,16 +12,30 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
 
     const [userLocation, setUserLocation] = useState(null);
     const [isLocating, setIsLocating] = useState(false);
+    const [locateNotice, setLocateNotice] = useState('');
+    const locateTimerRef = useRef(null);
     const userMarkerRef = useRef(null);
     const searchMarkerRef = useRef(null);
 
+    const showLocateNotice = (msg) => {
+        setLocateNotice(msg);
+        clearTimeout(locateTimerRef.current);
+        locateTimerRef.current = setTimeout(() => setLocateNotice(''), 4200);
+    };
+
+    useEffect(() => () => clearTimeout(locateTimerRef.current), []);
+
     // 1. 搜索跃迁逻辑
-    const handleSearchLocationFound = (lat, lon, fullName) => {
+    const handleSearchLocationFound = (lat, lon, fullName, shortName) => {
         const map = mapRef.current; if (!map) return; const L = window.L;
         if (searchMarkerRef.current) map.removeLayer(searchMarkerRef.current);
-        map.flyTo([lat, lon], 14, { duration: 1.5 });
+        map.flyTo([lat, lon], 14, { duration: 1.2 });
+        const displayTitle = shortName || fullName?.split(',')[0] || '搜索位置';
         const targetIcon = L.divIcon({ className: 'search-target-pin', html: `<div style="background-color: #ef4444; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 3px solid white; box-shadow: 0 0 15px rgba(239,68,68,0.8); animation: pulse 1.5s infinite;">🎯</div>`, iconSize: [32, 32], iconAnchor: [16, 16] });
-        const showSearchPanel = () => openCyberPanel(generatePopupContent({ lat, lon }, 'search_target', '📍', '搜索位置', fullName));
+        const showSearchPanel = () => {
+            onPointSelect?.({ lat, lon, name: displayTitle });
+            openCyberPanel(generatePopupContent({ lat, lon }, 'search_target', '📍', displayTitle, fullName));
+        };
         showSearchPanel();
         searchMarkerRef.current = L.marker([lat, lon], { icon: targetIcon }).addTo(map);
         searchMarkerRef.current.on('click', (ev) => {
@@ -31,15 +45,24 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         if (window.innerWidth < 1024) setShowDrawer(false);
     };
 
-    // 2. 玩家定位逻辑
+    // 2. 玩家定位逻辑（带清晰状态反馈，失败不静默卡死）
     const locatePlayer = async () => {
         setIsLocating(true);
+        showLocateNotice('正在获取当前位置…');
         try {
-            const position = await getCurrentPosition();
-            setUserLocation({ lat: position.latitude, lon: position.longitude });
+            const position = await getCurrentPosition({ gpsTimeout: 5000 });
+            const label = position.city || '当前位置';
+            setUserLocation({
+                lat: position.latitude,
+                lon: position.longitude,
+                label,
+                zoom: position.method === 'gps' ? 14 : 10,
+                ts: Date.now()
+            });
+            showLocateNotice(position.warning || `已通过 GPS 定位到 ${label}`);
             if (window.innerWidth < 1024) setShowDrawer(false);
         } catch (error) {
-            alert(error.message);
+            showLocateNotice(`⚠️ ${error.message || '定位失败，请稍后重试'}`);
         } finally {
             setIsLocating(false);
         }
@@ -50,17 +73,20 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
         if (!leafletReady || !mapRef.current || !userLocation) return;
         const L = window.L; const map = mapRef.current;
         if (userMarkerRef.current) map.removeLayer(userMarkerRef.current);
-        const { lat, lon } = userLocation;
+        const { lat, lon, label = '当前位置', zoom = 13 } = userLocation;
         const userIcon = L.divIcon({ className: 'user-pin', html: `<div style="background-color: #06b6d4; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 15px rgba(6, 182, 212, 0.8); animation: pulse 2s infinite;"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
-        const showUserPanel = () => openCyberPanel(generatePopupContent({ lat, lon }, 'user_gps', '📍', '当前位置', `坐标: ${lat.toFixed(4)}, ${lon.toFixed(4)}`));
+        const showUserPanel = () => {
+            onPointSelect?.({ lat, lon, name: label });
+            openCyberPanel(generatePopupContent({ lat, lon }, 'user_gps', '📍', label, `坐标: ${lat.toFixed(4)}, ${lon.toFixed(4)}`));
+        };
         showUserPanel();
         userMarkerRef.current = L.marker([lat, lon], { icon: userIcon }).addTo(map);
         userMarkerRef.current.on('click', (ev) => {
             if (ev.originalEvent) L.DomEvent.stopPropagation(ev.originalEvent);
             showUserPanel();
         });
-        map.flyTo([lat, lon], 15);
-    }, [leafletReady, userLocation, mapRef]);
+        map.flyTo([lat, lon], zoom, { duration: 1.1 });
+    }, [leafletReady, userLocation, mapRef, onPointSelect]);
 
     // 3. 测距雷达逻辑
     useEffect(() => {
@@ -121,7 +147,7 @@ export const useMapTools = (leafletReady, mapRef, setShowDrawer) => {
     };
 
     return { 
-        handleSearchLocationFound, locatePlayer, isLocating, 
+        handleSearchLocationFound, locatePlayer, isLocating, locateNotice,
         isMeasuring, setIsMeasuring, measurePoints, setMeasurePoints, measureDistance, setMeasureDistance, 
         clearMeasurement, exitMeasurement // 🚀 别忘了把新增的 exitMeasurement 导出去！
     };

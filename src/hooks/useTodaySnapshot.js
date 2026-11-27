@@ -4,9 +4,10 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import SunCalc from 'suncalc';
-import { computeShootingBrief } from '../utils/shootingBrief';
+import { computeShootingBrief, formatLocalDateKey } from '../utils/shootingBrief';
 import {
   buildTodayCard,
+  currentAstroPhase,
   formatLocalTimeByLon,
   formatUtcOffsetLabel,
   translateWeatherCondition
@@ -25,28 +26,39 @@ export function fmtCountdown(at, now) {
   return m ? `${h}h${m}m` : `${h}h`;
 }
 
-function pickRelevant(intervals) {
-  if (!intervals || intervals.length === 0) return null;
-  const now = Date.now();
-  return intervals.find((i) => i.end.getTime() >= now) || intervals[0];
+export function fmtRemaining(end, now) {
+  const mins = Math.max(1, Math.round((end.getTime() - now.getTime()) / 60000));
+  if (mins < 60) return `剩余 ${mins} 分钟`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `剩余 ${h}h${m}m` : `剩余 ${h}h`;
 }
 
-export function useTodaySnapshot({ lat, lng, customPoints = [], basePoints = [] }) {
-  const [weather, setWeather] = useState(null);
+export function useTodaySnapshot({ lat, lng, selectedDate = '', customPoints = [], basePoints = [] }) {
+  // 按坐标键绑定天气结果，切换地点时立刻失效旧城市天气并进入加载态，绝不混显上一城数据
+  const [weatherState, setWeatherState] = useState({ key: null, data: null });
   const [now, setNow] = useState(() => new Date());
 
   const valid = Number.isFinite(lat) && Number.isFinite(lng);
   const latKey = valid ? Math.round(lat * 100) / 100 : null;
   const lngKey = valid ? Math.round(lng * 100) / 100 : null;
+  const coordKey = latKey !== null && lngKey !== null ? `${latKey},${lngKey}` : null;
+
+  const localTodayKey = lngKey !== null ? formatLocalDateKey(now, lngKey) : '';
+  const activeDateKey = selectedDate || localTodayKey;
+  const isCustomDate = Boolean(selectedDate && localTodayKey && selectedDate !== localTodayKey);
+
+  const weather = coordKey && weatherState.key === coordKey ? weatherState.data : null;
+  const isWeatherLoading = Boolean(coordKey && weatherState.key !== coordKey);
 
   const brief = useMemo(() => {
-    if (latKey === null || lngKey === null) return null;
+    if (latKey === null || lngKey === null || !activeDateKey) return null;
     try {
-      return computeShootingBrief({ lat: latKey, lon: lngKey, date: new Date() });
+      return computeShootingBrief({ lat: latKey, lon: lngKey, date: activeDateKey });
     } catch {
       return null;
     }
-  }, [latKey, lngKey]);
+  }, [latKey, lngKey, activeDateKey]);
 
   const nearbyPool = useMemo(() => {
     const todayStr = now.toISOString().slice(0, 10);
@@ -68,15 +80,24 @@ export function useTodaySnapshot({ lat, lng, customPoints = [], basePoints = [] 
     }
   }, [brief, weather, nearbyPool, latKey, lngKey, now]);
 
+  const activeAstro = useMemo(() => {
+    if (!brief || isCustomDate) return null;
+    return currentAstroPhase(brief, now);
+  }, [brief, isCustomDate, now]);
+
   useEffect(() => {
-    if (latKey === null || lngKey === null) return undefined;
+    if (!coordKey || latKey === null || lngKey === null) return undefined;
     const ctrl = new AbortController();
     fetch(`/api/weather?lat=${latKey}&lon=${lngKey}`, { signal: ctrl.signal })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((json) => setWeather(json?.current ?? null))
-      .catch(() => {});
+      .then((json) => setWeatherState({ key: coordKey, data: json?.current ?? null }))
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          setWeatherState({ key: coordKey, data: null });
+        }
+      });
     return () => ctrl.abort();
-  }, [latKey, lngKey]);
+  }, [coordKey, latKey, lngKey]);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
@@ -84,7 +105,7 @@ export function useTodaySnapshot({ lat, lng, customPoints = [], basePoints = [] 
   }, []);
 
   const trigger = useMemo(() => {
-    if (!weather || latKey === null || lngKey === null) return null;
+    if (!weather || isCustomDate || latKey === null || lngKey === null) return null;
     try {
       const altitude = SunCalc.getPosition(now, latKey, lngKey).altitude * (180 / Math.PI);
       const moonPhase = SunCalc.getMoonIllumination(now).fraction;
@@ -103,24 +124,29 @@ export function useTodaySnapshot({ lat, lng, customPoints = [], basePoints = [] 
     } catch {
       return null;
     }
-  }, [weather, latKey, lngKey, now]);
+  }, [weather, isCustomDate, latKey, lngKey, now]);
 
   const tzLabel = lngKey !== null ? formatUtcOffsetLabel(lngKey) : '';
   const fmtTime = (d) => (lngKey !== null ? formatLocalTimeByLon(d, lngKey) : '—');
   const zhWeather = card?.weatherLine ? translateWeatherCondition(card.weatherLine.condition) : '';
-  const gold = brief ? pickRelevant(brief.goldenHours) : null;
-  const blue = brief ? pickRelevant(brief.blueHours) : null;
   const isPolar = brief ? (brief.sunrise === null && brief.sunset === null) : false;
 
   return {
     brief,
     card,
+    activeAstro,
     trigger,
     now,
     tzLabel,
     zhWeather,
-    gold,
-    blue,
+    isWeatherLoading,
+    activeDateKey,
+    localTodayKey,
+    isCustomDate,
+    morningGolden: brief?.morningGolden || null,
+    eveningGolden: brief?.eveningGolden || null,
+    morningBlue: brief?.morningBlue || null,
+    eveningBlue: brief?.eveningBlue || null,
     isPolar,
     fmtTime,
   };

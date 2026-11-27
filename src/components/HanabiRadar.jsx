@@ -49,7 +49,7 @@ const HanabiRadar = ({ isActive, onLocateOnMap }) => {
                             <Sparkles className="w-5 h-5 mr-2 text-koi" />
                             花火大会日程（日本专题）
                         </h3>
-                        <p className="text-xs text-ink-3 mt-1">按日期自动标明举办状态，支持直接跳到地图查看燃放点。</p>
+                        <p className="text-xs text-ink-3 mt-1">按日期自动标明举办状态（未举办优先排前，惯例/暂定日期出行前请以官网公告为准）。</p>
                     </div>
                     <a 
                         href="https://hanabi.cloud/" 

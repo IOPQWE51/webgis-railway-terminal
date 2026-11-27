@@ -72,6 +72,17 @@ describe('computeShootingBrief · 输入防御', () => {
   it('非法日期返回 null', () => {
     expect(computeShootingBrief({ ...TOKYO, date: new Date('not-a-date') })).toBeNull();
   });
+
+  it('支持 YYYY-MM-DD 未来规划日期，且海外经度（凤凰城）朝晚双场完整归属当地当天', () => {
+    const phoenix = computeShootingBrief({ lat: 33.4484, lon: -112.074, date: '2027-04-02' });
+    expect(phoenix).not.toBeNull();
+    expect(phoenix.dateKey).toBe('2027-04-02');
+    expect(phoenix.morningGolden).toBeTruthy();
+    expect(phoenix.eveningGolden).toBeTruthy();
+    expect(phoenix.morningBlue).toBeTruthy();
+    expect(phoenix.eveningBlue).toBeTruthy();
+    expect(phoenix.morningGolden.start.getTime()).toBeLessThan(phoenix.eveningGolden.start.getTime());
+  });
 });
 
 describe('moonPhaseInfo / phaseMeta', () => {

@@ -13,13 +13,15 @@ const GLOBAL_RULES_CONFIG = [
         enName: "China",
         icon: "🇨🇳",
         subtitle: "国家铁路网与绿皮慢车探索指南",
+        lastVerified: "2026-11",
+        source: "12306 铁路客运规程 & 各地轨道交通安检规定",
         rules: [
             { name: "12306 实名购票", status: "yes", desc: "全路网实名制，高铁/普速统一在 12306 购票，无需打印纸质票，刷身份证直接进站。" },
             { name: "绿皮慢车 (普速列车)", status: "yes", desc: "K/T 字头慢车票价亲民，硬座穿越数省是感受中国大地的最优解，但旺季一票难求。" },
             { name: "地铁安检", status: "no", desc: "全国地铁进站均需安检（液体有时需试喝），高峰期预留 10 分钟排队时间。" }
         ],
         warnings: [
-            { title: "火车禁烟零容忍", desc: "2026年5月起全国普速列车（K/T/Z字头）全列禁烟，卫生间、车厢连接处、电子烟统统不行；高铁上吸烟触发警报可直接行政拘留。" },
+            { title: "火车禁烟零容忍", desc: "自 2026 年 5 月起全国普速列车（K/T/Z 字头）已全面实施全列禁烟，卫生间、车厢连接处、电子烟均禁止；高铁上吸烟触发警报可面临行政处罚。" },
             { title: "安检禁品清单", desc: "除了常规刀具易燃品，充电宝必须标称容量合规（≤100Wh）且随身携带不能托运，散装酒类不能带上车。" }
         ]
     },
@@ -30,6 +32,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "Japan",
         icon: "🇯🇵",
         subtitle: "JR 铁道网络、青春 18 与日常礼仪",
+        lastVerified: "2026-11",
+        source: "JR 集团通票规则 & 日本公共交通礼仪指南",
         rules: [
             { name: "JR 青春 18 主干线", status: "yes", desc: "宗谷、函馆、东北、东海道、山阳、鹿儿岛本线等普通列车可按季通票无限次乘坐。" },
             { name: "JR 宫岛渡轮", status: "yes", desc: "JR 体系内的水上接驳，可直达广岛严岛神社。" },
@@ -47,6 +51,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "South Korea",
         icon: "🇰🇷",
         subtitle: "KTX 高铁与首都圈地铁法则",
+        lastVerified: "2026-11",
+        source: "KORAIL 官网 & 首尔交通公社乘车规范",
         rules: [
             { name: "KTX 无闸口制", status: "yes", desc: "韩国车站不设剪票闸口，列车长在车厢内核对车票；KR Pass 持有人指定席划满时，可直接上 5-6 号自由座车厢找位。" },
             { name: "KR Pass 须提前划位", status: "yes", desc: "外国人专用的 KORAIL 通票，最早可在乘车日 31 天前线上划位；旺季指定席很快售罄，定了行程就立刻划。" },
@@ -63,6 +69,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "Thailand",
         icon: "🇹🇭",
         subtitle: "夜班卧铺火车与双条车生存手册",
+        lastVerified: "2026-11",
+        source: "泰国国家铁路 SRT D-Ticket & 旅游安全提示",
         rules: [
             { name: "国铁提前 60 天售票", status: "yes", desc: "泰国火车票全国联网，任一车站可买全程方向车票；按 1 等空调卧铺 / 2 等空调风扇卧铺 / 3 等风扇座分级。" },
             { name: "夜班卧铺是移动酒店", status: "yes", desc: "曼谷辐射清迈、合艾等线路的夜班卧铺体验极佳，提供毛毯；但空调开得非常冷，务必备厚外套。" }
@@ -78,6 +86,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "Europe",
         icon: "🇪🇺",
         subtitle: "Eurail 通票与申根区跨国铁道",
+        lastVerified: "2026-11",
+        source: "Eurail 官方订座规则 & 欧洲各国铁路实操整理",
         rules: [
             { name: "区域慢车 (Regional)", status: "yes", desc: "大多数区域慢车随时上车、无需订座，适合沿线慢游欧洲小镇。" },
             { name: "跨国高铁 (TGV / Eurostar)", status: "no", desc: "即使持有 Eurail 通票，跨国高速列车通常仍强制提前订座并加收订座费，旺季需尽早锁定。" }
@@ -93,6 +103,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "United Kingdom",
         icon: "🇬🇧",
         subtitle: "高票价铁路网与拆分购票技巧",
+        lastVerified: "2026-11",
+        source: "National Rail Conditions of Travel & TfL 计费规则",
         rules: [
             { name: "拆分购票 (Split Ticketing) 合法", status: "yes", desc: "National Conditions of Carriage 第 14 条允许同一趟车拆成多段购票，常省 30% 以上，只要列车在分段站停靠即可。" },
             { name: "Advance 早鸟票抢法", status: "yes", desc: "行程确定后尽早买 Advance 票（最早提前约 12 周放票），叠加 Railcard 折扣卡可再省 1/3；错峰可选 Super Off-Peak。" },
@@ -108,6 +120,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "United States",
         icon: "🇺🇸",
         subtitle: "Amtrak 长途观光列车与日常规则",
+        lastVerified: "2026-11",
+        source: "Amtrak 乘车指南 & 北美出行常识",
         rules: [
             { name: "Amtrak 长途 = 移动观光酒店", status: "yes", desc: "卧铺包厢（Roomette/Bedroom）含餐车三餐与休息室，适合加州微风号等景观线路。" },
             { name: "餐车需预约", status: "no", desc: "餐车由乘务员按时段走访登记订座，座位票乘客也可前往观景车厢下层 Cafe 购买简餐。" },
@@ -123,6 +137,8 @@ const GLOBAL_RULES_CONFIG = [
         enName: "Singapore",
         icon: "🇸🇬",
         subtitle: "高秩序城市公共交通与法规",
+        lastVerified: "2026-11",
+        source: "LTA SimplyGo & 新加坡公共法规手册",
         rules: [
             { name: "银行卡直接拍卡乘地铁", status: "yes", desc: "MRT 与公交全面支持 Visa/Mastercard 非接触式支付或 Apple Pay，无需特意购买交通卡。" }
         ],
@@ -253,6 +269,12 @@ const RulesTab = ({ isActive, onLocateRegion }) => {
                             ))}
                         </div>
                     </div>
+                </div>
+
+                {/* 来源与核验日期声明 */}
+                <div className="mt-6 pt-4 border-t border-line/70 flex flex-wrap items-center justify-between gap-2 text-[11px] text-ink-3">
+                    <span>参考来源：{activeRegion.source}</span>
+                    <span className="font-mono">最后核验：{activeRegion.lastVerified} · 出行前请以当地最新公告为准</span>
                 </div>
             </div>
         </div>
