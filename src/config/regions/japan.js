@@ -76,18 +76,18 @@ export const STATIONS = [
 
 // ── 铁道线（points 引用 STATIONS 的 id）──
 export const RAILWAY_LINES = [
-    { points: ['wakkanai', 'nayoro', 'asahikawa', 'iwamizawa', 'sapporo', 'tomakomai', 'hakodate'], color: '#22c55e', dashArray: null },
-    { points: ['hakodate', 'shin_hakodate', 'shin_aomori'], color: '#f97316', dashArray: '6, 6' },
-    { points: ['shin_aomori', 'aomori', 'hachinohe', 'morioka', 'ichinoseki', 'sendai', 'shiroishi', 'fukushima', 'koriyama', 'utsunomiya', 'omiya', 'ueno', 'tokyo'], color: '#22c55e', dashArray: null },
-    { points: ['tokyo', 'yokohama', 'odawara', 'atami', 'shizuoka', 'hamamatsu', 'toyohashi', 'nagoya', 'maibara', 'kyoto', 'osaka'], color: '#22c55e', dashArray: null },
-    { points: ['osaka', 'kobe', 'himeji', 'okayama', 'hiroshima', 'yamaguchi', 'shimonoseki'], color: '#22c55e', dashArray: null },
-    { points: ['shimonoseki', 'moji', 'kokura', 'hakata', 'kumamoto', 'kagoshima_chuo'], color: '#22c55e', dashArray: null },
-    { points: ['asahikawa', 'higashi_nemuro'], color: '#4ade80', dashArray: '4, 4' },
-    { points: ['hakata', 'sasebo'], color: '#4ade80', dashArray: '4, 4' },
-    { points: ['kagoshima_chuo', 'nishi_oyama'], color: '#22c55e', dashArray: null },
-    { points: ['okayama', 'takamatsu'], color: '#22c55e', dashArray: null },
-    { points: ['okayama', 'sakaiminato', 'oki'], color: '#3b82f6', dashArray: '4, 4' },
-    { points: ['hiroshima', 'miyajima_guchi', 'miyajima'], color: '#3b82f6', dashArray: '4, 4' }
+    { id: 'jp_hokkaido', name: '宗谷 · 函馆本线', badge: '北海道纵贯', points: ['wakkanai', 'nayoro', 'asahikawa', 'iwamizawa', 'sapporo', 'tomakomai', 'hakodate'], color: '#22c55e', dashArray: null },
+    { id: 'jp_seikan', name: '北海道新干线（跨海段）', badge: '需特例票', points: ['hakodate', 'shin_hakodate', 'shin_aomori'], color: '#f97316', dashArray: '6, 6' },
+    { id: 'jp_tohoku', name: '东北本线', badge: '青森 → 东京', points: ['shin_aomori', 'aomori', 'hachinohe', 'morioka', 'ichinoseki', 'sendai', 'shiroishi', 'fukushima', 'koriyama', 'utsunomiya', 'omiya', 'ueno', 'tokyo'], color: '#22c55e', dashArray: null },
+    { id: 'jp_tokaido', name: '东海道本线', badge: '东京 → 大阪', points: ['tokyo', 'yokohama', 'odawara', 'atami', 'shizuoka', 'hamamatsu', 'toyohashi', 'nagoya', 'maibara', 'kyoto', 'osaka'], color: '#22c55e', dashArray: null },
+    { id: 'jp_sanyo', name: '山阳本线', badge: '大阪 → 下关', points: ['osaka', 'kobe', 'himeji', 'okayama', 'hiroshima', 'yamaguchi', 'shimonoseki'], color: '#22c55e', dashArray: null },
+    { id: 'jp_kagoshima', name: '鹿儿岛本线', badge: '九州主干', points: ['shimonoseki', 'moji', 'kokura', 'hakata', 'kumamoto', 'kagoshima_chuo'], color: '#22c55e', dashArray: null },
+    { id: 'jp_nemuro', name: '根室方向支线', badge: '道东最东端', points: ['asahikawa', 'higashi_nemuro'], color: '#4ade80', dashArray: '4, 4' },
+    { id: 'jp_sasebo', name: '佐世保支线', badge: 'JR 最西端', points: ['hakata', 'sasebo'], color: '#4ade80', dashArray: '4, 4' },
+    { id: 'jp_ibusuki', name: '指宿枕崎线', badge: 'JR 最南端', points: ['kagoshima_chuo', 'nishi_oyama'], color: '#22c55e', dashArray: null },
+    { id: 'jp_seto', name: '濑户大桥线', badge: '四国门户', points: ['okayama', 'takamatsu'], color: '#22c55e', dashArray: null },
+    { id: 'jp_oki_ferry', name: '境线 · 隐岐渡轮', badge: '海陆接驳', points: ['okayama', 'sakaiminato', 'oki'], color: '#3b82f6', dashArray: '4, 4' },
+    { id: 'jp_miyajima_ferry', name: 'JR 宫岛渡轮', badge: '青春18可用', points: ['hiroshima', 'miyajima_guchi', 'miyajima'], color: '#3b82f6', dashArray: '4, 4' }
 ];
 
 // ── 圣地巡礼精选番剧 ──

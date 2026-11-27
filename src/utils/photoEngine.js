@@ -18,6 +18,31 @@ const formatIntervalRange = (seg, lon) => {
 /**
  * SunCalc 在高纬/极区可能返回 null，数据层降级避免 UI 出现 --:--
  */
+const escapeHtml = (str) =>
+    String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+const BEST_TIME_LABELS = {
+    morning: '🌅 推荐朝场',
+    evening: '🌇 推荐晚场',
+    both: '✨ 朝晚皆宜',
+    night: '🌃 夜景蓝调',
+};
+
+const getCameraWindowSummary = (bestTime, brief, lon) => {
+    const mGold = formatIntervalRange(brief?.morningGolden, lon);
+    const eGold = formatIntervalRange(brief?.eveningGolden, lon);
+    const eBlue = formatIntervalRange(brief?.eveningBlue, lon);
+    if (bestTime === 'morning') return `朝场黄金窗口：${mGold}`;
+    if (bestTime === 'evening') return `晚场黄金窗口：${eGold}`;
+    if (bestTime === 'night') return `晚场蓝调窗口：${eBlue}`;
+    return `朝 ${mGold} · 晚 ${eGold}`;
+};
+
 const formatLocalTimeSafe = (date, lon, lat) => {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
         const a = Math.abs(Number(lat) || 0);
@@ -199,6 +224,8 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride
 
     // 🆕 新增：判断是否已经是本地收藏的点位（排除搜索结果）
     const isSaved = String(ptId).startsWith('custom_') || String(ptId).startsWith('csv_') || String(ptId).startsWith('manual_');
+    const isCameraSpot = category === 'camera';
+    const cameraWindowText = isCameraSpot ? getCameraWindowSummary(pt.bestTime || 'both', brief, lon) : '';
 
     // 👇 下面是带有“加入收藏”面板的详情 HTML
     return `
@@ -206,8 +233,8 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride
             
             <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start;">
                 <div>
-                    <b style="font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${name}</b>
-                    ${desc ? `<div style="font-size: 13px; color: #64748b; margin-top: 8px; line-height: 1.6; font-weight: 600;">${desc}</div>` : ''}
+                    <b style="font-size: 20px; color: #0f172a; display: flex; align-items: center; gap: 8px; letter-spacing: -0.5px;">${iconStr} ${escapeHtml(name)}</b>
+                    ${desc ? `<div style="font-size: 13px; color: #64748b; margin-top: 8px; line-height: 1.6; font-weight: 600;">${escapeHtml(desc)}</div>` : ''}
                 </div>
                 
                 ${String(ptId).startsWith('custom_') ? `
@@ -222,6 +249,24 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride
                 </button>
                 ` : ''}
             </div>
+
+            ${isCameraSpot ? `
+            <div style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fcd34d; border-radius: 14px; padding: 13px 14px; margin-bottom: 16px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 6px;">
+                    <span style="font-size: 12px; font-weight: 900; color: #92400e;">📷 机位拍摄窗口 (${escapeHtml(dateLabel)})</span>
+                    <span style="font-size: 11px; font-weight: 800; color: #b45309; background: rgba(255,255,255,0.75); padding: 2px 8px; border-radius: 999px;">${BEST_TIME_LABELS[pt.bestTime] || BEST_TIME_LABELS.both}</span>
+                </div>
+                <div style="font-family: monospace; font-size: 14px; font-weight: 900; color: #78350f; margin-bottom: ${pt.focalLength || pt.notes ? '8px' : '0'};">
+                    ✨ ${escapeHtml(cameraWindowText)}
+                </div>
+                ${(pt.focalLength || pt.notes) ? `
+                <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #78350f; border-top: 1px dashed rgba(180,83,9,0.25); padding-top: 8px;">
+                    ${pt.focalLength ? `<div><strong>🎞️ 建议焦段：</strong>${escapeHtml(pt.focalLength)}</div>` : ''}
+                    ${pt.notes ? `<div><strong>📝 机位备注：</strong>${escapeHtml(pt.notes)}</div>` : ''}
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
             
             <div style="background: linear-gradient(145deg, #0f172a, #1e293b); padding: 18px; border-radius: 16px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.2); margin-bottom: 18px; position: relative; overflow: hidden;">
                 <div style="position:absolute; top:-30px; right:-30px; width:100px; height:100px; background:#38bdf8; filter:blur(40px); opacity:0.2; border-radius:50%;"></div>
@@ -257,23 +302,36 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride
             </div>
 
             ${!isSaved ? `
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 16px; display: flex; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-                <select id="save-cat-${evalId}" style="flex: 1; background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 700; color: #475569; outline: none; cursor: pointer;">
-                    <option value="spot">📍 地标</option>
-                    <option value="station">🚉 车站</option>
-                    <option value="airport">✈️ 机场</option>
-                    <option value="hotel">🏨 住宿</option>
-                    <option value="anime">🌸 巡礼</option>
-                </select>
-                <button 
-                    onclick="if(window.__saveToCustomPoints) window.__saveToCustomPoints('${name.replace(/'/g, "\\'")}', ${lat}, ${lon}, document.getElementById('save-cat-${evalId}').value, this)" 
-                    style="flex: 1; background: #0f172a; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(15,23,42,0.15); display: flex; justify-content: center; align-items: center;"
-                    onmousedown="this.style.transform='scale(0.96)'" 
-                    onmouseup="this.style.transform='scale(1)'" 
-                    onmouseleave="this.style.transform='scale(1)'"
-                >
-                    ⭐ 加入收藏
-                </button>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 12px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display: flex; gap: 8px;">
+                    <select id="save-cat-${evalId}" onchange="var ex=document.getElementById('cam-extra-${evalId}'); if(ex) ex.style.display=this.value==='camera'?'grid':'none';" style="flex: 1; background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 13px; font-weight: 700; color: #475569; outline: none; cursor: pointer;">
+                        <option value="spot">📍 地标</option>
+                        <option value="camera">📷 机位</option>
+                        <option value="station">🚉 车站</option>
+                        <option value="airport">✈️ 机场</option>
+                        <option value="hotel">🏨 住宿</option>
+                        <option value="anime">🌸 巡礼</option>
+                    </select>
+                    <button 
+                        onclick="if(window.__saveToCustomPoints) window.__saveToCustomPoints('${name.replace(/'/g, "\\'")}', ${lat}, ${lon}, document.getElementById('save-cat-${evalId}').value, this, { bestTime: document.getElementById('cam-time-${evalId}')?.value || '', focalLength: document.getElementById('cam-focal-${evalId}')?.value || '', notes: document.getElementById('cam-notes-${evalId}')?.value || '' })" 
+                        style="flex: 1; background: #0f172a; color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(15,23,42,0.15); display: flex; justify-content: center; align-items: center;"
+                        onmousedown="this.style.transform='scale(0.96)'" 
+                        onmouseup="this.style.transform='scale(1)'" 
+                        onmouseleave="this.style.transform='scale(1)'"
+                    >
+                        ⭐ 加入收藏
+                    </button>
+                </div>
+                <div id="cam-extra-${evalId}" style="display: none; grid-template-columns: 1fr 1fr; gap: 6px; padding-top: 6px; border-top: 1px dashed #cbd5e1;">
+                    <select id="cam-time-${evalId}" style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 8px; font-size: 12px; font-weight: 700; color: #475569; outline: none;">
+                        <option value="evening">🌇 推荐晚场</option>
+                        <option value="morning">🌅 推荐朝场</option>
+                        <option value="both">✨ 朝晚皆宜</option>
+                        <option value="night">🌃 夜景蓝调</option>
+                    </select>
+                    <input id="cam-focal-${evalId}" type="text" placeholder="建议焦段 如 24-70mm" style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 8px; font-size: 12px; color: #0f172a; outline: none;" />
+                    <input id="cam-notes-${evalId}" type="text" placeholder="机位备注（机位朝向/三脚架/交通贴士）" style="grid-column: span 2; background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 8px; font-size: 12px; color: #0f172a; outline: none;" />
+                </div>
             </div>
             ` : ''}
 

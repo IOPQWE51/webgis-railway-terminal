@@ -9,7 +9,7 @@ if (!OWM_API_KEY) {
 }
 
 
-export const TYPE_COLORS = { station: '#3b82f6', airport: '#8b5cf6', anime: '#ec4899', hotel: '#f97316', spot: '#06b6d4' };
+export const TYPE_COLORS = { camera: '#d97706', station: '#3b82f6', airport: '#8b5cf6', anime: '#ec4899', hotel: '#f97316', spot: '#06b6d4' };
 
 export const GLOBAL_WEATHER_NODES = [
     { name: '北京', lat: 39.9042, lon: 116.4074 }, { name: '东京', lat: 35.6895, lon: 139.6917 }, 
@@ -38,6 +38,7 @@ export const BASE_MAPS = {
 
 export const getPointFilterType = (pt) => {
     const source = pt.source || ''; const type = pt.category || '';
+    if (source.includes('机位') || type === 'camera') return 'camera';
     if (source.includes('车站') || type === 'station') return 'station';
     if (source.includes('机场') || type === 'airport' || type === 'plane') return 'airport';
     if (source.includes('巡礼') || type === 'anime') return 'anime';

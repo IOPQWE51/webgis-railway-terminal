@@ -1,22 +1,25 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon, List, Route } from 'lucide-react';
 import TacticalBottomSheet from './TacticalBottomSheet'; // 引入底部详情抽屉
 
 // 导入外部依赖
 import ControlPanel from './ControlPanel';
 import SearchNavEngine from './SearchNavEngine';
-import { initPhotoEvalEngine } from '../utils/photoEngine';
-import { closeCyberPanel } from '../utils/cyberPanel';
+import { initPhotoEvalEngine, generatePopupContent } from '../utils/photoEngine';
+import { closeCyberPanel, openCyberPanel } from '../utils/cyberPanel';
 import { getPositionByIP } from '../utils/performanceHelpers';
 import { REGION_REGISTRY } from '../config/regions';
 import TodayCard from './TodayCard';
+import RailDirectoryModal from './RailDirectoryModal';
+import { buildItineraryDays } from '../utils/itinerary';
+import { getIconStyle } from '../utils/helpers';
 
 // 导入核心 Hooks
 import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 import { useTodaySnapshot, fmtCountdown, fmtRemaining } from '../hooks/useTodaySnapshot';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, skipIpAutoLocate = false }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, skipIpAutoLocate = false }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const ipLocateDoneRef = useRef(false);
@@ -30,6 +33,8 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [selectedPoint, setSelectedPoint] = useState(null); // 📍 当前选中点位（用于分享链接附带机位）
     const [tileLoading, setTileLoading] = useState(false); // 🗺️ 瓦片加载指示
     const [wheelHint, setWheelHint] = useState(false); // 🖱️ 滚轮防误触轻提示
+    const [railDirectoryOpen, setRailDirectoryOpen] = useState(false); // 🚆 铁道线路目录弹窗
+    const [railDirectoryRegion, setRailDirectoryRegion] = useState('jp');
     
     // 💥 新增：地点详情的底部抽屉状态
     const [bottomSheetHtml, setBottomSheetHtml] = useState(null); 
@@ -37,8 +42,10 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [mapView, setMapView] = useState(null); // 🌅 拍摄简报用的地图中心
     const [baseMapType, setBaseMapType] = useState('topo'); 
     const [weatherType, setWeatherType] = useState('none'); 
-    const [filters, setFilters] = useState({ framework: true, station: true, airport: true, anime: true, hotel: true, spot: true });
+    const [filters, setFilters] = useState({ framework: true, camera: true, station: true, airport: true, anime: true, hotel: true, spot: true });
     const toggleFilter = (key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }));
+
+    const itinerarySummary = useMemo(() => buildItineraryDays(customPoints), [customPoints]);
 
     // 同步当前光影规划日期给地点弹窗（保证底部光影卡与右侧详情卡日期 100% 同源）
     useEffect(() => {
@@ -81,8 +88,8 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
             }
         };
 
-        // 📥 全局收藏入库信号接收
-        window.__saveToCustomPoints = (name, lat, lon, category, btnElement) => {
+        // 📥 全局收藏入库信号接收（支持机位拍摄属性 bestTime / focalLength / notes）
+        window.__saveToCustomPoints = (name, lat, lon, category, btnElement, meta = {}) => {
             const targetLat = parseFloat(lat);
             const targetLon = parseFloat(lon);
 
@@ -108,7 +115,12 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 lat: targetLat,
                 lon: targetLon,
                 category: category,
-                source: '雷达手动捕获'
+                source: category === 'camera' ? '地图机位标记' : '雷达手动捕获',
+                ...(category === 'camera' ? {
+                    bestTime: meta?.bestTime || 'evening',
+                    ...(meta?.focalLength?.trim() ? { focalLength: meta.focalLength.trim().slice(0, 32) } : {}),
+                    ...(meta?.notes?.trim() ? { notes: meta.notes.trim().slice(0, 240) } : {}),
+                } : {})
             };
 
             if (onPointsUpdate) {
@@ -537,7 +549,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     onFlyTo={handleTodayFlyTo}
                 />
 
-                {/* 中卡：全球铁道骨架包切换 */}
+                {/* 中卡：全球铁道骨架包切换 + 可展开线路/站点列表 */}
                 <section className="bg-paper-2/92 backdrop-blur-md border border-line rounded-3xl p-5 shadow-lift flex flex-col justify-between gap-3.5">
                     <div>
                         <div className="flex items-center justify-between gap-2 mb-3">
@@ -545,44 +557,61 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                                 <Train className="w-4 h-4 text-wakaba" />
                                 全球铁道骨架
                             </h3>
-                            <span className="text-[10px] font-bold text-ink-3 bg-paper-3 px-2 py-0.5 rounded-full border border-line/70">
-                                已接入 {REGION_REGISTRY.length} 国
-                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setRailDirectoryOpen(true)}
+                                className="inline-flex items-center gap-1 text-[11px] font-bold text-wakaba hover:text-ink bg-wakaba-soft/80 px-2.5 py-1 rounded-full border border-wakaba/30 transition-colors"
+                            >
+                                <List className="w-3 h-3" /> 线路目录
+                            </button>
                         </div>
                         <div className="space-y-2">
                             {REGION_REGISTRY.map((region) => {
                                 const stationCount = region.data?.STATIONS?.length || 0;
                                 const lineCount = region.data?.RAILWAY_LINES?.length || 0;
                                 return (
-                                    <button
-                                        key={region.id}
-                                        type="button"
-                                        onClick={() => handleJumpToRegion(region)}
-                                        className="w-full text-left p-3 rounded-2xl bg-paper-3/70 hover:bg-wakaba-soft/50 border border-line/70 hover:border-wakaba/40 transition-all flex items-center justify-between gap-3 group"
-                                    >
-                                        <div className="flex items-center gap-2.5 min-w-0">
-                                            <span className="text-xl leading-none shrink-0" aria-hidden="true">{region.icon || '🌍'}</span>
-                                            <div className="min-w-0">
-                                                <div className="text-xs font-bold text-ink group-hover:text-sora-deep transition-colors">
-                                                    {region.name}铁道骨架
-                                                </div>
-                                                <div className="text-[11px] text-ink-3 truncate">
-                                                    {stationCount} 枢纽 · {lineCount} 条干线
+                                    <div key={region.id} className="flex items-center gap-1.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleJumpToRegion(region)}
+                                            className="flex-1 text-left p-3 rounded-2xl bg-paper-3/70 hover:bg-wakaba-soft/50 border border-line/70 hover:border-wakaba/40 transition-all flex items-center justify-between gap-3 group"
+                                        >
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <span className="text-xl leading-none shrink-0" aria-hidden="true">{region.icon || '🌍'}</span>
+                                                <div className="min-w-0">
+                                                    <div className="text-xs font-bold text-ink group-hover:text-sora-deep transition-colors">
+                                                        {region.name}铁道骨架
+                                                    </div>
+                                                    <div className="text-[11px] text-ink-3 truncate">
+                                                        {stationCount} 枢纽 · {lineCount} 条干线
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <ArrowUpRight className="w-4 h-4 text-ink-3 group-hover:text-sora-deep shrink-0 transition-colors" />
-                                    </button>
+                                            <ArrowUpRight className="w-4 h-4 text-ink-3 group-hover:text-sora-deep shrink-0 transition-colors" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setRailDirectoryRegion(region.id); setRailDirectoryOpen(true); }}
+                                            className="p-3 rounded-2xl bg-paper-3/60 hover:bg-sora-soft/50 border border-line/70 text-ink-2 hover:text-sora-deep transition-colors shrink-0"
+                                            title={`按线路查看${region.name}站点列表`}
+                                            aria-label={`按线路查看${region.name}站点列表`}
+                                        >
+                                            <List className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 );
                             })}
                         </div>
                     </div>
-                    <p className="text-[11px] text-ink-3 pt-2.5 border-t border-line/70">
-                        欧洲 Eurail · 韩国 KTX 等区域骨架持续扩展中
-                    </p>
+                    <div className="pt-2.5 border-t border-line/70 flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-ink-3">
+                        <span>🇪🇺 Eurail · 🇰🇷 KTX</span>
+                        <span className="px-2 py-0.5 rounded-full bg-paper-3 border border-dashed border-line text-[10px] font-bold">
+                            未接入 · 规划中
+                        </span>
+                    </div>
                 </section>
 
-                {/* 右卡：行程工作台速览 */}
+                {/* 右卡：行程工作台速览（直达按天编排 + 实时里程摘要） */}
                 <section className="bg-paper-2/92 backdrop-blur-md border border-line rounded-3xl p-5 shadow-lift flex flex-col justify-between gap-3.5">
                     <div>
                         <div className="flex items-center justify-between gap-2 mb-3">
@@ -591,14 +620,35 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                                 行程工作台
                             </h3>
                             <span className="text-[10px] font-bold text-sora-deep bg-sora-soft/70 px-2 py-0.5 rounded-full">
-                                收藏 {customPoints.length} 个点位
+                                收藏 {customPoints.length} 点
                             </span>
                         </div>
+
+                        {/* 行程按天编排直达入口 */}
+                        <button
+                            type="button"
+                            onClick={() => (onOpenItinerary ? onOpenItinerary() : onSwitchTab?.('data'))}
+                            className="w-full mb-2.5 text-left p-3 rounded-2xl bg-sora-soft/55 hover:bg-sora-soft/80 border border-sora/25 transition-colors flex items-center justify-between gap-2 group"
+                        >
+                            <div className="min-w-0">
+                                <div className="text-xs font-bold text-ink group-hover:text-sora-deep flex items-center gap-1.5">
+                                    <Route className="w-3.5 h-3.5 text-sora shrink-0" />
+                                    <span>行程按天编排</span>
+                                </div>
+                                <div className="text-[11px] text-ink-2 mt-0.5 truncate">
+                                    {itinerarySummary.scheduledCount > 0
+                                        ? `已排 ${itinerarySummary.days.length} 天 · ${itinerarySummary.scheduledCount} 站 · ${itinerarySummary.grandTotalKm.toFixed(1)} km`
+                                        : '把收藏点位按天排序并计算段间里程'}
+                                </div>
+                            </div>
+                            <ArrowUpRight className="w-4 h-4 text-sora shrink-0" />
+                        </button>
+
                         <div className="grid grid-cols-2 gap-2">
                             {[
                                 { id: 'data', label: '收藏与导入', icon: Database, hint: 'CSV / 导出' },
                                 { id: 'rules', label: '出行指南', icon: Info, hint: '8 国交通规则' },
-                                { id: 'tools', label: '汇率换算', icon: Calculator, hint: '实时 + 物价' },
+                                { id: 'tools', label: '汇率换算', icon: Calculator, hint: '参考 + 物价' },
                                 { id: 'sub-culture', label: '巡礼与活动', icon: Sparkles, hint: '圣地 / 花火' },
                             ].map((item) => (
                                 <button
@@ -631,6 +681,28 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     )}
                 </section>
             </div>
+
+            {/* 🚆 铁道骨架按线路展开目录弹窗 */}
+            {railDirectoryOpen && (
+                <RailDirectoryModal
+                    key={railDirectoryRegion}
+                    open={railDirectoryOpen}
+                    initialRegionId={railDirectoryRegion}
+                    customPoints={customPoints}
+                    onClose={() => setRailDirectoryOpen(false)}
+                    onSelectStation={(st) => {
+                        handleTodayFlyTo(st.lat, st.lon, st.name, 12);
+                        handlePointSelect({ lat: st.lat, lon: st.lon, name: st.name });
+                        openCyberPanel(generatePopupContent(st, `base_${st.id}`, '🛤️', st.name, st.desc));
+                    }}
+                    onSelectFavorite={(pt) => {
+                        const style = getIconStyle(pt.category, pt.source);
+                        handleTodayFlyTo(pt.lat, pt.lon, pt.name, 14);
+                        handlePointSelect({ lat: pt.lat, lon: pt.lon, name: pt.name });
+                        openCyberPanel(generatePopupContent(pt, `custom_${pt.id}`, style.icon, pt.name, pt.source));
+                    }}
+                />
+            )}
 
             {/* 📱 移动端地点详情底部抽屉 */}
             <TacticalBottomSheet

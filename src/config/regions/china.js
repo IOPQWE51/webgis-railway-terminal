@@ -41,22 +41,14 @@ export const STATIONS = [
 ];
 
 export const RAILWAY_LINES = [
-    // 京沪高铁（红橙）
-    { points: ['cn_beijing', 'cn_tianjin', 'cn_jinan', 'cn_nanjing', 'cn_shanghai'], color: '#f97316', dashArray: null },
-    // 京广-广深高铁（红橙）
-    { points: ['cn_beijing', 'cn_zhengzhou', 'cn_wuhan', 'cn_changsha', 'cn_guangzhou', 'cn_shenzhen'], color: '#f97316', dashArray: null },
-    // 沪昆干线（湖蓝）
-    { points: ['cn_shanghai', 'cn_hangzhou', 'cn_changsha', 'cn_guiyang', 'cn_kunming'], color: '#0284c7', dashArray: null },
-    // 东南沿海（湖蓝虚线）
-    { points: ['cn_hangzhou', 'cn_fuzhou', 'cn_shenzhen'], color: '#0284c7', dashArray: '6, 6' },
-    // 西北丝路：郑州-西安-兰州-乌鲁木齐（翡翠绿）
-    { points: ['cn_zhengzhou', 'cn_xian', 'cn_lanzhou', 'cn_urumqi'], color: '#10b981', dashArray: null },
-    // 西成-成渝-渝贵（翡翠绿）
-    { points: ['cn_xian', 'cn_chengdu', 'cn_chongqing', 'cn_guiyang'], color: '#10b981', dashArray: null },
-    // 青藏高原天路：兰州-西宁-拉萨（天蓝虚线）
-    { points: ['cn_lanzhou', 'cn_xining', 'cn_lhasa'], color: '#3b82f6', dashArray: '5, 5' },
-    // 东北高寒干线：北京-沈阳-长春-哈尔滨（橙红）
-    { points: ['cn_beijing', 'cn_shenyang', 'cn_changchun', 'cn_harbin'], color: '#f97316', dashArray: null },
+    { id: 'cn_jinghu', name: '京沪高铁', badge: '高铁干线', points: ['cn_beijing', 'cn_tianjin', 'cn_jinan', 'cn_nanjing', 'cn_shanghai'], color: '#f97316', dashArray: null },
+    { id: 'cn_jingguang', name: '京广 - 广深高铁', badge: '南北大动脉', points: ['cn_beijing', 'cn_zhengzhou', 'cn_wuhan', 'cn_changsha', 'cn_guangzhou', 'cn_shenzhen'], color: '#f97316', dashArray: null },
+    { id: 'cn_hukun', name: '沪昆干线', badge: '东西主轴', points: ['cn_shanghai', 'cn_hangzhou', 'cn_changsha', 'cn_guiyang', 'cn_kunming'], color: '#0284c7', dashArray: null },
+    { id: 'cn_coastal', name: '东南沿海通道', badge: '沿海线', points: ['cn_hangzhou', 'cn_fuzhou', 'cn_shenzhen'], color: '#0284c7', dashArray: '6, 6' },
+    { id: 'cn_silkroad', name: '西北丝路干线', badge: '徐兰 - 兰新', points: ['cn_zhengzhou', 'cn_xian', 'cn_lanzhou', 'cn_urumqi'], color: '#10b981', dashArray: null },
+    { id: 'cn_southwest', name: '西成 - 成渝 - 渝贵', badge: '西南纵线', points: ['cn_xian', 'cn_chengdu', 'cn_chongqing', 'cn_guiyang'], color: '#10b981', dashArray: null },
+    { id: 'cn_qinghai_tibet', name: '青藏高原天路', badge: '高海拔普速', points: ['cn_lanzhou', 'cn_xining', 'cn_lhasa'], color: '#3b82f6', dashArray: '5, 5' },
+    { id: 'cn_northeast', name: '东北高寒干线', badge: '京哈 - 哈大', points: ['cn_beijing', 'cn_shenyang', 'cn_changchun', 'cn_harbin'], color: '#f97316', dashArray: null },
 ];
 
 export const PILGRIMAGE_PICKS = [];

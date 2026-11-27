@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from 'react';
-import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight, ShieldCheck, Download, FolderInput } from 'lucide-react';
+import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight, ShieldCheck, Download, FolderInput, Route, Database } from 'lucide-react';
 import { getIconStyle } from '../utils/helpers';
 import { toJSON, toCSV, exportFileName, downloadTextFile } from '../utils/pointsExport';
+import ItineraryWorkbench from './ItineraryWorkbench';
 
 /**
  * 🛰️ 地理编码与数据解析中枢 (Google API 独家重装版 v4.2.1)
@@ -196,15 +197,21 @@ const geocodeService = {
     }
 };
 
-const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAuth, onLogout }) => {
+const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAuth, onLogout, subView: controlledSubView = null, onSubViewChange = null }) => {
+    const [internalSubView, setInternalSubView] = useState('library'); // 'library' | 'itinerary'
+    const subView = controlledSubView || internalSubView;
+    const setSubView = (next) => {
+        setInternalSubView(next);
+        onSubViewChange?.(next);
+    };
     const [isProcessing, setIsProcessing] = useState(false);
     const [processStatus, setProcessStatus] = useState('');
     const [progress, setProgress] = useState(0);
     const [failedPoints, setFailedPoints] = useState([]);
     const [expandedGroup, setExpandedGroup] = useState(null);
     const [pointFilter, setPointFilter] = useState('');
-    const [manualData, setManualData] = useState({ name: '', lat: '', lon: '', type: 'spot' });
-    const [searchData, setSearchData] = useState({ name: '', type: 'spot' });
+    const [manualData, setManualData] = useState({ name: '', lat: '', lon: '', type: 'spot', bestTime: 'evening', focalLength: '', notes: '' });
+    const [searchData, setSearchData] = useState({ name: '', type: 'spot', bestTime: 'evening', focalLength: '', notes: '' });
     const [isSearching, setIsSearching] = useState(false);
 
     // 🆕 多文件队列状态
@@ -229,12 +236,17 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                     lat: coords.lat,
                     lon: coords.lon,
                     category: searchData.type,
-                    source: 'Google 智能检索'
+                    source: 'Google 智能检索',
+                    ...(searchData.type === 'camera' ? {
+                        bestTime: searchData.bestTime || 'evening',
+                        ...(searchData.focalLength.trim() ? { focalLength: searchData.focalLength.trim().slice(0, 32) } : {}),
+                        ...(searchData.notes.trim() ? { notes: searchData.notes.trim().slice(0, 240) } : {}),
+                    } : {})
                 };
                 
                 onPointsUpdate([...customPoints, newPt]);
                 alert(`✅ 卫星锁定成功！已添加：${searchData.name}`);
-                setSearchData({ ...searchData, name: '' }); 
+                setSearchData({ ...searchData, name: '', focalLength: '', notes: '' }); 
             } else {
                 alert(`❌ 卫星未能锁定目标：“${searchData.name}”\n💡 提示：尝试输入更完整的名称。`);
             }
@@ -371,10 +383,23 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
         }
     }, [onPointsUpdate]);
 
-    const handleManualAdd = useCallback(() => { /* 同原逻辑 */
+    const handleManualAdd = useCallback(() => {
         if (!manualData.name || !manualData.lat || !manualData.lon) return alert('⚠️ 请填写完整');
-        onPointsUpdate([...customPoints, { id: `manual_${Date.now()}`, ...manualData, lat: parseFloat(manualData.lat), lon: parseFloat(manualData.lon), source: '手动修正录入' }]);
-        setManualData({ name: '', lat: '', lon: '', type: 'spot' });
+        const newPt = {
+            id: `manual_${Date.now()}`,
+            name: manualData.name.trim(),
+            lat: parseFloat(manualData.lat),
+            lon: parseFloat(manualData.lon),
+            category: manualData.type || 'spot',
+            source: '手动修正录入',
+            ...(manualData.type === 'camera' ? {
+                bestTime: manualData.bestTime || 'evening',
+                ...(manualData.focalLength.trim() ? { focalLength: manualData.focalLength.trim().slice(0, 32) } : {}),
+                ...(manualData.notes.trim() ? { notes: manualData.notes.trim().slice(0, 240) } : {}),
+            } : {})
+        };
+        onPointsUpdate([...customPoints, newPt]);
+        setManualData({ name: '', lat: '', lon: '', type: 'spot', bestTime: 'evening', focalLength: '', notes: '' });
     }, [manualData, customPoints, onPointsUpdate]);
 
     const populateManual = useCallback((name) => setSearchData(prev => ({ ...prev, name })), []);
@@ -458,6 +483,39 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
             </div>
             )}
 
+            {/* 子视图切换：点位库与导入 | 行程按天编排 */}
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+                <button
+                    type="button"
+                    onClick={() => setSubView('library')}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold border transition-all ${
+                        subView === 'library'
+                            ? 'bg-sora text-sora-ink border-sora shadow-sm'
+                            : 'bg-paper-2/90 text-ink-2 border-line hover:bg-sora-soft/50'
+                    }`}
+                >
+                    <Database className="w-3.5 h-3.5" /> 点位库与导入 ({customPoints.length})
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setSubView('itinerary')}
+                    className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl text-xs font-bold border transition-all ${
+                        subView === 'itinerary'
+                            ? 'bg-sora text-sora-ink border-sora shadow-sm'
+                            : 'bg-paper-2/90 text-ink-2 border-line hover:bg-sora-soft/50'
+                    }`}
+                >
+                    <Route className="w-3.5 h-3.5" /> 行程按天编排
+                </button>
+            </div>
+
+            {subView === 'itinerary' ? (
+                <ItineraryWorkbench
+                    customPoints={customPoints}
+                    onPointsUpdate={onPointsUpdate}
+                    onLocatePoint={handlePointClick}
+                />
+            ) : (
             <div className="grid md:grid-cols-5 gap-5">
                 
                 {/* 左侧：CSV 批量导入与我的收藏点位 */}
@@ -666,13 +724,22 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                             <input type="text" value={searchData.name} onChange={e => setSearchData({ ...searchData, name: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleSmartSearch()} className="w-full bg-paper-3/80 border border-line rounded-xl px-3.5 py-2.5 text-sm text-ink placeholder-ink-3 focus:border-sora outline-none transition-colors" placeholder="如：Eiffel Tower / 伦敦国王十字车站..." />
                             <div className="flex gap-2">
                                 <select value={searchData.type} onChange={e => setSearchData({ ...searchData, type: e.target.value })} className="w-1/3 bg-paper-3/80 border border-line rounded-xl px-2 py-2 text-sm text-ink outline-none cursor-pointer">
-                                    <option value="spot">📍 地标</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
+                                    <option value="spot">📍 地标</option><option value="camera">📷 机位</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
                                 </select>
                                 <button onClick={handleSmartSearch} disabled={isSearching} className="flex-1 bg-sora hover:bg-sora-deep disabled:opacity-50 text-sora-ink font-bold py-2 rounded-xl shadow-sm active:scale-95 transition-all flex items-center justify-center text-sm">
                                     {isSearching ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <MapPin className="w-4 h-4 mr-2" />}
                                     {isSearching ? '正在查找...' : '查找并添加'}
                                 </button>
                             </div>
+                            {searchData.type === 'camera' && (
+                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line/70">
+                                    <select value={searchData.bestTime} onChange={e => setSearchData({ ...searchData, bestTime: e.target.value })} className="bg-paper-3/80 border border-line rounded-xl px-2.5 py-2 text-xs font-bold text-ink outline-none">
+                                        <option value="evening">🌇 推荐晚场</option><option value="morning">🌅 推荐朝场</option><option value="both">✨ 朝晚皆宜</option><option value="night">🌃 夜景蓝调</option>
+                                    </select>
+                                    <input type="text" value={searchData.focalLength} onChange={e => setSearchData({ ...searchData, focalLength: e.target.value })} className="bg-paper-3/80 border border-line rounded-xl px-2.5 py-2 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora" placeholder="建议焦段 如 24-70mm" />
+                                    <input type="text" value={searchData.notes} onChange={e => setSearchData({ ...searchData, notes: e.target.value })} className="col-span-2 bg-paper-3/80 border border-line rounded-xl px-2.5 py-2 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora" placeholder="机位备注（机位朝向 / 机位贴士）" />
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -690,16 +757,26 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                             </div>
                             <div className="flex gap-2">
                                 <select value={manualData.type} onChange={e => setManualData({ ...manualData, type: e.target.value })} className="w-1/3 bg-paper-3/80 border border-line rounded-xl px-2 py-2 text-sm text-ink outline-none">
-                                    <option value="spot">📍 地标</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
+                                    <option value="spot">📍 地标</option><option value="camera">📷 机位</option><option value="station">🚉 车站</option><option value="airport">✈️ 机场</option><option value="hotel">🏨 住宿</option><option value="anime">🌸 圣地</option>
                                 </select>
                                 <button onClick={handleManualAdd} className="flex-1 bg-paper-3 hover:bg-sora-soft text-ink hover:text-sora-deep border border-line font-bold py-2 rounded-xl transition-colors text-sm">
                                     添加到收藏
                                 </button>
                             </div>
+                            {manualData.type === 'camera' && (
+                                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-line/70">
+                                    <select value={manualData.bestTime} onChange={e => setManualData({ ...manualData, bestTime: e.target.value })} className="bg-paper-3/80 border border-line rounded-xl px-2.5 py-2 text-xs font-bold text-ink outline-none">
+                                        <option value="evening">🌇 推荐晚场</option><option value="morning">🌅 推荐朝场</option><option value="both">✨ 朝晚皆宜</option><option value="night">🌃 夜景蓝调</option>
+                                    </select>
+                                    <input type="text" value={manualData.focalLength} onChange={e => setManualData({ ...manualData, focalLength: e.target.value })} className="bg-paper-3/80 border border-line rounded-xl px-2.5 py-2 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora" placeholder="建议焦段 如 24-70mm" />
+                                    <input type="text" value={manualData.notes} onChange={e => setManualData({ ...manualData, notes: e.target.value })} className="col-span-2 bg-paper-3/80 border border-line rounded-xl px-2.5 py-2 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora" placeholder="机位备注（机位朝向 / 交通贴士）" />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </div>
+            )}
         </div>
     );
 };

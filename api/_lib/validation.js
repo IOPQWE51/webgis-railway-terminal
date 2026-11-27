@@ -14,6 +14,10 @@ const MAX_NAME_LEN = 120;
 const MAX_CATEGORY_LEN = 32;
 const MAX_SOURCE_LEN = 32;
 const MAX_GROUP_LEN = 24; // v2 行程分组（specs/2026-09-06-points-model-v2-design.md §2）
+const MAX_FOCAL_LEN = 32; // v3 机位焦段
+const MAX_NOTES_LEN = 240; // v3 机位/点位备注
+const MAX_DAY_LEN = 16; // v3 行程天数标签（如 Day 1 / 2027-04-02）
+const VALID_BEST_TIMES = new Set(['', 'morning', 'evening', 'both', 'night']);
 
 /** 数值或数字字符串 → 有限数值；否则 NaN */
 function asFiniteNumber(value) {
@@ -102,6 +106,42 @@ export function validatePointsPayload(body) {
         return { ok: false, error: `${at}importedAt 需为数值时间戳` };
       }
       point.importedAt = importedAt;
+    }
+
+    // ── v3 可选字段：机位拍摄属性（bestTime/focalLength/notes）与行程编排（day/dayOrder）──
+    if (raw.bestTime !== undefined) {
+      if (typeof raw.bestTime !== 'string' || !VALID_BEST_TIMES.has(raw.bestTime)) {
+        return { ok: false, error: `${at}bestTime 字段不合法（仅允许 morning/evening/both/night）` };
+      }
+      if (raw.bestTime !== '') point.bestTime = raw.bestTime;
+    }
+    if (raw.focalLength !== undefined) {
+      const focalLength = asBoundedString(raw.focalLength, MAX_FOCAL_LEN);
+      if (focalLength === null) {
+        return { ok: false, error: `${at}focalLength 字段不合法（字符串，≤${MAX_FOCAL_LEN} 字符）` };
+      }
+      if (focalLength !== '') point.focalLength = focalLength;
+    }
+    if (raw.notes !== undefined) {
+      const notes = asBoundedString(raw.notes, MAX_NOTES_LEN);
+      if (notes === null) {
+        return { ok: false, error: `${at}notes 字段不合法（字符串，≤${MAX_NOTES_LEN} 字符）` };
+      }
+      if (notes !== '') point.notes = notes;
+    }
+    if (raw.day !== undefined) {
+      const day = asBoundedString(raw.day, MAX_DAY_LEN);
+      if (day === null) {
+        return { ok: false, error: `${at}day 字段不合法（字符串，≤${MAX_DAY_LEN} 字符）` };
+      }
+      if (day !== '') point.day = day;
+    }
+    if (raw.dayOrder !== undefined) {
+      const dayOrder = asFiniteNumber(raw.dayOrder);
+      if (Number.isNaN(dayOrder) || dayOrder < 0 || !Number.isInteger(dayOrder)) {
+        return { ok: false, error: `${at}dayOrder 需为非负整数` };
+      }
+      point.dayOrder = dayOrder;
     }
 
     points.push(point);

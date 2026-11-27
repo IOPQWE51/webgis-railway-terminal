@@ -264,7 +264,7 @@ export const useMapLayers = (
     // 4. 渲染自定义标记与聚合点炸开
     useEffect(() => {
         if (!leafletReady || !mapRef.current || !customPoints) return;
-        const L = window.L; const categories = ['station', 'airport', 'anime', 'hotel', 'spot'];
+        const L = window.L; const categories = ['camera', 'station', 'airport', 'anime', 'hotel', 'spot'];
         categories.forEach(type => { if (clusterGroupsRef.current[type]) { mapRef.current.removeLayer(clusterGroupsRef.current[type]); clusterGroupsRef.current[type].clearLayers(); } });
 
         categories.forEach(type => {
@@ -291,7 +291,7 @@ export const useMapLayers = (
             }
         });
 
-        const markersByType = { station: [], airport: [], anime: [], hotel: [], spot: [] };
+        const markersByType = { camera: [], station: [], airport: [], anime: [], hotel: [], spot: [] };
         customPoints.forEach(pt => {
             const filterType = getPointFilterType(pt); if (!filters[filterType]) return;
             const style = getIconStyle(pt.category, pt.source);

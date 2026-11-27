@@ -19,6 +19,7 @@ const App = () => {
     const [tacticalInitialView, setTacticalInitialView] = useState(null); // 切入 Dark 2D 时继承主图视角
     const [accountMenuOpen, setAccountMenuOpen] = useState(false); // 顶栏账号快捷菜单
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
+    const [dataSubView, setDataSubView] = useState('library'); // 收藏与导入子视图：'library' | 'itinerary'
     // 记录首屏是否携带坐标分享链接（若携带则优先还原链接视角，不被 IP 自动定位覆盖）
     const [hasInitialHashView] = useState(() => {
         const view = parseViewHash(window.location.hash);
@@ -248,10 +249,11 @@ const App = () => {
                         onTargetHandled={() => setPendingMapTarget(null)}
                         onEnterTactical={handleEnterTactical}
                         onSwitchTab={setActiveTab}
+                        onOpenItinerary={() => { setDataSubView('itinerary'); setActiveTab('data'); }}
                         skipIpAutoLocate={hasInitialHashView}
                     />
                     
-                    <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} />
+                    <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} subView={dataSubView} onSubViewChange={setDataSubView} />
                     
                     <RulesTab isActive={activeTab === 'rules'} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: `${region.name}铁道骨架`, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />

@@ -79,6 +79,7 @@ const ControlPanel = ({
                             🛤️ 交通骨架
                         </button>
                         {[
+                            { id: 'camera', l: '📷 机位', activeCls: 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm' },
                             { id: 'station', l: '🚉 车站', activeCls: 'bg-sora-soft text-sora-deep border-sora/30 shadow-sm' },
                             { id: 'airport', l: '✈️ 机场', activeCls: 'bg-purple-50 text-purple-700 border-purple-200 shadow-sm' },
                             { id: 'anime', l: '🌸 巡礼', activeCls: 'bg-koi-soft text-ink border-koi/30 shadow-sm' },
