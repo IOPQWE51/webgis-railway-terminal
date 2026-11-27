@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Train, CheckCircle2, XCircle, Globe, AlertTriangle, ShieldAlert, MapPin } from 'lucide-react';
+import { Train, CheckCircle2, XCircle, Globe, AlertTriangle, ShieldAlert, MapPin, Ticket } from 'lucide-react';
 import { REGION_REGISTRY } from '../config/regions';
+import RailPassCalculator from './RailPassCalculator';
 
 /**
  * 按国家/地区划分的全球出行指南配置库 (交通票务 & 行为禁忌)
@@ -155,7 +156,8 @@ const GLOBAL_RULES_CONFIG = [
     }
 ];
 
-const RulesTab = ({ isActive, onLocateRegion }) => {
+const RulesTab = ({ isActive, onLocateRegion, customPoints = [] }) => {
+    const [subView, setSubView] = useState('rules'); // 'rules' | 'pass'
     const [selectedId, setSelectedId] = useState('china');
     const activeRegion = GLOBAL_RULES_CONFIG.find((r) => r.id === selectedId) || GLOBAL_RULES_CONFIG[0];
     const linkedPack = activeRegion.regionPackId
@@ -164,6 +166,45 @@ const RulesTab = ({ isActive, onLocateRegion }) => {
 
     return (
         <div className={`${isActive ? 'block' : 'hidden'} animate-in fade-in duration-300 max-w-5xl mx-auto space-y-5`}>
+            {/* 子视图切换胶囊：出行规则指南 vs 铁路通票回本估算 */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="inline-flex bg-paper-2/90 backdrop-blur-md p-1 rounded-2xl border border-line shadow-sm gap-1">
+                    <button
+                        type="button"
+                        onClick={() => setSubView('rules')}
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                            subView === 'rules'
+                                ? 'bg-sora text-sora-ink shadow-sm'
+                                : 'text-ink-2 hover:text-ink hover:bg-sora-soft/50'
+                        }`}
+                    >
+                        <Globe className="w-3.5 h-3.5" />
+                        <span>8 国出行指南</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSubView('pass')}
+                        className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                            subView === 'pass'
+                                ? 'bg-sora text-sora-ink shadow-sm'
+                                : 'text-ink-2 hover:text-ink hover:bg-sora-soft/50'
+                        }`}
+                    >
+                        <Ticket className="w-3.5 h-3.5" />
+                        <span>铁路通票回本估算</span>
+                    </button>
+                </div>
+                <span className="text-[11px] text-ink-3 hidden sm:inline">
+                    {subView === 'rules'
+                        ? '涵盖 8 个国家/地区的铁路票务与当地避坑要点'
+                        : '聚焦日本 JR / 欧洲 Eurail 参考估算，支持从行程一键导入'}
+                </span>
+            </div>
+
+            {subView === 'pass' ? (
+                <RailPassCalculator customPoints={customPoints} />
+            ) : (
+                <>
             {/* 顶部轻盈导览 + 国家胶囊切换条 */}
             <div className="bg-paper-2/92 backdrop-blur-md rounded-3xl border border-line shadow-lift p-5 md:p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -283,6 +324,8 @@ const RulesTab = ({ isActive, onLocateRegion }) => {
                     <span className="font-mono">最后核验：{activeRegion.lastVerified} · 出行前请以当地最新公告为准</span>
                 </div>
             </div>
+                </>
+            )}
         </div>
     );
 };

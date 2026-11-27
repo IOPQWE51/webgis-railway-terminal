@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState, useEffect } from 'react';
-import { MapIcon, Database, Info, Calculator, Sparkles, PlaneTakeoff, CloudFog, User } from 'lucide-react';
-import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar } from './components';
+import { MapIcon, Database, Info, Calculator, Sparkles, PlaneTakeoff, CloudFog, User, Calendar } from 'lucide-react';
+import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar, SeasonalCalendar } from './components';
 import { BASE_POINTS_CONFIG } from './config/regions';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginOverlay from './components/auth/LoginOverlay.jsx';
@@ -20,6 +20,8 @@ const App = () => {
     const [accountMenuOpen, setAccountMenuOpen] = useState(false); // 顶栏账号快捷菜单
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
     const [dataSubView, setDataSubView] = useState('library'); // 收藏与导入子视图：'library' | 'itinerary'
+    const [subCultureView, setSubCultureView] = useState('seasonal'); // 季节与巡礼子视图：'seasonal' | 'japan'
+    const [selectedDate, setSelectedDate] = useState(''); // 🗓️ 地图光影规划日期（供季节窗口联动同步）
     const [activeFlightArc, setActiveFlightArc] = useState(null); // ✈️ 机票页联动绘制的大圆航线
     const [isOffline, setIsOffline] = useState(() => (typeof navigator !== 'undefined' ? !navigator.onLine : false));
 
@@ -189,7 +191,7 @@ const App = () => {
                                     { id: 'data', label: '收藏与导入', icon: Database },
                                     { id: 'rules', label: '出行指南', icon: Info },
                                     { id: 'tools', label: '汇率换算', icon: Calculator },
-                                    { id: 'sub-culture', label: '巡礼与活动', icon: Sparkles },
+                                    { id: 'sub-culture', label: '季节与巡礼', icon: Sparkles },
                                     { id: 'aviation', label: '机票航线', icon: PlaneTakeoff },
                                 ].map((tab) => (
                                     <button
@@ -274,12 +276,14 @@ const App = () => {
                         onOpenItinerary={() => { setDataSubView('itinerary'); setActiveTab('data'); }}
                         activeFlightArc={activeFlightArc}
                         onClearFlightArc={() => setActiveFlightArc(null)}
+                        selectedDate={selectedDate}
+                        onSelectedDateChange={setSelectedDate}
                         skipIpAutoLocate={hasInitialHashView}
                     />
                     
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} subView={dataSubView} onSubViewChange={setDataSubView} />
                     
-                    <RulesTab isActive={activeTab === 'rules'} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: region.centerLabel || region.name, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
+                    <RulesTab isActive={activeTab === 'rules'} customPoints={customPoints} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: region.centerLabel || region.name, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
                     <AviationEngine
                         isActive={activeTab === 'aviation'}
@@ -291,16 +295,72 @@ const App = () => {
                     />
 
                         {activeTab === 'sub-culture' && (
-            <div className="space-y-8 animate-in slide-in-from-bottom duration-500">
-                <PilgrimageRadar isActive={true} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} />
-
-                <div className="flex items-center justify-center py-4">
-                    <div className="h-px bg-line flex-1"></div>
-                    <div className="mx-4 text-ink-3 text-xs font-bold tracking-wider">季节活动 · 地区专题</div>
-                    <div className="h-px bg-line flex-1"></div>
+            <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
+                {/* 拆分子视图：全球季节窗口（主） vs 日本巡礼与花火专题 */}
+                <div className="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+                    <div className="inline-flex bg-paper-2/90 backdrop-blur-md p-1 rounded-2xl border border-line shadow-sm gap-1">
+                        <button
+                            type="button"
+                            onClick={() => setSubCultureView('seasonal')}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                subCultureView === 'seasonal'
+                                    ? 'bg-sora text-sora-ink shadow-sm'
+                                    : 'text-ink-2 hover:text-ink hover:bg-sora-soft/50'
+                            }`}
+                        >
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>全球季节光影窗口</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setSubCultureView('japan')}
+                            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                subCultureView === 'japan'
+                                    ? 'bg-sora text-sora-ink shadow-sm'
+                                    : 'text-ink-2 hover:text-ink hover:bg-sora-soft/50'
+                            }`}
+                        >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>日本巡礼与花火专题</span>
+                        </button>
+                    </div>
+                    <span className="text-[11px] text-ink-3 hidden sm:inline">
+                        {subCultureView === 'seasonal'
+                            ? '按计划出行月份反向挑选全球摄影与景观铁道目的地'
+                            : '日本区直连 Anitabi 动漫巡礼数据与年度花火大会专题'}
+                    </span>
                 </div>
 
-                <HanabiRadar isActive={true} onLocateOnMap={handleLocateExternal} />
+                {subCultureView === 'seasonal' ? (
+                    <SeasonalCalendar
+                        onExploreWindow={(w) => {
+                            const nextDate = w.planDate || '';
+                            window.__etSelectedDate = nextDate;
+                            setSelectedDate(nextDate);
+                            handleLocateExternal({
+                                id: `season_${w.id}`,
+                                name: w.name,
+                                lat: w.lat,
+                                lon: w.lon,
+                                zoom: w.zoom ?? 11,
+                                category: 'spot',
+                                source: `${w.windowLabel} · 全球季节窗口`,
+                            });
+                        }}
+                    />
+                ) : (
+                    <div className="space-y-8">
+                        <PilgrimageRadar isActive={true} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} />
+
+                        <div className="flex items-center justify-center py-4">
+                            <div className="h-px bg-line flex-1"></div>
+                            <div className="mx-4 text-ink-3 text-xs font-bold tracking-wider">日本花火大会 · 地区专题</div>
+                            <div className="h-px bg-line flex-1"></div>
+                        </div>
+
+                        <HanabiRadar isActive={true} onLocateOnMap={handleLocateExternal} />
+                    </div>
+                )}
             </div>
         )}
                   </ErrorBoundary>

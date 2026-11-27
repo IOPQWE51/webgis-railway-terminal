@@ -19,7 +19,7 @@ import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 import { useTodaySnapshot, fmtCountdown, fmtRemaining } from '../hooks/useTodaySnapshot';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, activeFlightArc = null, onClearFlightArc = null, skipIpAutoLocate = false }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, activeFlightArc = null, onClearFlightArc = null, selectedDate: controlledSelectedDate, onSelectedDateChange = null, skipIpAutoLocate = false }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const ipLocateDoneRef = useRef(false);
@@ -29,7 +29,9 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [, setShowDrawer] = useState(false); // 兼容 useMapTools 签名
     const [visitorGeo, setVisitorGeo] = useState(null); // 🌐 IP 自动识别到的访客城市与坐标
     const [focusLabel, setFocusLabel] = useState('全球视野'); // 顶部焦点条当前区域名称
-    const [selectedDate, setSelectedDate] = useState(''); // 🗓️ 光影规划日期（空串 = 当地今天）
+    const [internalSelectedDate, setInternalSelectedDate] = useState(''); // 🗓️ 光影规划日期（空串 = 当地今天）
+    const selectedDate = controlledSelectedDate !== undefined ? controlledSelectedDate : internalSelectedDate;
+    const setSelectedDate = onSelectedDateChange || setInternalSelectedDate;
     const [selectedPoint, setSelectedPoint] = useState(null); // 📍 当前选中点位（用于分享链接附带机位）
     const [tileLoading, setTileLoading] = useState(false); // 🗺️ 瓦片加载指示
     const [wheelHint, setWheelHint] = useState(false); // 🖱️ 滚轮防误触轻提示
@@ -679,10 +681,10 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
 
                         <div className="grid grid-cols-2 gap-2">
                             {[
-                                { id: 'data', label: '收藏与导入', icon: Database, hint: 'CSV / 导出' },
-                                { id: 'rules', label: '出行指南', icon: Info, hint: '8 国交通规则' },
+                                { id: 'data', label: '收藏与导入', icon: Database, hint: 'CSV / GPX' },
+                                { id: 'rules', label: '出行指南', icon: Info, hint: '8 国 / 通票估算' },
                                 { id: 'tools', label: '汇率换算', icon: Calculator, hint: '参考 + 物价' },
-                                { id: 'sub-culture', label: '巡礼与活动', icon: Sparkles, hint: '圣地 / 花火' },
+                                { id: 'sub-culture', label: '季节与巡礼', icon: Sparkles, hint: '全球季节 / 巡礼' },
                             ].map((item) => (
                                 <button
                                     key={item.id}

@@ -12,3 +12,5 @@ export { default as RulesTab } from './RulesTab.jsx';
 export { default as HanabiRadar } from './HanabiRadar.jsx';
 export { default as AviationEngine } from './AviationEngine.jsx';
 export { default as PilgrimageRadar } from './PilgrimageRadar.jsx';
+export { default as SeasonalCalendar } from './SeasonalCalendar.jsx';
+export { default as RailPassCalculator } from './RailPassCalculator.jsx';
