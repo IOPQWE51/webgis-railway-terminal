@@ -1,7 +1,8 @@
 // src/components/TodayCard.jsx
 // 🗓️ 光影时刻与附近卡片 —— 支持任意未来/历史日期切换，统一展示朝/晚双场黄金与蓝调时刻
 
-import { Sun, Calendar, RotateCcw } from 'lucide-react';
+import { useState } from 'react';
+import { Sun, Calendar, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const KIND_BADGE = {
   favorite: { emoji: '⭐', title: '我的收藏' },
@@ -14,7 +15,28 @@ function fmtSeg(seg, fmtTime) {
   return `${fmtTime(seg.start)}–${fmtTime(seg.end)}`;
 }
 
+function isValidPlanDate(val) {
+  if (typeof val !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(val)) return false;
+  const [y, m, d] = val.split('-').map(Number);
+  if (y < 1900 || y > 2100 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+function shiftDateKey(dateKey, deltaDays) {
+  if (!isValidPlanDate(dateKey)) return '';
+  const [y, m, d] = dateKey.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + deltaDays));
+  const ny = dt.getUTCFullYear();
+  const nm = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const nd = String(dt.getUTCDate()).padStart(2, '0');
+  return `${ny}-${nm}-${nd}`;
+}
+
 export default function TodayCard({ snapshot, selectedDate = '', onDateChange, onFlyTo }) {
+  // 本地草稿：防止键盘逐位输年份时中途空串把日期框强行弹回今日，仅在完整合法日期（1900-2100）时提交
+  const [draftDate, setDraftDate] = useState(null);
+
   if (!snapshot?.brief) {
     return (
       <div className="bg-paper-2/92 backdrop-blur-md border border-line rounded-3xl p-5 shadow-lift flex flex-col justify-center text-xs text-ink-3">
@@ -39,6 +61,17 @@ export default function TodayCard({ snapshot, selectedDate = '', onDateChange, o
     fmtTime
   } = snapshot;
 
+  const committedDate = selectedDate || activeDateKey;
+  const inputValue = draftDate !== null ? draftDate : committedDate;
+
+  const handleStepDay = (delta) => {
+    const next = shiftDateKey(committedDate, delta);
+    if (next) {
+      setDraftDate(null);
+      onDateChange?.(next);
+    }
+  };
+
   return (
     <section
       aria-label="光影时刻与附近"
@@ -56,24 +89,56 @@ export default function TodayCard({ snapshot, selectedDate = '', onDateChange, o
           </span>
         </div>
 
-        {/* 纯前端天文日期切换（规划未来樱花/红叶行程） */}
+        {/* 纯前端天文日期切换（含前/后一天微调按钮，且键盘逐位输入不回弹打乱年份） */}
         {onDateChange && (
-          <div className="flex items-center gap-1.5 mb-3">
-            <label className="flex-1 flex items-center gap-1.5 rounded-xl bg-paper-3/80 border border-line/80 px-2.5 py-1.5 text-xs focus-within:border-sora transition-colors">
+          <div className="flex items-center gap-1 mb-3">
+            <button
+              type="button"
+              onClick={() => handleStepDay(-1)}
+              className="p-1.5 rounded-xl bg-paper-3/80 border border-line/80 text-ink-2 hover:text-sora-deep hover:border-sora/40 transition-colors shrink-0"
+              title="前一天"
+              aria-label="前一天"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            <label className="flex-1 flex items-center gap-1.5 rounded-xl bg-paper-3/80 border border-line/80 px-2.5 py-1.5 text-xs focus-within:border-sora transition-colors min-w-0">
               <Calendar className="w-3.5 h-3.5 text-sora shrink-0" />
               <input
                 type="date"
+                min="1900-01-01"
+                max="2100-12-31"
                 aria-label="切换光影查询日期"
-                value={selectedDate || activeDateKey}
-                onChange={(e) => onDateChange(e.target.value)}
+                value={inputValue}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDraftDate(v);
+                  if (isValidPlanDate(v)) {
+                    onDateChange(v);
+                  }
+                }}
+                onBlur={() => {
+                  if (draftDate !== null) {
+                    if (isValidPlanDate(draftDate)) onDateChange(draftDate);
+                    setDraftDate(null);
+                  }
+                }}
                 className="w-full bg-transparent text-xs font-mono font-bold text-ink outline-none cursor-pointer"
               />
             </label>
+            <button
+              type="button"
+              onClick={() => handleStepDay(1)}
+              className="p-1.5 rounded-xl bg-paper-3/80 border border-line/80 text-ink-2 hover:text-sora-deep hover:border-sora/40 transition-colors shrink-0"
+              title="后一天"
+              aria-label="后一天"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
             {isCustomDate && (
               <button
                 type="button"
-                onClick={() => onDateChange('')}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-sora-soft/80 text-sora-deep hover:bg-sora-soft transition-colors shrink-0"
+                onClick={() => { setDraftDate(null); onDateChange(''); }}
+                className="inline-flex items-center gap-1 px-2 py-1.5 rounded-xl text-[11px] font-bold bg-sora-soft/80 text-sora-deep hover:bg-sora-soft transition-colors shrink-0"
                 title="回到当地今天"
               >
                 <RotateCcw className="w-3 h-3" /> 今天

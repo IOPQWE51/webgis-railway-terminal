@@ -114,7 +114,7 @@ export const useMapLayers = (
             L.control.zoom({ position: 'bottomright' }).addTo(mapRef.current);
         }
         const map = mapRef.current;
-        if (baseMapLayerRef.current) map.removeLayer(baseMapLayerRef.current);
+        const prevBaseLayer = baseMapLayerRef.current;
         if (baseOverlayLayerRef.current) {
             map.removeLayer(baseOverlayLayerRef.current);
             baseOverlayLayerRef.current = null;
@@ -123,24 +123,44 @@ export const useMapLayers = (
         const cfg = BASE_MAPS[baseMapType] || BASE_MAPS.topo;
         const tileLayer = L.tileLayer(cfg.url, {
             maxZoom: 19,
-            keepBuffer: 4,
+            keepBuffer: 6,
             updateWhenIdle: false,
             updateWhenZooming: false
         });
+
+        // 切换底图时保留上一层旧瓦片垫底，待新底图首屏瓦片就绪（或 3.5s 兜底）再平滑卸载，消除白屏闪断
+        let prevCleaned = false;
+        const cleanupPrevLayer = () => {
+            if (prevCleaned || !prevBaseLayer) return;
+            prevCleaned = true;
+            try { map.removeLayer(prevBaseLayer); } catch { /* ignore */ }
+        };
+        const fallbackCleanupTimer = prevBaseLayer ? setTimeout(cleanupPrevLayer, 3500) : null;
+
         tileLayer.on('loading', () => tileLoadingCbRef.current?.(true));
-        tileLayer.on('load', () => tileLoadingCbRef.current?.(false));
-        tileLayer.on('tileerror', () => tileLoadingCbRef.current?.(false));
+        tileLayer.on('load', () => {
+            tileLoadingCbRef.current?.(false);
+            cleanupPrevLayer();
+        });
+        tileLayer.on('tileerror', () => {
+            tileLoadingCbRef.current?.(false);
+        });
         tileLayer.addTo(map);
         baseMapLayerRef.current = tileLayer;
 
         if (cfg.overlayUrl) {
             baseOverlayLayerRef.current = L.tileLayer(cfg.overlayUrl, {
                 maxZoom: 19,
-                keepBuffer: 4,
+                keepBuffer: 6,
                 zIndex: 4,
                 opacity: 0.92
             }).addTo(map);
         }
+
+        return () => {
+            if (fallbackCleanupTimer) clearTimeout(fallbackCleanupTimer);
+            cleanupPrevLayer();
+        };
     }, [leafletReady, baseMapType, mapRef]);
 
     // 🆕 外部触发定位：当收到 pendingMapTarget 时定位并弹出面板

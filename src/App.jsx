@@ -255,7 +255,7 @@ const App = () => {
                     
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} subView={dataSubView} onSubViewChange={setDataSubView} />
                     
-                    <RulesTab isActive={activeTab === 'rules'} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: `${region.name}铁道骨架`, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
+                    <RulesTab isActive={activeTab === 'rules'} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: `${region.name}全境`, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
                     <AviationEngine isActive={activeTab === 'aviation'} />
 

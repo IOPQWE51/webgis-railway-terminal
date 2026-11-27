@@ -85,6 +85,23 @@ export function useTodaySnapshot({ lat, lng, selectedDate = '', customPoints = [
     return currentAstroPhase(brief, now);
   }, [brief, isCustomDate, now]);
 
+  // 夜间兜底：若目标地当天所有天象已过（如美洲深夜），自动算次日日出/朝场黄金，避免顶部倒计时栏空白
+  const nextAstroEffective = useMemo(() => {
+    if (isCustomDate) return null;
+    if (card?.nextAstro) return { ...card.nextAstro, isTomorrow: false };
+    if (activeAstro || latKey === null || lngKey === null || !localTodayKey) return null;
+    try {
+      const tomorrowKey = formatLocalDateKey(new Date(now.getTime() + 24 * 3600000), lngKey);
+      const tomorrowBrief = computeShootingBrief({ lat: latKey, lon: lngKey, date: tomorrowKey });
+      const ev = tomorrowBrief
+        ? buildTodayCard({ lat: latKey, lon: lngKey, brief: tomorrowBrief, weather: null, points: [], now })?.nextAstro
+        : null;
+      return ev ? { ...ev, isTomorrow: true } : null;
+    } catch {
+      return null;
+    }
+  }, [isCustomDate, card, activeAstro, latKey, lngKey, localTodayKey, now]);
+
   useEffect(() => {
     if (!coordKey || latKey === null || lngKey === null) return undefined;
     const ctrl = new AbortController();
@@ -135,6 +152,7 @@ export function useTodaySnapshot({ lat, lng, selectedDate = '', customPoints = [
     brief,
     card,
     activeAstro,
+    nextAstroEffective,
     trigger,
     now,
     tzLabel,

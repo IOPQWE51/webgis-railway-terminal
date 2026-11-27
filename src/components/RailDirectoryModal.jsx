@@ -189,21 +189,22 @@ export default function RailDirectoryModal({ open, initialRegionId = 'jp', custo
                   </button>
 
                   {isOpen && (
-                    <div className="px-3 pb-3 pt-1 flex flex-wrap gap-1.5 border-t border-line/50 bg-paper-2/60">
-                      {line.stations.map((st) => {
+                    <div className="px-3 pb-3 pt-1.5 flex flex-wrap gap-1.5 border-t border-line/50 bg-paper-2/60">
+                      {line.stations.map((st, idx) => {
                         const active = selectedStationId === st.id;
                         return (
                           <button
                             key={`${line.id}-${st.id}`}
                             type="button"
                             onClick={() => setSelectedStationId(st.id)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors ${
                               active
                                 ? 'bg-sora text-sora-ink border-sora shadow-sm'
                                 : 'bg-paper-2 text-ink-2 border-line/80 hover:border-sora/50 hover:text-ink'
                             }`}
                           >
-                            {st.name}
+                            <span className={`font-mono text-[10px] ${active ? 'opacity-80' : 'text-ink-3'}`}>{idx + 1}</span>
+                            <span>{st.name}</span>
                           </button>
                         );
                       })}

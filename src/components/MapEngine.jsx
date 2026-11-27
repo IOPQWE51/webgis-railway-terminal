@@ -242,12 +242,12 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         mapRef.current?.flyTo([lat, lon], zoom, { duration: 1.2 });
     };
 
-    // 🧭 跳转到已接入的区域交通骨架包
+    // 🧭 跳转到已接入的区域交通骨架包（顶部视野显示真实地理区域名，而非卡片标题）
     const handleJumpToRegion = (region) => {
         if (!region?.center || !mapRef.current) return;
         userInteractedRef.current = true;
         const z = region.zoom ?? 5.5;
-        setFocusLabel(`${region.name}铁道骨架`);
+        setFocusLabel(`${region.name}全境`);
         setMapView({ lat: region.center[0], lng: region.center[1], zoom: Math.round(z) });
         mapRef.current.flyTo(region.center, z, { duration: 1.2 });
     };
@@ -412,14 +412,17 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                                     {fmtRemaining(todaySnapshot.activeAstro.end, todaySnapshot.now)}
                                 </span>
                             </span>
-                        ) : !todaySnapshot.isPolar && todaySnapshot.card?.nextAstro && (
+                        ) : !todaySnapshot.isPolar && todaySnapshot.nextAstroEffective && (
                             <span className="inline-flex items-center gap-1.5">
                                 <span className="text-line" aria-hidden="true">·</span>
-                                <span aria-hidden="true">{todaySnapshot.card.nextAstro.emoji}</span>
-                                <span className="tnum font-mono font-bold text-ink">{todaySnapshot.fmtTime(todaySnapshot.card.nextAstro.at)}</span>
-                                <span>{todaySnapshot.card.nextAstro.label}</span>
+                                <span aria-hidden="true">{todaySnapshot.nextAstroEffective.emoji}</span>
+                                {todaySnapshot.nextAstroEffective.isTomorrow && (
+                                    <span className="text-[11px] font-bold text-ink-3">明日</span>
+                                )}
+                                <span className="tnum font-mono font-bold text-ink">{todaySnapshot.fmtTime(todaySnapshot.nextAstroEffective.at)}</span>
+                                <span>{todaySnapshot.nextAstroEffective.label}</span>
                                 <span className="tnum px-2 py-0.5 rounded-full bg-kouchou-soft text-ink text-[11px] font-bold">
-                                    {fmtCountdown(todaySnapshot.card.nextAstro.at, todaySnapshot.now)}
+                                    {fmtCountdown(todaySnapshot.nextAstroEffective.at, todaySnapshot.now)}
                                 </span>
                             </span>
                         )}
@@ -441,7 +444,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                 className="relative rounded-3xl overflow-hidden shadow-lift border border-line/90 bg-paper-2"
                 style={{ height: 'clamp(440px, 58dvh, 620px)' }}
             >
-                <div id="real-map-container" className="w-full h-full z-10" style={{ background: baseMapType === 'dark' ? '#1a1a1a' : '#eef4fa' }}></div>
+                <div id="real-map-container" className={`w-full h-full z-10 ${baseMapType === 'dark' ? 'map-canvas-grid-dark' : 'map-canvas-grid'}`}></div>
 
                 {/* 🛰️ 左上角轻量瞬时状态胶囊（瓦片加载中 / 定位反馈 / 滚轮防误触提示，平时完全隐身） */}
                 {(tileLoading || tools.locateNotice || wheelHint) && (
