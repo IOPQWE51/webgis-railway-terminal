@@ -6,40 +6,57 @@ const SearchNavEngine = ({ onLocationFound, onLocate, isLocating = false }) => {
     const [query, setQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
 
-    const handleSearch = async (e) => {
-        if ((e.key === 'Enter' || e.type === 'click') && query.trim() !== '') {
-            setIsSearching(true);
-            const q = query.trim();
-            try {
-                const located = await searchPlace(q);
-                if (located) {
-                    onLocationFound(located.lat, located.lon, located.displayName, located.shortName);
-                    setQuery('');
-                } else {
-                    alert('未能找到该地点，请尝试更完整的名称（如：Paris、北京南站、Tokyo Station）');
-                }
-            } catch (_error) {
-                alert('地点搜索服务暂时异常，请检查网络连接。');
+    const runSearch = async () => {
+        const q = query.trim();
+        if (!q || isSearching) return;
+        setIsSearching(true);
+        try {
+            const located = await searchPlace(q);
+            if (located) {
+                onLocationFound(located.lat, located.lon, located.displayName, located.shortName);
+                setQuery('');
+            } else {
+                alert('未能找到该地点，请尝试更完整的名称（如：Paris、北京南站、Tokyo Station）');
             }
+        } catch (_error) {
+            alert('地点搜索服务暂时异常，请检查网络连接。');
+        } finally {
             setIsSearching(false);
         }
     };
 
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        runSearch();
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.nativeEvent?.isComposing) {
+            e.preventDefault();
+            runSearch();
+        }
+    };
+
     return (
-        <div className="flex items-center bg-paper-3/85 focus-within:bg-paper-2 rounded-xl border border-line/90 focus-within:border-sora focus-within:ring-2 focus-within:ring-sora/20 transition-all overflow-hidden">
+        <form
+            onSubmit={handleSubmit}
+            role="search"
+            className="flex items-center bg-paper-3/85 focus-within:bg-paper-2 rounded-xl border border-line/90 focus-within:border-sora focus-within:ring-2 focus-within:ring-sora/20 transition-all overflow-hidden"
+        >
             <button
-                type="button"
-                onClick={handleSearch}
+                type="submit"
+                disabled={isSearching}
                 aria-label="搜索地点"
-                className="pl-3.5 pr-1 text-ink-3 hover:text-sora-deep transition-colors shrink-0"
+                className="pl-3.5 pr-1 text-ink-3 hover:text-sora-deep transition-colors shrink-0 disabled:opacity-50"
             >
                 {isSearching ? <Loader2 className="w-4 h-4 animate-spin text-sora" /> : <Search className="w-4 h-4" />}
             </button>
             <input 
                 type="text"
+                enterKeyHint="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={handleSearch}
+                onKeyDown={handleKeyDown}
                 placeholder="搜索全球城市、车站或地标..."
                 className="w-full bg-transparent text-[13px] text-ink placeholder-ink-3 py-2.5 px-2 outline-none"
             />
@@ -55,7 +72,7 @@ const SearchNavEngine = ({ onLocationFound, onLocate, isLocating = false }) => {
                     {isLocating ? <Loader2 className="w-4 h-4 animate-spin text-sora" /> : <Crosshair className="w-4 h-4" />}
                 </button>
             )}
-        </div>
+        </form>
     );
 };
 

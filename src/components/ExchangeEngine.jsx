@@ -5,40 +5,53 @@ import { RefreshCw, ArrowRightLeft, AlertCircle, ShoppingBag, Info, Search, X, G
 // [全局配置] 常驻核心货币与 CPI 数据库
 // =====================================================================
 const CURRENCY_CONFIG = {
-    JPY: { code: 'JPY', name: '日元', flag: 'jp', symbol: '¥', cpi: [{ icon: '🍜', label: '一碗拉面', price: '800 - 1000 日元' }, { icon: '🏨', label: '商务酒店(晚)', price: '8000 - 12000 日元' }, { icon: '🚇', label: '地铁单程', price: '200 日元起' }] },
-    USD: { code: 'USD', name: '美元', flag: 'us', symbol: '$', cpi: [{ icon: '🍔', label: '快餐套餐', price: '$10 - $15' }, { icon: '🏨', label: '普通酒店(晚)', price: '$120 - $200' }, { icon: '☕', label: '星巴克咖啡', price: '$5' }] },
-    EUR: { code: 'EUR', name: '欧元', flag: 'eu', symbol: '€', cpi: [{ icon: '🥐', label: '咖啡+可颂', price: '€5 - €8' }, { icon: '🏨', label: '快捷酒店(晚)', price: '€80 - €120' }, { icon: '🚆', label: '城市交通', price: '€2 - €3' }] },
-    KRW: { code: 'KRW', name: '韩元', flag: 'kr', symbol: '₩', cpi: [{ icon: '🍲', label: '拌饭/烤肉单人', price: '10,000 韩元' }, { icon: '🏨', label: '经济酒店(晚)', price: '60,000 韩元' }, { icon: '🚌', label: '公交单程', price: '1,400 韩元' }] },
-    HKD: { code: 'HKD', name: '港币', flag: 'hk', symbol: 'HK$', cpi: [{ icon: '🍜', label: '茶餐厅单人', price: 'HK$50 - HK$80' }, { icon: '🏨', label: '经济酒店(晚)', price: 'HK$600 - HK$1000' }, { icon: '🚇', label: '港铁单程', price: 'HK$10 起' }] },
-    GBP: { code: 'GBP', name: '英镑', flag: 'gb', symbol: '£', cpi: [{ icon: '🐟', label: '炸鱼薯条', price: '£12 - £15' }, { icon: '🏨', label: '普通酒店(晚)', price: '£100 - £150' }, { icon: '🚇', label: '伦敦地铁', price: '£2.5 起' }] },
-    THB: { code: 'THB', name: '泰铢', flag: 'th', symbol: '฿', cpi: [{ icon: '🍜', label: '街边炒粉', price: '50 - 80 泰铢' }, { icon: '🏨', label: '舒适酒店(晚)', price: '1000 泰铢' }, { icon: '💆', label: '马杀鸡(1小时)', price: '300 泰铢' }] }
+    JPY: { code: 'JPY', name: '日元', flag: 'jp', emoji: '🇯🇵', symbol: '¥', cpi: [{ icon: '🍜', label: '一碗拉面', price: '800 - 1000 日元' }, { icon: '🏨', label: '商务酒店(晚)', price: '8000 - 12000 日元' }, { icon: '🚇', label: '地铁单程', price: '200 日元起' }] },
+    USD: { code: 'USD', name: '美元', flag: 'us', emoji: '🇺🇸', symbol: '$', cpi: [{ icon: '🍔', label: '快餐套餐', price: '$10 - $15' }, { icon: '🏨', label: '普通酒店(晚)', price: '$120 - $200' }, { icon: '☕', label: '星巴克咖啡', price: '$5' }] },
+    EUR: { code: 'EUR', name: '欧元', flag: 'eu', emoji: '🇪🇺', symbol: '€', cpi: [{ icon: '🥐', label: '咖啡+可颂', price: '€5 - €8' }, { icon: '🏨', label: '快捷酒店(晚)', price: '€80 - €120' }, { icon: '🚆', label: '城市交通', price: '€2 - €3' }] },
+    KRW: { code: 'KRW', name: '韩元', flag: 'kr', emoji: '🇰🇷', symbol: '₩', cpi: [{ icon: '🍲', label: '拌饭/烤肉单人', price: '10,000 韩元' }, { icon: '🏨', label: '经济酒店(晚)', price: '60,000 韩元' }, { icon: '🚌', label: '公交单程', price: '1,400 韩元' }] },
+    HKD: { code: 'HKD', name: '港币', flag: 'hk', emoji: '🇭🇰', symbol: 'HK$', cpi: [{ icon: '🍜', label: '茶餐厅单人', price: 'HK$50 - HK$80' }, { icon: '🏨', label: '经济酒店(晚)', price: 'HK$600 - HK$1000' }, { icon: '🚇', label: '港铁单程', price: 'HK$10 起' }] },
+    GBP: { code: 'GBP', name: '英镑', flag: 'gb', emoji: '🇬🇧', symbol: '£', cpi: [{ icon: '🐟', label: '炸鱼薯条', price: '£12 - £15' }, { icon: '🏨', label: '普通酒店(晚)', price: '£100 - £150' }, { icon: '🚇', label: '伦敦地铁', price: '£2.5 起' }] },
+    THB: { code: 'THB', name: '泰铢', flag: 'th', emoji: '🇹🇭', symbol: '฿', cpi: [{ icon: '🍜', label: '街边炒粉', price: '50 - 80 泰铢' }, { icon: '🏨', label: '舒适酒店(晚)', price: '1000 泰铢' }, { icon: '💆', label: '马杀鸡(1小时)', price: '300 泰铢' }] }
 };
 
 // =====================================================================
 // [扩展配置] 隐藏的全球货币库 (供搜索使用)
 // =====================================================================
 const EXTENDED_CURRENCIES = {
-    AUD: { code: 'AUD', name: '澳元', country: '澳大利亚', flag: 'au', symbol: 'A$' },
-    CAD: { code: 'CAD', name: '加元', country: '加拿大', flag: 'ca', symbol: 'C$' },
-    SGD: { code: 'SGD', name: '新加坡元', country: '新加坡', flag: 'sg', symbol: 'S$' },
-    CHF: { code: 'CHF', name: '瑞郎', country: '瑞士', flag: 'ch', symbol: 'CHF' },
-    NZD: { code: 'NZD', name: '新西兰元', country: '新西兰', flag: 'nz', symbol: 'NZ$' },
-    MYR: { code: 'MYR', name: '林吉特', country: '马来西亚', flag: 'my', symbol: 'RM' },
-    IDR: { code: 'IDR', name: '印尼盾', country: '印度尼西亚', flag: 'id', symbol: 'Rp' },
-    PHP: { code: 'PHP', name: '比索', country: '菲律宾', flag: 'ph', symbol: '₱' },
-    VND: { code: 'VND', name: '越南盾', country: '越南', flag: 'vn', symbol: '₫' },
-    INR: { code: 'INR', name: '卢比', country: '印度', flag: 'in', symbol: '₹' },
-    RUB: { code: 'RUB', name: '卢布', country: '俄罗斯', flag: 'ru', symbol: '₽' },
-    BRL: { code: 'BRL', name: '雷亚尔', country: '巴西', flag: 'br', symbol: 'R$' },
-    ZAR: { code: 'ZAR', name: '兰特', country: '南非', flag: 'za', symbol: 'R' },
-    AED: { code: 'AED', name: '迪拉姆', country: '阿联酋', flag: 'ae', symbol: 'د.إ' },
-    TWD: { code: 'TWD', name: '新台币', country: '中国台湾', flag: 'tw', symbol: 'NT$' },
-    MOP: { code: 'MOP', name: '澳门元', country: '中国澳门', flag: 'mo', symbol: 'MOP$' },
-    SAR: { code: 'SAR', name: '里亚尔', country: '沙特阿拉伯', flag: 'sa', symbol: '﷼' },
-    MXN: { code: 'MXN', name: '比索', country: '墨西哥', flag: 'mx', symbol: '$' },
-    SEK: { code: 'SEK', name: '克朗', country: '瑞典', flag: 'se', symbol: 'kr' },
-    TRY: { code: 'TRY', name: '里拉', country: '土耳其', flag: 'tr', symbol: '₺' }
+    AUD: { code: 'AUD', name: '澳元', country: '澳大利亚', flag: 'au', emoji: '🇦🇺', symbol: 'A$' },
+    CAD: { code: 'CAD', name: '加元', country: '加拿大', flag: 'ca', emoji: '🇨🇦', symbol: 'C$' },
+    SGD: { code: 'SGD', name: '新加坡元', country: '新加坡', flag: 'sg', emoji: '🇸🇬', symbol: 'S$' },
+    CHF: { code: 'CHF', name: '瑞郎', country: '瑞士', flag: 'ch', emoji: '🇨🇭', symbol: 'CHF' },
+    NZD: { code: 'NZD', name: '新西兰元', country: '新西兰', flag: 'nz', emoji: '🇳🇿', symbol: 'NZ$' },
+    MYR: { code: 'MYR', name: '林吉特', country: '马来西亚', flag: 'my', emoji: '🇲🇾', symbol: 'RM' },
+    IDR: { code: 'IDR', name: '印尼盾', country: '印度尼西亚', flag: 'id', emoji: '🇮🇩', symbol: 'Rp' },
+    PHP: { code: 'PHP', name: '比索', country: '菲律宾', flag: 'ph', emoji: '🇵🇭', symbol: '₱' },
+    VND: { code: 'VND', name: '越南盾', country: '越南', flag: 'vn', emoji: '🇻🇳', symbol: '₫' },
+    INR: { code: 'INR', name: '卢比', country: '印度', flag: 'in', emoji: '🇮🇳', symbol: '₹' },
+    RUB: { code: 'RUB', name: '卢布', country: '俄罗斯', flag: 'ru', emoji: '🇷🇺', symbol: '₽' },
+    BRL: { code: 'BRL', name: '雷亚尔', country: '巴西', flag: 'br', emoji: '🇧🇷', symbol: 'R$' },
+    ZAR: { code: 'ZAR', name: '兰特', country: '南非', flag: 'za', emoji: '🇿🇦', symbol: 'R' },
+    AED: { code: 'AED', name: '迪拉姆', country: '阿联酋', flag: 'ae', emoji: '🇦🇪', symbol: 'د.إ' },
+    TWD: { code: 'TWD', name: '新台币', country: '中国台湾', flag: 'tw', emoji: '🇹🇼', symbol: 'NT$' },
+    MOP: { code: 'MOP', name: '澳门元', country: '中国澳门', flag: 'mo', emoji: '🇲🇴', symbol: 'MOP$' },
+    SAR: { code: 'SAR', name: '里亚尔', country: '沙特阿拉伯', flag: 'sa', emoji: '🇸🇦', symbol: '﷼' },
+    MXN: { code: 'MXN', name: '比索', country: '墨西哥', flag: 'mx', emoji: '🇲🇽', symbol: '$' },
+    SEK: { code: 'SEK', name: '克朗', country: '瑞典', flag: 'se', emoji: '🇸🇪', symbol: 'kr' },
+    TRY: { code: 'TRY', name: '里拉', country: '土耳其', flag: 'tr', emoji: '🇹🇷', symbol: '₺' }
 };
+
+/** 零外链本地国旗徽章：彻底摆脱 flagcdn 外链加载失败导致的空白灰块 */
+const CurrencyFlagBadge = ({ emoji, code, size = 'md' }) => (
+    <span
+        className={`inline-flex items-center justify-center rounded-lg bg-paper-3 border border-line/80 shrink-0 select-none ${
+            size === 'sm' ? 'h-6 px-1.5 text-sm gap-1 mr-2' : 'h-8 min-w-[2.5rem] px-2 text-lg mr-3'
+        }`}
+        aria-hidden="true"
+        title={code}
+    >
+        <span className="leading-none">{emoji || '🌐'}</span>
+    </span>
+);
 
 /** 汇率 API 服务（优先 open.er-api.com v6 六位小数高精度源，失败兜底 v4） */
 const exchangeRateService = {
@@ -215,7 +228,7 @@ const ExchangeEngine = ({ isActive }) => {
                                     className="w-full text-left px-4 py-3 hover:bg-sora-soft/60 rounded-xl transition-colors flex items-center justify-between group"
                                 >
                                     <div className="flex items-center">
-                                        <img src={`https://flagcdn.com/w40/${c.flag}.png`} alt={c.code} className="h-5 w-7 object-cover rounded shadow-sm mr-3" />
+                                        <CurrencyFlagBadge emoji={c.emoji} code={c.code} />
                                         <div>
                                             <div className="font-bold text-ink text-sm">{c.country}</div>
                                             <div className="text-xs font-bold text-ink-3">{c.name} ({c.code})</div>
@@ -299,7 +312,7 @@ const ExchangeEngine = ({ isActive }) => {
                     <div className="bg-wakaba-soft/55 p-4 md:p-5 rounded-2xl border border-line focus-within:border-wakaba transition-colors">
                         <div className="flex justify-between items-center mb-3">
                             <label className="text-sm font-bold text-ink flex items-center">
-                                <img src="https://flagcdn.com/w40/cn.png" alt="CN" className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" /> 人民币 (CNY)
+                                <CurrencyFlagBadge emoji="🇨🇳" code="CNY" size="sm" /> 人民币 (CNY)
                             </label>
                             <span className="text-[10px] font-bold bg-paper-2/80 text-ink-2 px-2 py-0.5 rounded-md border border-line/60">基准币</span>
                         </div>
@@ -339,7 +352,7 @@ const ExchangeEngine = ({ isActive }) => {
                     <div className="bg-sora-soft/50 p-4 md:p-6 rounded-2xl border border-line focus-within:border-sora focus-within:outline focus-within:outline-2 focus-within:outline-sora/50 transition-colors">
                         <div className="flex justify-between items-center mb-4 relative">
                             <div className="flex items-center">
-                                <img src={`https://flagcdn.com/w40/${activeConfig.flag}.png`} alt={activeConfig.code} className="h-4 w-6 object-cover rounded-sm mr-2 shadow-sm" />
+                                <CurrencyFlagBadge emoji={activeConfig.emoji} code={activeConfig.code} size="sm" />
                                 <select
                                     value={targetCurrency}
                                     onChange={handleCurrencySelect}

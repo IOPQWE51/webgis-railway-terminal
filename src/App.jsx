@@ -1,13 +1,16 @@
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect, useCallback } from 'react';
 import { MapIcon, Database, Info, Calculator, Sparkles, PlaneTakeoff, CloudFog, User, Calendar } from 'lucide-react';
 import { MapEngine, DataCenter, ExchangeEngine, RulesTab, HanabiRadar, AviationEngine, PilgrimageRadar, SeasonalCalendar } from './components';
 import { BASE_POINTS_CONFIG } from './config/regions';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginOverlay from './components/auth/LoginOverlay.jsx';
+import { closeCyberPanel } from './utils/cyberPanel';
 
 // 🛫 暗黑专业地图整棵子树（MapTactical → MapboxMapTactical → mapbox-gl ≈ 1.7MB）
 // 按需加载：不进首屏 bundle，首次切入 Dark 2D 模式时才拉取异步块
 const MapTactical = lazy(() => import('./pages/MapTactical'));
+// 🌐 独立 3D 地球航线画中画（Three.js + OrbitControls + GLTFLoader，零首屏开销）
+const FlightGlobe3D = lazy(() => import('./components/FlightGlobe3D'));
 // 🛠️ 导入工具函数
 import { parseViewHash, shouldRestoreSharedView, isOwnDeviceView } from './utils/urlState';
 import { usePoints } from './hooks/usePoints';
@@ -23,6 +26,7 @@ const App = () => {
     const [subCultureView, setSubCultureView] = useState('seasonal'); // 季节与巡礼子视图：'seasonal' | 'japan'
     const [selectedDate, setSelectedDate] = useState(''); // 🗓️ 地图光影规划日期（供季节窗口联动同步）
     const [activeFlightArc, setActiveFlightArc] = useState(null); // ✈️ 机票页联动绘制的大圆航线
+    const [flight3DRoute, setFlight3DRoute] = useState(null); // 🌐 独立 3D 航线画中画当前航线
     const [isOffline, setIsOffline] = useState(() => (typeof navigator !== 'undefined' ? !navigator.onLine : false));
 
     useEffect(() => {
@@ -122,11 +126,21 @@ const App = () => {
         };
     }, [customPoints]);
 
-    const handleLocateExternal = (pt) => {
+    const handleLocateExternal = useCallback((pt) => {
         if (!pt || !Number.isFinite(pt.lat) || !Number.isFinite(pt.lon)) return;
+        if (pt.viewOnly) closeCyberPanel();
         setPendingMapTarget(pt);
         setActiveTab('map');
-    };
+    }, []);
+
+    const handleTargetHandled = useCallback(() => {
+        setPendingMapTarget(null);
+    }, []);
+
+    const handleSwitchTab = useCallback((nextTab) => {
+        if (nextTab !== 'map') closeCyberPanel();
+        setActiveTab(nextTab);
+    }, []);
 
     const handleEnterTactical = (view = null) => {
         setTacticalInitialView(view);
@@ -198,7 +212,7 @@ const App = () => {
                                         key={tab.id}
                                         type="button"
                                         onClick={(e) => {
-                                            setActiveTab(tab.id);
+                                            handleSwitchTab(tab.id);
                                             e.currentTarget.blur();
                                         }}
                                         role="tab"
@@ -270,12 +284,13 @@ const App = () => {
                         onDeletePoint={(pointId) => handlePointsUpdate(customPoints.filter(p => p.id !== pointId))}
                         onPointsUpdate={handlePointsUpdate}
                         pendingMapTarget={pendingMapTarget}
-                        onTargetHandled={() => setPendingMapTarget(null)}
+                        onTargetHandled={handleTargetHandled}
                         onEnterTactical={handleEnterTactical}
-                        onSwitchTab={setActiveTab}
-                        onOpenItinerary={() => { setDataSubView('itinerary'); setActiveTab('data'); }}
+                        onSwitchTab={handleSwitchTab}
+                        onOpenItinerary={() => { closeCyberPanel(); setDataSubView('itinerary'); setActiveTab('data'); }}
                         activeFlightArc={activeFlightArc}
                         onClearFlightArc={() => setActiveFlightArc(null)}
+                        onOpen3DFlight={(route) => setFlight3DRoute(route)}
                         selectedDate={selectedDate}
                         onSelectedDateChange={setSelectedDate}
                         skipIpAutoLocate={hasInitialHashView}
@@ -283,15 +298,17 @@ const App = () => {
                     
                     <DataCenter isActive={activeTab === 'data'} customPoints={customPoints} onPointsUpdate={handlePointsUpdate} session={session} onOpenAuth={() => setAuthOverlayOpen(true)} onLogout={handleLogout} subView={dataSubView} onSubViewChange={setDataSubView} />
                     
-                    <RulesTab isActive={activeTab === 'rules'} customPoints={customPoints} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: region.centerLabel || region.name, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
+                    <RulesTab isActive={activeTab === 'rules'} customPoints={customPoints} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, regionId: region.id, name: region.centerLabel || region.name, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
                     <AviationEngine
                         isActive={activeTab === 'aviation'}
                         customPoints={customPoints}
                         onShowFlightArc={(arc) => {
+                            closeCyberPanel();
                             setActiveFlightArc(arc);
                             setActiveTab('map');
                         }}
+                        onOpen3DFlight={(route) => setFlight3DRoute(route)}
                     />
 
                         {activeTab === 'sub-culture' && (
@@ -368,6 +385,23 @@ const App = () => {
                 </div>
             </div>
         )}
+            {flight3DRoute && (
+                <ErrorBoundary label="3D 航线画中画" onReset={() => setFlight3DRoute(null)}>
+                    <Suspense
+                        fallback={
+                            <div className="fixed bottom-4 right-4 z-[9998] px-4 py-3 rounded-2xl bg-slate-950/92 border border-sky-500/40 text-sky-300 text-xs font-bold shadow-2xl flex items-center gap-2">
+                                <span className="w-3.5 h-3.5 rounded-full border-2 border-sky-500/30 border-t-sky-400 animate-spin" />
+                                正在加载 3D 航线地球引擎...
+                            </div>
+                        }
+                    >
+                        <FlightGlobe3D
+                            route={flight3DRoute}
+                            onClose={() => setFlight3DRoute(null)}
+                        />
+                    </Suspense>
+                </ErrorBoundary>
+            )}
             {authOverlayOpen && (
                 <LoginOverlay
                     onClose={() => setAuthOverlayOpen(false)}

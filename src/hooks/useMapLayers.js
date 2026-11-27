@@ -3,7 +3,7 @@ import { getIconStyle } from '../utils/helpers';
 import { TYPE_COLORS, GLOBAL_WEATHER_NODES, BASE_MAPS, OWM_API_KEY, getPointFilterType } from '../config/mapConstants';
 import { RAILWAY_LINES_CONFIG } from '../config/regions';
 import { generatePopupContent } from '../utils/photoEngine';
-import { openCyberPanel } from '../utils/cyberPanel';
+import { openCyberPanel, closeCyberPanel } from '../utils/cyberPanel';
 import { computeSolarAzimuths, projectPointByBearing, rayLengthKmForZoom } from '../utils/sunAzimuth';
 import { computeGreatCirclePoints } from '../utils/flightArc';
 
@@ -50,6 +50,7 @@ export const useMapLayers = (
     {
         onTileLoadingChange = null,
         onPointSelect = null,
+        onRegionView = null,
         selectedPoint = null,
         selectedDate = '',
         activeFlightArc = null,
@@ -67,10 +68,14 @@ export const useMapLayers = (
     const targetBeaconRef = useRef(null);
     const tileLoadingCbRef = useRef(onTileLoadingChange);
     const pointSelectCbRef = useRef(onPointSelect);
+    const regionViewCbRef = useRef(onRegionView);
+    const targetHandledCbRef = useRef(onTargetHandled);
     useEffect(() => {
         tileLoadingCbRef.current = onTileLoadingChange;
         pointSelectCbRef.current = onPointSelect;
-    }, [onTileLoadingChange, onPointSelect]);
+        regionViewCbRef.current = onRegionView;
+        targetHandledCbRef.current = onTargetHandled;
+    }, [onTileLoadingChange, onPointSelect, onRegionView, onTargetHandled]);
 
     /** 将准星移动到指定经纬度并智能偏移镜头（避开移动端底部面板） */
     const updateTargetBeacon = useCallback((lat, lng) => {
@@ -190,10 +195,14 @@ export const useMapLayers = (
 
         let timer = null;
         const flyToTarget = () => {
-            // 🌍 viewOnly（例如从出行指南一键查看国家铁路骨架）：直接切换视角与缩放，不落单点准星
+            // 先用 pan:false 同步容器最新尺寸（从隐藏 Tab 切回时消除 0×0 视口导致 setView 偏移/失效）
+            try { map.invalidateSize({ pan: false, animate: false }); } catch { /* ignore */ }
+            // 🌍 viewOnly（例如从出行指南一键查看国家铁路骨架）：直接切换视角与缩放、同步焦点栏与骨架图层，不落单点准星
             if (pt.viewOnly) {
+                closeCyberPanel();
+                regionViewCbRef.current?.(pt);
                 map.setView([pt.lat, pt.lon], pt.zoom ?? 5, { animate: false });
-                if (onTargetHandled) onTargetHandled();
+                targetHandledCbRef.current?.();
                 return;
             }
             if (Number.isFinite(pt.zoom)) {
@@ -202,7 +211,7 @@ export const useMapLayers = (
             // 🏠 silent = 本机收藏视角恢复：只挪镜头画准星，不弹战术面板（自家视角无需仪式感）
             updateTargetBeacon(pt.lat, pt.lon);
             if (pt.silent) {
-                if (onTargetHandled) onTargetHandled();
+                targetHandledCbRef.current?.();
                 return;
             }
             pointSelectCbRef.current?.({ lat: pt.lat, lon: pt.lon, name: pt.name });
@@ -216,12 +225,12 @@ export const useMapLayers = (
                 )
             );
             // 通知父组件已经处理完成
-            if (onTargetHandled) onTargetHandled();
+            targetHandledCbRef.current?.();
         };
-        const onLoad = () => { timer = setTimeout(flyToTarget, 300); };
+        const onLoad = () => { timer = setTimeout(flyToTarget, 220); };
 
         if (map._loaded) {
-            timer = setTimeout(flyToTarget, 300);
+            timer = setTimeout(flyToTarget, 220);
         } else {
             map.once('load', onLoad);
         }
@@ -230,7 +239,7 @@ export const useMapLayers = (
             clearTimeout(timer);
             map.off('load', onLoad);
         };
-    }, [pendingMapTarget, leafletReady, mapRef, onTargetHandled, updateTargetBeacon]);
+    }, [pendingMapTarget, leafletReady, mapRef, updateTargetBeacon]);
 
     // 1b. 点击地图任意空白处：战术锁定、绘制信标并打开分析面板
     useEffect(() => {
@@ -404,7 +413,7 @@ export const useMapLayers = (
                     interactive: false,
                     icon: L.divIcon({
                         className: 'sun-azimuth-pill',
-                        html: `<div style="transform:translate(-50%,-50%); white-space:nowrap; background:rgba(15,23,42,0.86); color:${color}; border:1px solid ${color}; border-radius:999px; padding:2px 8px; font-size:11px; font-weight:800; box-shadow:0 3px 10px rgba(0,0,0,0.22);">${labelPrefix} ${Math.round(info.bearingDeg)}° ${info.compass}</div>`,
+                        html: `<div style="display:inline-flex; align-items:center; width:max-content; transform:translate(-50%,-50%); white-space:nowrap; background:rgba(15,23,42,0.92); color:${color}; border:1.5px solid ${color}; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:800; box-shadow:0 3px 10px rgba(0,0,0,0.28);">${labelPrefix} ${Math.round(info.bearingDeg)}° ${info.compass}</div>`,
                         iconSize: [0, 0],
                     }),
                 }).addTo(layer);
@@ -425,7 +434,7 @@ export const useMapLayers = (
         };
     }, [leafletReady, mapRef, selectedPoint, selectedDate, filters.azimuth]);
 
-    // 7. ✈️ 机票大圆航线弧线图层（AviationEngine 联动）
+    // 7. ✈️ 机票大圆航线弧线图层（AviationEngine 联动：白边描底 + 深钴蓝主弧线 + 高对比深色胶囊，浅/深底图皆清晰）
     useEffect(() => {
         if (!leafletReady || !mapRef.current) return;
         const L = window.L;
@@ -435,28 +444,44 @@ export const useMapLayers = (
         layer.clearLayers();
 
         if (!activeFlightArc?.from || !activeFlightArc?.to) return;
+        closeCyberPanel();
         const { from, to } = activeFlightArc;
         const arcPoints = computeGreatCirclePoints(from.lat, from.lon, to.lat, to.lon, 56);
         if (arcPoints.length < 2) return;
 
-        L.polyline(arcPoints, { color: '#0284c7', weight: 6, opacity: 0.18, interactive: false }).addTo(layer);
-        L.polyline(arcPoints, { color: '#0284c7', weight: 2.5, dashArray: '7 6', opacity: 0.95, interactive: false }).addTo(layer);
+        // 白色外描边托底 + 高对比深钴蓝虚线主弧
+        L.polyline(arcPoints, { color: '#ffffff', weight: 6.5, opacity: 0.9, interactive: false }).addTo(layer);
+        L.polyline(arcPoints, { color: '#1d4ed8', weight: 3, dashArray: '8 6', opacity: 0.98, interactive: false }).addTo(layer);
 
-        const makeHubMarker = (hub, coord, tag) =>
-            L.marker(coord, {
+        const makeHubMarker = (hub, coord, tag, accent) => {
+            L.circleMarker(coord, {
+                radius: 5.5,
+                color: '#ffffff',
+                weight: 2.5,
+                fillColor: accent,
+                fillOpacity: 1,
                 interactive: false,
+            }).addTo(layer);
+            return L.marker(coord, {
+                interactive: false,
+                zIndexOffset: 700,
                 icon: L.divIcon({
                     className: 'flight-hub-pill',
-                    html: `<div style="transform:translate(-50%,-115%); white-space:nowrap; background:#0f172a; color:#f8fafc; border:1.5px solid #38bdf8; border-radius:10px; padding:3px 8px; font-size:11px; font-weight:800; box-shadow:0 4px 12px rgba(2,132,199,0.35);">✈️ ${hub.code} ${hub.city} <span style="color:#38bdf8;font-weight:700;">${tag}</span></div>`,
+                    html: `<div style="display:inline-flex; align-items:center; gap:5px; width:max-content; transform:translate(-50%,-130%); white-space:nowrap; background:rgba(15,23,42,0.94); color:#f8fafc; border:1.5px solid ${accent}; border-radius:10px; padding:4px 10px; font-size:11px; font-weight:800; box-shadow:0 4px 14px rgba(15,23,42,0.38);"><span>✈️ ${hub.code} ${hub.city}</span><span style="color:#7dd3fc; font-weight:700;">${tag}</span></div>`,
                     iconSize: [0, 0],
                 }),
             });
+        };
 
-        makeHubMarker(from, arcPoints[0], '起飞').addTo(layer);
-        makeHubMarker(to, arcPoints[arcPoints.length - 1], '降落').addTo(layer);
+        makeHubMarker(from, arcPoints[0], '起飞', '#2563eb').addTo(layer);
+        makeHubMarker(to, arcPoints[arcPoints.length - 1], '降落', '#0ea5e9').addTo(layer);
 
-        try {
-            map.fitBounds(L.latLngBounds(arcPoints), { padding: [56, 56], maxZoom: 6, animate: true });
-        } catch { /* ignore bounds error */ }
+        const fitTimer = setTimeout(() => {
+            try {
+                map.invalidateSize({ pan: false, animate: false });
+                map.fitBounds(L.latLngBounds(arcPoints), { padding: [64, 64], maxZoom: 6, animate: true });
+            } catch { /* ignore bounds error */ }
+        }, 160);
+        return () => clearTimeout(fitTimer);
     }, [leafletReady, mapRef, activeFlightArc]);
 };

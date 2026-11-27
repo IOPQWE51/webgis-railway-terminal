@@ -71,7 +71,7 @@ const LCC_GUIDES = [
     },
 ];
 
-const AviationEngine = ({ isActive, customPoints = [], onShowFlightArc = null }) => {
+const AviationEngine = ({ isActive, customPoints = [], onShowFlightArc = null, onOpen3DFlight = null }) => {
     const [fromCode, setFromCode] = useState('PVG');
     const [toCode, setToCode] = useState('KIX');
 
@@ -161,14 +161,27 @@ const AviationEngine = ({ isActive, customPoints = [], onShowFlightArc = null })
                         </select>
                     </div>
 
-                    <button
-                        type="button"
-                        disabled={!stats || !onShowFlightArc}
-                        onClick={() => onShowFlightArc?.({ from: fromHub, to: toHub, stats })}
-                        className="h-full px-5 py-3 rounded-2xl bg-sora hover:bg-sora-deep disabled:opacity-45 text-sora-ink text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
-                    >
-                        <MapIcon className="w-4 h-4" /> 在地图绘制航线
-                    </button>
+                    <div className="flex items-stretch gap-2">
+                        <button
+                            type="button"
+                            disabled={!stats || !onShowFlightArc}
+                            onClick={() => onShowFlightArc?.({ from: fromHub, to: toHub, stats })}
+                            className="flex-1 px-4 py-3 rounded-2xl bg-sora hover:bg-sora-deep disabled:opacity-45 text-sora-ink text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                        >
+                            <MapIcon className="w-4 h-4" /> 在地图绘制航线
+                        </button>
+                        {onOpen3DFlight && (
+                            <button
+                                type="button"
+                                disabled={!stats}
+                                onClick={() => onOpen3DFlight({ from: fromHub, to: toHub, stats })}
+                                className="px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 disabled:opacity-45 text-sky-300 border border-sky-500/40 text-xs font-bold shadow-sm transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap"
+                                title="独立 3D 地球画中画：昼夜晨昏线 + 写实客机航线漫游（按需懒加载）"
+                            >
+                                <Globe className="w-4 h-4 text-sky-400" /> 3D 航线画中画
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* 航程概览 + 热门快捷组合 */}

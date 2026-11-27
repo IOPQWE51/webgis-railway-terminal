@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon, List, Route, PlaneTakeoff } from 'lucide-react';
+import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon, List, Route, PlaneTakeoff, Globe } from 'lucide-react';
 import TacticalBottomSheet from './TacticalBottomSheet'; // 引入底部详情抽屉
 
 // 导入外部依赖
@@ -19,7 +19,7 @@ import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 import { useTodaySnapshot, fmtCountdown, fmtRemaining } from '../hooks/useTodaySnapshot';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, activeFlightArc = null, onClearFlightArc = null, selectedDate: controlledSelectedDate, onSelectedDateChange = null, skipIpAutoLocate = false }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, activeFlightArc = null, onClearFlightArc = null, onOpen3DFlight = null, selectedDate: controlledSelectedDate, onSelectedDateChange = null, skipIpAutoLocate = false }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const ipLocateDoneRef = useRef(false);
@@ -59,6 +59,17 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         if (pt?.name && !pt.name.startsWith('地图选点')) {
             setFocusLabel(pt.name);
         }
+    }, []);
+
+    // 🌍 从「出行指南」等外部页面跳回查看区域铁道骨架时，同步视野名称、坐标、强制打开骨架图层并联动目录默认区域
+    const handleRegionView = useCallback((pt) => {
+        userInteractedRef.current = true;
+        if (pt?.name) setFocusLabel(pt.name);
+        if (Number.isFinite(pt?.lat) && Number.isFinite(pt?.lon)) {
+            setMapView({ lat: pt.lat, lng: pt.lon, zoom: Math.round(pt.zoom ?? 5) });
+        }
+        if (pt?.regionId) setRailDirectoryRegion(pt.regionId);
+        setFilters((prev) => (prev.framework ? prev : { ...prev, framework: true }));
     }, []);
 
     // 💥 新增：全息雷达监听网络 (接收 cyberPanel 发来的抽屉开启指令)
@@ -171,6 +182,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         {
             onTileLoadingChange: setTileLoading,
             onPointSelect: handlePointSelect,
+            onRegionView: handleRegionView,
             selectedPoint,
             selectedDate,
             activeFlightArc,
@@ -186,8 +198,14 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         basePoints,
     });
 
-    // 处理窗口尺寸变化
-    useEffect(() => { if (isActive && mapRef.current) setTimeout(() => mapRef.current.invalidateSize(), 200); }, [isActive]);
+    // 处理窗口尺寸变化（切回地图时用 pan:false 避免把外部跳转的新视野拉回旧中心）
+    useEffect(() => {
+        if (!isActive || !mapRef.current) return;
+        const timer = setTimeout(() => {
+            try { mapRef.current?.invalidateSize({ pan: false, animate: false }); } catch { /* ignore */ }
+        }, 120);
+        return () => clearTimeout(timer);
+    }, [isActive]);
 
     // ⌨️ 按 Escape 快速关闭右侧地点详情面板，方便回到地图工具栏
     useEffect(() => {
@@ -484,6 +502,16 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                             <span className="font-mono text-sora-deep">
                                 {activeFlightArc.stats.distanceKm.toLocaleString()} km · {activeFlightArc.stats.durationLabel}
                             </span>
+                        )}
+                        {onOpen3DFlight && (
+                            <button
+                                type="button"
+                                onClick={() => onOpen3DFlight(activeFlightArc)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sora text-sora-ink hover:opacity-95 text-[11px] font-bold transition-opacity"
+                                title="在独立 3D 地球画中画中漫游此航线"
+                            >
+                                <Globe className="w-3 h-3" /> 3D 画中画
+                            </button>
                         )}
                         <button
                             type="button"
