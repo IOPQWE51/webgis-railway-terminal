@@ -3,14 +3,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Train, ChevronDown, ChevronRight, MapPin, Navigation, Search } from 'lucide-react';
+import { X, Train, ChevronDown, ChevronRight, MapPin, Navigation, Search, ExternalLink } from 'lucide-react';
 import { REGION_REGISTRY } from '../config/regions';
 import { filterNearby } from '../utils/todayCard';
 import { getIconStyle } from '../utils/helpers';
-
-const UPCOMING_REGIONS = [
-  { id: 'na', icon: '🇺🇸', name: '北美景观专列', hint: 'Amtrak / VIA Rail 观光线 · 规划中' },
-];
 
 export default function RailDirectoryModal({ open, initialRegionId = 'jp', customPoints = [], onClose, onSelectStation, onSelectFavorite }) {
   const [regionId, setRegionId] = useState(initialRegionId || REGION_REGISTRY[0]?.id || 'cn');
@@ -137,28 +133,31 @@ export default function RailDirectoryModal({ open, initialRegionId = 'jp', custo
                 </button>
               );
             })}
-            {UPCOMING_REGIONS.map((item) => (
-              <span
-                key={item.id}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-paper-3/50 text-ink-3 border border-dashed border-line/80 cursor-not-allowed"
-                title={item.hint}
-              >
-                <span aria-hidden="true">{item.icon}</span>
-                <span>{item.name}</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-paper-2 text-ink-3 border border-line/60">未接入</span>
-              </span>
-            ))}
           </div>
 
-          <div className="relative w-full sm:w-52">
-            <Search className="w-3.5 h-3.5 text-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="筛选线路或站名…"
-              className="w-full bg-paper-3/80 border border-line rounded-xl pl-8 pr-3 py-1.5 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora"
-            />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {activeRegion?.timetableUrl && (
+              <a
+                href={activeRegion.timetableUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-sora-soft/75 text-sora-deep border border-sora/25 hover:bg-sora hover:text-sora-ink transition-colors shrink-0"
+                title={`前往 ${activeRegion.timetableLabel}`}
+              >
+                <span>{activeRegion.timetableLabel || '官方时刻表'}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            )}
+            <div className="relative flex-1 sm:w-48">
+              <Search className="w-3.5 h-3.5 text-ink-3 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="筛选线路或站名…"
+                className="w-full bg-paper-3/80 border border-line rounded-xl pl-8 pr-3 py-1.5 text-xs text-ink placeholder-ink-3 outline-none focus:border-sora"
+              />
+            </div>
           </div>
         </div>
 

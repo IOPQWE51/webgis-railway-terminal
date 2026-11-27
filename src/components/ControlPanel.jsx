@@ -78,6 +78,9 @@ const ControlPanel = ({
                         <button type="button" onClick={() => toggleFilter('framework')} className={`py-2 rounded-xl text-xs font-bold border transition-all ${filters.framework ? 'bg-wakaba-soft text-ink border-wakaba/40 shadow-sm' : 'bg-paper-3/60 text-ink-3 border-transparent'}`}>
                             🛤️ 交通骨架
                         </button>
+                        <button type="button" onClick={() => toggleFilter('azimuth')} className={`py-2 rounded-xl text-xs font-bold border transition-all ${filters.azimuth ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm' : 'bg-paper-3/60 text-ink-3 border-transparent'}`}>
+                            🧭 光影射线
+                        </button>
                         {[
                             { id: 'camera', l: '📷 机位', activeCls: 'bg-amber-50 text-amber-800 border-amber-300 shadow-sm' },
                             { id: 'station', l: '🚉 车站', activeCls: 'bg-sora-soft text-sora-deep border-sora/30 shadow-sm' },

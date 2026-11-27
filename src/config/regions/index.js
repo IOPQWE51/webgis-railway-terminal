@@ -12,6 +12,7 @@ import * as korea from './korea.js';
 import * as europe from './europe.js';
 import * as uk from './uk.js';
 import * as panasia from './panasia.js';
+import * as northamerica from './northamerica.js';
 
 export const REGION_REGISTRY = [
     {
@@ -22,6 +23,8 @@ export const REGION_REGISTRY = [
         center: china.CHINA_REGION.center,
         zoom: china.CHINA_REGION.zoom,
         description: china.CHINA_REGION.description,
+        timetableLabel: '12306 时刻表与余票',
+        timetableUrl: 'https://www.12306.cn/index/',
         data: china,
     },
     {
@@ -32,6 +35,8 @@ export const REGION_REGISTRY = [
         center: japan.JAPAN_REGION.center,
         zoom: japan.JAPAN_REGION.zoom,
         description: japan.JAPAN_REGION.description,
+        timetableLabel: 'Yahoo! 乘换案内',
+        timetableUrl: 'https://transit.yahoo.co.jp/',
         data: japan,
     },
     {
@@ -42,6 +47,8 @@ export const REGION_REGISTRY = [
         center: korea.KOREA_REGION.center,
         zoom: korea.KOREA_REGION.zoom,
         description: korea.KOREA_REGION.description,
+        timetableLabel: 'KORAIL 官方时刻',
+        timetableUrl: 'https://www.letskorail.com/',
         data: korea,
     },
     {
@@ -52,6 +59,8 @@ export const REGION_REGISTRY = [
         center: europe.EUROPE_REGION.center,
         zoom: europe.EUROPE_REGION.zoom,
         description: europe.EUROPE_REGION.description,
+        timetableLabel: 'DB 欧洲全网时刻',
+        timetableUrl: 'https://int.bahn.de/en',
         data: europe,
     },
     {
@@ -62,6 +71,8 @@ export const REGION_REGISTRY = [
         center: uk.UK_REGION.center,
         zoom: uk.UK_REGION.zoom,
         description: uk.UK_REGION.description,
+        timetableLabel: 'National Rail 实时车次',
+        timetableUrl: 'https://www.nationalrail.co.uk/',
         data: uk,
     },
     {
@@ -72,7 +83,21 @@ export const REGION_REGISTRY = [
         center: panasia.PANASIA_REGION.center,
         zoom: panasia.PANASIA_REGION.zoom,
         description: panasia.PANASIA_REGION.description,
+        timetableLabel: '泰国 SRT D-Ticket',
+        timetableUrl: 'https://www.dticket.railway.co.th/',
         data: panasia,
+    },
+    {
+        id: northamerica.NORTHAMERICA_REGION.id,
+        name: northamerica.NORTHAMERICA_REGION.name,
+        centerLabel: northamerica.NORTHAMERICA_REGION.centerLabel,
+        icon: northamerica.NORTHAMERICA_REGION.icon,
+        center: northamerica.NORTHAMERICA_REGION.center,
+        zoom: northamerica.NORTHAMERICA_REGION.zoom,
+        description: northamerica.NORTHAMERICA_REGION.description,
+        timetableLabel: 'Amtrak 官方时刻',
+        timetableUrl: 'https://www.amtrak.com/',
+        data: northamerica,
     },
 ];
 

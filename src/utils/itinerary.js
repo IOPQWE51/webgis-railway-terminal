@@ -3,6 +3,50 @@
 
 import { haversineKm } from './todayCard';
 
+const SPEED_KPH_BY_MODE = {
+  rail: 110,
+  walk: 4.5,
+  drive: 65,
+  ferry: 32,
+  flight: 780,
+};
+
+/** 按交通方式与直线距离估算段间参考耗时（分钟，含基础换乘/起步冗余） */
+export function estimateLegDurationMin(distanceKm, mode = 'rail') {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return null;
+  const speed = SPEED_KPH_BY_MODE[mode] || SPEED_KPH_BY_MODE.rail;
+  const detourFactor = mode === 'flight' ? 1.05 : mode === 'walk' ? 1.25 : 1.2;
+  const overhead = mode === 'flight' ? 90 : mode === 'rail' ? 12 : mode === 'ferry' ? 20 : 5;
+  return Math.max(5, Math.round(((distanceKm * detourFactor) / speed) * 60 + overhead));
+}
+
+export function formatDurationZh(mins) {
+  if (!Number.isFinite(mins) || mins <= 0) return '';
+  if (mins < 60) return `约 ${mins} 分钟`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `约 ${h}h ${m}m` : `约 ${h}h`;
+}
+
+/** 将多币种点位预算按参考汇率（1 CNY = rates[cur]）折算汇总为人民币 */
+export function summarizeBudgetCNY(stops = [], ratesFromCNY = {}) {
+  let totalCNY = 0;
+  let count = 0;
+  for (const pt of stops) {
+    const val = Number(pt?.budget);
+    if (!Number.isFinite(val) || val <= 0) continue;
+    const cur = (pt.currency || 'CNY').toUpperCase();
+    if (cur === 'CNY') {
+      totalCNY += val;
+      count += 1;
+    } else if (Number.isFinite(ratesFromCNY?.[cur]) && ratesFromCNY[cur] > 0) {
+      totalCNY += val / ratesFromCNY[cur];
+      count += 1;
+    }
+  }
+  return { totalCNY: Math.round(totalCNY), count };
+}
+
 /** 自然排序天数标签：Day 1 < Day 2 < Day 10；其余按字典序 */
 export function compareDayLabels(a, b) {
   const ma = /^day\s*(\d+)$/i.exec(String(a || '').trim());

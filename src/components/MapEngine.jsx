@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon, List, Route } from 'lucide-react';
+import { Loader2, X, Trash2, Ruler, MapPin, Train, Compass, ArrowUpRight, Database, Info, Calculator, Sparkles, Moon, List, Route, PlaneTakeoff } from 'lucide-react';
 import TacticalBottomSheet from './TacticalBottomSheet'; // 引入底部详情抽屉
 
 // 导入外部依赖
@@ -19,7 +19,7 @@ import { useMapTools } from '../hooks/useMapTools';
 import { useMapLayers } from '../hooks/useMapLayers';
 import { useTodaySnapshot, fmtCountdown, fmtRemaining } from '../hooks/useTodaySnapshot';
 
-const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, skipIpAutoLocate = false }) => {
+const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint, onPointsUpdate, pendingMapTarget = null, onTargetHandled = null, onEnterTactical = null, onSwitchTab = null, onOpenItinerary = null, activeFlightArc = null, onClearFlightArc = null, skipIpAutoLocate = false }) => {
     // 1. 核心引用与基础状态
     const mapRef = useRef(null);
     const ipLocateDoneRef = useRef(false);
@@ -42,7 +42,7 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
     const [mapView, setMapView] = useState(null); // 🌅 拍摄简报用的地图中心
     const [baseMapType, setBaseMapType] = useState('topo'); 
     const [weatherType, setWeatherType] = useState('none'); 
-    const [filters, setFilters] = useState({ framework: true, camera: true, station: true, airport: true, anime: true, hotel: true, spot: true });
+    const [filters, setFilters] = useState({ framework: true, azimuth: true, camera: true, station: true, airport: true, anime: true, hotel: true, spot: true });
     const toggleFilter = (key) => setFilters(prev => ({ ...prev, [key]: !prev[key] }));
 
     const itinerarySummary = useMemo(() => buildItineraryDays(customPoints), [customPoints]);
@@ -166,7 +166,13 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
         tools.isMeasuring,
         pendingMapTarget,
         onTargetHandled,
-        { onTileLoadingChange: setTileLoading, onPointSelect: handlePointSelect }
+        {
+            onTileLoadingChange: setTileLoading,
+            onPointSelect: handlePointSelect,
+            selectedPoint,
+            selectedDate,
+            activeFlightArc,
+        }
     );
 
     // 🌅 共享当地天气/天象/附近点位状态（顶部焦点条 + 底部三栏左卡共用单路请求）
@@ -467,6 +473,28 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                     </div>
                 )}
 
+                {/* ✈️ 大圆航线悬浮条（从机票页绘制航线时出现，支持一键清除） */}
+                {activeFlightArc?.from && activeFlightArc?.to && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1150] flex items-center gap-2.5 bg-paper-2/95 backdrop-blur-md border border-sora/40 rounded-full px-4 py-2 shadow-xl text-xs font-bold text-ink whitespace-nowrap">
+                        <PlaneTakeoff className="w-3.5 h-3.5 text-sora shrink-0" />
+                        <span>{activeFlightArc.from.code} {activeFlightArc.from.city} → {activeFlightArc.to.code} {activeFlightArc.to.city}</span>
+                        {activeFlightArc.stats && (
+                            <span className="font-mono text-sora-deep">
+                                {activeFlightArc.stats.distanceKm.toLocaleString()} km · {activeFlightArc.stats.durationLabel}
+                            </span>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => onClearFlightArc?.()}
+                            className="p-1 rounded-full text-ink-3 hover:text-koi hover:bg-koi-soft transition-colors"
+                            title="清除航线"
+                            aria-label="清除航线"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                )}
+
                 {/* 📏 测距模式悬浮胶囊（仅开启测距时出现） */}
                 {tools.isMeasuring && (
                     <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[1200] flex items-center bg-paper-2/95 backdrop-blur-md rounded-full shadow-xl border border-kouchou/50 px-3.5 py-1.5 whitespace-nowrap">
@@ -605,10 +633,14 @@ const MapEngine = ({ isActive, customPoints = [], basePoints = [], onDeletePoint
                         </div>
                     </div>
                     <div className="pt-2.5 border-t border-line/70 flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-ink-3">
-                        <span>已接入 {REGION_REGISTRY.length} 大区域 · {basePoints.length} 枢纽</span>
-                        <span className="px-2 py-0.5 rounded-full bg-paper-3 border border-dashed border-line text-[10px] font-bold">
-                            🇺🇸 北美观光线规划中
-                        </span>
+                        <span>已全面接入 {REGION_REGISTRY.length} 大区域 · {basePoints.length} 枢纽</span>
+                        <button
+                            type="button"
+                            onClick={() => setRailDirectoryOpen(true)}
+                            className="text-sora-deep font-bold hover:underline"
+                        >
+                            查官方时刻表 →
+                        </button>
                     </div>
                 </section>
 

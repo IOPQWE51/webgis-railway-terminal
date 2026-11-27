@@ -8,14 +8,15 @@
 //
 // 版本纪律：改外壳结构时 bump CACHE_VERSION，旧缓存会在 activate 时清理。
 
-const CACHE_VERSION = 'et-shell-v1';
+const CACHE_VERSION = 'et-shell-v2';
 const SHELL_CACHE = `shell-${CACHE_VERSION}`;
 
-// 安装：预缓存当前外壳的核心入口（index.html + manifest + 图标 + favicon）
+// 安装：预缓存当前外壳的核心入口（/ + index.html + manifest + 图标 + favicon）
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) =>
       Promise.allSettled([
+        cache.add(new Request('/', { cache: 'reload' })),
         cache.add(new Request('/?source=pwa', { cache: 'reload' })),
         cache.add(new Request('/manifest.webmanifest', { cache: 'reload' })),
         cache.add(new Request('/favicon.svg', { cache: 'reload' })),

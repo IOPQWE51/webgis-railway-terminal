@@ -20,6 +20,19 @@ const App = () => {
     const [accountMenuOpen, setAccountMenuOpen] = useState(false); // 顶栏账号快捷菜单
     const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
     const [dataSubView, setDataSubView] = useState('library'); // 收藏与导入子视图：'library' | 'itinerary'
+    const [activeFlightArc, setActiveFlightArc] = useState(null); // ✈️ 机票页联动绘制的大圆航线
+    const [isOffline, setIsOffline] = useState(() => (typeof navigator !== 'undefined' ? !navigator.onLine : false));
+
+    useEffect(() => {
+        const onOnline = () => setIsOffline(false);
+        const onOffline = () => setIsOffline(true);
+        window.addEventListener('online', onOnline);
+        window.addEventListener('offline', onOffline);
+        return () => {
+            window.removeEventListener('online', onOnline);
+            window.removeEventListener('offline', onOffline);
+        };
+    }, []);
     // 记录首屏是否携带坐标分享链接（若携带则优先还原链接视角，不被 IP 自动定位覆盖）
     const [hasInitialHashView] = useState(() => {
         const view = parseViewHash(window.location.hash);
@@ -158,6 +171,11 @@ const App = () => {
                                         <CloudFog className="w-3.5 h-3.5 animate-pulse" />
                                     </span>
                                 )}
+                                {isOffline && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-kouchou-soft text-[10px] font-bold text-ink border border-kouchou/40" title="离线模式：已收藏点位、行程与出行指南本地可用">
+                                        离线可用
+                                    </span>
+                                )}
                             </div>
 
                             {/* 中央导航胶囊条：桌面端同行居中，小屏自动换行满宽 */}
@@ -176,13 +194,17 @@ const App = () => {
                                 ].map((tab) => (
                                     <button
                                         key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
+                                        type="button"
+                                        onClick={(e) => {
+                                            setActiveTab(tab.id);
+                                            e.currentTarget.blur();
+                                        }}
                                         role="tab"
                                         aria-selected={activeTab === tab.id}
-                                        className={`shrink-0 flex items-center px-3 py-1.5 rounded-xl text-[13px] font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap ${
+                                        className={`shrink-0 flex items-center px-3 py-1.5 rounded-xl text-[13px] font-bold transition-[background-color,color,box-shadow] duration-200 ease-out whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-sora/50 ${
                                             activeTab === tab.id
                                                 ? 'bg-sora text-sora-ink shadow-sm'
-                                                : 'text-ink-2 hover:text-ink hover:bg-sora-soft/60'
+                                                : 'bg-transparent text-ink-2 hover:text-ink hover:bg-sora-soft/60'
                                         }`}
                                     >
                                         <tab.icon className="w-3.5 h-3.5 mr-1.5" />
@@ -250,6 +272,8 @@ const App = () => {
                         onEnterTactical={handleEnterTactical}
                         onSwitchTab={setActiveTab}
                         onOpenItinerary={() => { setDataSubView('itinerary'); setActiveTab('data'); }}
+                        activeFlightArc={activeFlightArc}
+                        onClearFlightArc={() => setActiveFlightArc(null)}
                         skipIpAutoLocate={hasInitialHashView}
                     />
                     
@@ -257,7 +281,14 @@ const App = () => {
                     
                     <RulesTab isActive={activeTab === 'rules'} onLocateRegion={(region) => handleLocateExternal({ id: `region_${region.id}`, name: region.centerLabel || region.name, lat: region.center[0], lon: region.center[1], zoom: region.zoom ?? 5, viewOnly: true })} />
                     <ExchangeEngine isActive={activeTab === 'tools'} />
-                    <AviationEngine isActive={activeTab === 'aviation'} />
+                    <AviationEngine
+                        isActive={activeTab === 'aviation'}
+                        customPoints={customPoints}
+                        onShowFlightArc={(arc) => {
+                            setActiveFlightArc(arc);
+                            setActiveTab('map');
+                        }}
+                    />
 
                         {activeTab === 'sub-culture' && (
             <div className="space-y-8 animate-in slide-in-from-bottom duration-500">

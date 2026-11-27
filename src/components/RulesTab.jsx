@@ -120,6 +120,7 @@ const GLOBAL_RULES_CONFIG = [
     },
     {
         id: 'usa',
+        regionPackId: 'na',
         country: "美国",
         enName: "United States",
         icon: "🇺🇸",

@@ -6,6 +6,7 @@ import { convertToRuleFormat } from './ruleDataConverter';
 import { getTopSuggestions } from './ruleMatcher';
 import { computeShootingBrief, formatLocalDateKey } from './shootingBrief';
 import { formatLocalTimeByLon, formatUtcOffsetLabel } from './todayCard';
+import { computeSolarAzimuths } from './sunAzimuth';
 
 /**
  * 格式化单个区间为 HH:MM–HH:MM；极区或缺失时返回优雅兜底
@@ -208,9 +209,12 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride
     const lon = pt.lon;
     const activeDate = dateOverride || (typeof window !== 'undefined' && window.__etSelectedDate) || formatLocalDateKey(new Date(), lon);
     const brief = computeShootingBrief({ lat, lon, date: activeDate });
+    const azimuths = computeSolarAzimuths({ lat, lon, date: activeDate });
 
     const sunrise = formatLocalTimeSafe(brief?.sunrise, lon, lat);
     const sunset = formatLocalTimeSafe(brief?.sunset, lon, lat);
+    const sunriseAzText = azimuths?.sunrise ? `${Math.round(azimuths.sunrise.bearingDeg)}° ${azimuths.sunrise.compass}` : '';
+    const sunsetAzText = azimuths?.sunset ? `${Math.round(azimuths.sunset.bearingDeg)}° ${azimuths.sunset.compass}` : '';
     const morningGold = formatIntervalRange(brief?.morningGolden, lon);
     const eveningGold = formatIntervalRange(brief?.eveningGolden, lon);
     const morningBlue = formatIntervalRange(brief?.morningBlue, lon);
@@ -279,10 +283,12 @@ export const generatePopupContent = (pt, ptId, iconStr, name, desc, dateOverride
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <span style="color:#64748b; font-size: 11px;">日出 Sunrise</span> 
                         <span style="color:#f8fafc; font-size: 16px; font-variant-numeric: tabular-nums;">${sunrise}</span>
+                        ${sunriseAzText ? `<span style="color:#fbbf24; font-size: 11px; font-family: monospace;">🧭 ${sunriseAzText}</span>` : ''}
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 4px;">
                         <span style="color:#64748b; font-size: 11px;">日落 Sunset</span> 
                         <span style="color:#f8fafc; font-size: 16px; font-variant-numeric: tabular-nums;">${sunset}</span>
+                        ${sunsetAzText ? `<span style="color:#fb923c; font-size: 11px; font-family: monospace;">🧭 ${sunsetAzText}</span>` : ''}
                     </div>
                     <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 10px 12px; border-radius: 10px; grid-column: span 2; display: flex; flex-direction: column; gap: 6px;">
                         <span style="color:#fbbf24; font-size: 12px;">✨ 黄金时刻 (-4° ~ +6°)</span> 

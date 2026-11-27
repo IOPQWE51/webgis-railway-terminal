@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { UploadCloud, Server, Loader2, CheckCircle2, Trash2, AlertCircle, Plus, Search, MapPin, ChevronDown, ChevronRight, ShieldCheck, Download, FolderInput, Route, Database } from 'lucide-react';
 import { getIconStyle } from '../utils/helpers';
-import { toJSON, toCSV, exportFileName, downloadTextFile } from '../utils/pointsExport';
+import { toJSON, toCSV, toGPX, toKML, exportFileName, downloadTextFile } from '../utils/pointsExport';
 import ItineraryWorkbench from './ItineraryWorkbench';
 
 /**
@@ -449,12 +449,18 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
         onPointsUpdate(customPoints.map(p => (String(p.id) === String(point.id) ? { ...p, group: trimmed } : p)));
     }, [customPoints, onPointsUpdate]);
 
-    // 📤 v2 一键导出：JSON（完整字段）/ CSV（BOM，Excel 直开不乱码）
+    // 📤 一键多格式导出：JSON（完整字段）/ CSV（Excel 直开）/ GPX（户外地图与轨迹）/ KML（Google Earth）
     const exportJSON = useCallback(() => {
         downloadTextFile(toJSON(customPoints), exportFileName('earth-terminal-points', 'json'), 'application/json');
     }, [customPoints]);
     const exportCSV = useCallback(() => {
         downloadTextFile(toCSV(customPoints), exportFileName('earth-terminal-points', 'csv'), 'text/csv;charset=utf-8');
+    }, [customPoints]);
+    const exportGPX = useCallback(() => {
+        downloadTextFile(toGPX(customPoints), exportFileName('earth-terminal-points', 'gpx'), 'application/gpx+xml;charset=utf-8');
+    }, [customPoints]);
+    const exportKML = useCallback(() => {
+        downloadTextFile(toKML(customPoints), exportFileName('earth-terminal-points', 'kml'), 'application/vnd.google-earth.kml+xml;charset=utf-8');
     }, [customPoints]);
 
     const handlePointClick = useCallback((point) => { if (window.__locatePointOnMap) window.__locatePointOnMap(point.id); }, []);
@@ -623,10 +629,14 @@ const DataCenter = ({ isActive, customPoints, onPointsUpdate, session, onOpenAut
                             <h4 className="font-bold text-ink text-sm">我的收藏点位 ({customPoints.length})</h4>
                             <div className="flex items-center gap-3">
                                 {customPoints.length > 0 && (
-                                    <span className="flex items-center gap-2 text-xs text-sora-deep">
+                                    <span className="flex flex-wrap items-center gap-2 text-xs text-sora-deep">
                                         <button onClick={exportJSON} className="hover:underline flex items-center transition-colors font-bold" title="导出 JSON（完整字段）"><Download className="w-3 h-3 mr-0.5" /> JSON</button>
                                         <span className="text-line">|</span>
                                         <button onClick={exportCSV} className="hover:underline flex items-center transition-colors font-bold" title="导出 CSV（Excel 直开）"><Download className="w-3 h-3 mr-0.5" /> CSV</button>
+                                        <span className="text-line">|</span>
+                                        <button onClick={exportGPX} className="hover:underline flex items-center transition-colors font-bold" title="导出 GPX（户外地图/轨迹）"><Download className="w-3 h-3 mr-0.5" /> GPX</button>
+                                        <span className="text-line">|</span>
+                                        <button onClick={exportKML} className="hover:underline flex items-center transition-colors font-bold" title="导出 KML（Google Earth）"><Download className="w-3 h-3 mr-0.5" /> KML</button>
                                     </span>
                                 )}
                                 {customPoints.length > 0 && <button onClick={clearAllData} className="text-xs text-koi hover:underline flex items-center transition-colors"><Trash2 className="w-3 h-3 mr-1" /> 清空全部</button>}

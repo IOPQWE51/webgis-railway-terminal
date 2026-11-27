@@ -17,7 +17,10 @@ const MAX_GROUP_LEN = 24; // v2 行程分组（specs/2026-09-06-points-model-v2-
 const MAX_FOCAL_LEN = 32; // v3 机位焦段
 const MAX_NOTES_LEN = 240; // v3 机位/点位备注
 const MAX_DAY_LEN = 16; // v3 行程天数标签（如 Day 1 / 2027-04-02）
+const MAX_TIME_SLOT_LEN = 16; // v3 行程时段（如 06:30 / 上午）
+const MAX_CURRENCY_LEN = 8; // v3 行程预算币种
 const VALID_BEST_TIMES = new Set(['', 'morning', 'evening', 'both', 'night']);
+const VALID_TRANSIT_MODES = new Set(['', 'rail', 'walk', 'drive', 'flight', 'ferry']);
 
 /** 数值或数字字符串 → 有限数值；否则 NaN */
 function asFiniteNumber(value) {
@@ -142,6 +145,33 @@ export function validatePointsPayload(body) {
         return { ok: false, error: `${at}dayOrder 需为非负整数` };
       }
       point.dayOrder = dayOrder;
+    }
+    if (raw.timeSlot !== undefined) {
+      const timeSlot = asBoundedString(raw.timeSlot, MAX_TIME_SLOT_LEN);
+      if (timeSlot === null) {
+        return { ok: false, error: `${at}timeSlot 字段不合法（字符串，≤${MAX_TIME_SLOT_LEN} 字符）` };
+      }
+      if (timeSlot !== '') point.timeSlot = timeSlot;
+    }
+    if (raw.transitMode !== undefined) {
+      if (typeof raw.transitMode !== 'string' || !VALID_TRANSIT_MODES.has(raw.transitMode)) {
+        return { ok: false, error: `${at}transitMode 字段不合法` };
+      }
+      if (raw.transitMode !== '') point.transitMode = raw.transitMode;
+    }
+    if (raw.budget !== undefined && raw.budget !== '' && raw.budget !== null) {
+      const budget = asFiniteNumber(raw.budget);
+      if (Number.isNaN(budget) || budget < 0) {
+        return { ok: false, error: `${at}budget 需为非负数值` };
+      }
+      point.budget = Math.round(budget * 100) / 100;
+    }
+    if (raw.currency !== undefined) {
+      const currency = asBoundedString(raw.currency, MAX_CURRENCY_LEN);
+      if (currency === null) {
+        return { ok: false, error: `${at}currency 字段不合法（≤${MAX_CURRENCY_LEN} 字符）` };
+      }
+      if (currency !== '') point.currency = currency.toUpperCase();
     }
 
     points.push(point);
