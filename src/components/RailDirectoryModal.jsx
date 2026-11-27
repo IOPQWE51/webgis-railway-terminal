@@ -9,8 +9,7 @@ import { filterNearby } from '../utils/todayCard';
 import { getIconStyle } from '../utils/helpers';
 
 const UPCOMING_REGIONS = [
-  { id: 'eu', icon: '🇪🇺', name: '欧洲 Eurail', hint: '规划中 · 未接入' },
-  { id: 'kr', icon: '🇰🇷', name: '韩国 KTX', hint: '规划中 · 未接入' },
+  { id: 'na', icon: '🇺🇸', name: '北美景观专列', hint: 'Amtrak / VIA Rail 观光线 · 规划中' },
 ];
 
 export default function RailDirectoryModal({ open, initialRegionId = 'jp', customPoints = [], onClose, onSelectStation, onSelectFavorite }) {

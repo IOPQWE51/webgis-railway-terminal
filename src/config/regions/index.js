@@ -8,6 +8,10 @@
 
 import * as china from './china.js';
 import * as japan from './japan.js';
+import * as korea from './korea.js';
+import * as europe from './europe.js';
+import * as uk from './uk.js';
+import * as panasia from './panasia.js';
 
 export const REGION_REGISTRY = [
     {
@@ -28,9 +32,42 @@ export const REGION_REGISTRY = [
         description: japan.JAPAN_REGION.description,
         data: japan,
     },
-    // 🆕 新区域模板：
-    // import * as europe from './europe.js';
-    // { id: europe.EUROPE_REGION.id, name: europe.EUROPE_REGION.name, icon: '🇪🇺', center: [48.85, 2.35], zoom: 5, description: '欧洲跨国铁路干线', data: europe },
+    {
+        id: korea.KOREA_REGION.id,
+        name: korea.KOREA_REGION.name,
+        icon: korea.KOREA_REGION.icon,
+        center: korea.KOREA_REGION.center,
+        zoom: korea.KOREA_REGION.zoom,
+        description: korea.KOREA_REGION.description,
+        data: korea,
+    },
+    {
+        id: europe.EUROPE_REGION.id,
+        name: europe.EUROPE_REGION.name,
+        icon: europe.EUROPE_REGION.icon,
+        center: europe.EUROPE_REGION.center,
+        zoom: europe.EUROPE_REGION.zoom,
+        description: europe.EUROPE_REGION.description,
+        data: europe,
+    },
+    {
+        id: uk.UK_REGION.id,
+        name: uk.UK_REGION.name,
+        icon: uk.UK_REGION.icon,
+        center: uk.UK_REGION.center,
+        zoom: uk.UK_REGION.zoom,
+        description: uk.UK_REGION.description,
+        data: uk,
+    },
+    {
+        id: panasia.PANASIA_REGION.id,
+        name: panasia.PANASIA_REGION.name,
+        icon: panasia.PANASIA_REGION.icon,
+        center: panasia.PANASIA_REGION.center,
+        zoom: panasia.PANASIA_REGION.zoom,
+        description: panasia.PANASIA_REGION.description,
+        data: panasia,
+    },
 ];
 
 // ── 聚合导出：与迁移前的全局数组同形同名（消费方无感迁移）──

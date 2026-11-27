@@ -25,10 +25,9 @@ describe('BASE_MAPS 底图配置', () => {
 });
 
 describe('REGION_REGISTRY 多国交通骨架包契约', () => {
-  it('已注册中国与日本双区域内容包，且中心点与缩放合法', () => {
+  it('已注册中/日/韩/欧/英/泛亚六大区域内容包，且中心点与缩放合法', () => {
     const ids = REGION_REGISTRY.map((r) => r.id);
-    expect(ids).toContain('cn');
-    expect(ids).toContain('jp');
+    expect(ids).toEqual(expect.arrayContaining(['cn', 'jp', 'kr', 'eu', 'uk', 'sea']));
     for (const region of REGION_REGISTRY) {
       expect(Array.isArray(region.center)).toBe(true);
       expect(region.center).toHaveLength(2);
@@ -38,14 +37,21 @@ describe('REGION_REGISTRY 多国交通骨架包契约', () => {
     }
   });
 
-  it('所有铁道干线引用的站点 ID 均在聚合站点表中存在（防悬空连线）', () => {
+  it('所有铁道干线引用的站点 ID 均在对应区域与聚合站点表中存在（防悬空连线）', () => {
     const stationIds = new Set(BASE_POINTS_CONFIG.map((s) => s.id));
-    expect(stationIds.size).toBeGreaterThanOrEqual(70);
-    for (const line of RAILWAY_LINES_CONFIG) {
-      expect(line.points.length).toBeGreaterThanOrEqual(2);
-      for (const id of line.points) {
-        expect(stationIds.has(id)).toBe(true);
+    expect(stationIds.size).toBeGreaterThanOrEqual(135);
+    for (const region of REGION_REGISTRY) {
+      const localIds = new Set((region.data.STATIONS || []).map((s) => s.id));
+      for (const line of region.data.RAILWAY_LINES || []) {
+        expect(line.points.length).toBeGreaterThanOrEqual(2);
+        expect(typeof line.name).toBe('string');
+        expect(line.name.trim().length).toBeGreaterThan(0);
+        for (const id of line.points) {
+          expect(localIds.has(id)).toBe(true);
+          expect(stationIds.has(id)).toBe(true);
+        }
       }
     }
+    expect(RAILWAY_LINES_CONFIG.length).toBeGreaterThanOrEqual(38);
   });
 });

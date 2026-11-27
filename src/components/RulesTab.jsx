@@ -47,6 +47,7 @@ const GLOBAL_RULES_CONFIG = [
     },
     {
         id: 'korea',
+        regionPackId: 'kr',
         country: "韩国",
         enName: "South Korea",
         icon: "🇰🇷",
@@ -65,6 +66,7 @@ const GLOBAL_RULES_CONFIG = [
     },
     {
         id: 'thailand',
+        regionPackId: 'sea',
         country: "泰国",
         enName: "Thailand",
         icon: "🇹🇭",
@@ -82,6 +84,7 @@ const GLOBAL_RULES_CONFIG = [
     },
     {
         id: 'europe',
+        regionPackId: 'eu',
         country: "欧洲",
         enName: "Europe",
         icon: "🇪🇺",
@@ -99,6 +102,7 @@ const GLOBAL_RULES_CONFIG = [
     },
     {
         id: 'uk',
+        regionPackId: 'uk',
         country: "英国",
         enName: "United Kingdom",
         icon: "🇬🇧",
@@ -133,6 +137,7 @@ const GLOBAL_RULES_CONFIG = [
     },
     {
         id: 'singapore',
+        regionPackId: 'sea',
         country: "新加坡",
         enName: "Singapore",
         icon: "🇸🇬",
